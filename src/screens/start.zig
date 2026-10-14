@@ -413,14 +413,21 @@ fn gameBox(app: *App, width: f32) void {
     gui.rect(list, at, max, theme.fade(theme.panel, 0.92), 8);
     gui.outline(list, at, max, theme.border, 8);
     const middle = at.y + height / 2;
-    gui.dot(list, .{ .x = at.x + px(21), .y = middle }, 5, if (app.linked_game != null) theme.linked else theme.text_off);
+    const session = &app.session;
+    const greeting = if (session.link_state == .linked) session.greeting else null;
+    gui.dot(list, .{ .x = at.x + px(21), .y = middle }, 5, if (greeting != null) theme.linked else theme.text_off);
     gui.sans(.semibold, fonts.size.body);
     // The link is to OpenReliant, which says which game it plays once it answers.
-    const state = if (app.linked_game) |name| gui.print("{s} · linked", .{name}) else "OpenReliant · not linked";
+    const state = if (greeting) |linked| gui.print("{s} · linked", .{linked.game}) else if (session.link_state == .waiting) "OpenReliant · waiting" else "OpenReliant · not linked";
     gui.drawText(list, .{ .x = at.x + px(40), .y = at.y + px(15) }, theme.text, state);
     gui.popFont();
     gui.sans(.regular, fonts.size.ui);
-    const detail = if (app.settings.game_folder) |folder| gui.print("Game folder {s} · linking planned {f}", .{ std.fs.path.basename(folder), commands.plans.debugger }) else "No game folder yet";
+    const detail = if (greeting) |linked|
+        gui.print("OpenReliant {s} · port {d}", .{ linked.openreliant, session.port })
+    else if (app.settings.game_folder) |folder|
+        gui.print("Game folder {s}", .{std.fs.path.basename(folder)})
+    else
+        "No game folder yet";
     gui.drawText(list, .{ .x = at.x + px(40), .y = at.y + px(37) }, theme.text_muted, detail);
     gui.popFont();
     if (app.settings.game_folder) |folder| if (c.ImGui_IsMouseHoveringRect(at, max)) gui.tooltipNow(folder);

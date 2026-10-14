@@ -7,8 +7,8 @@ it fills are [Script](README.md#script), held at a breakpoint, and [Debugging](R
 
 ## What it does
 
-- **Links to the game.** Play starts OpenReliant linked to the editor, and Link to the game links to
-  one already running. The link is OpenReliant's editor link, which carries the original's own
+- **Links to the game.** Play starts OpenReliant linked to the editor, and Link to game links to one
+  already running. The link is OpenReliant's editor link, which carries the original's own
   messages to its mission editor and debugger
   ([The editor link](https://github.com/OpenReliant/openreliant/blob/main/docs/engine/editor-link.md)).
 - **Holds the script at breakpoints.** A breakpoint on a line of the source stops the game's script
@@ -47,30 +47,33 @@ its library exports, so the two can't drift apart.
 ### A session
 
 1. **Play** builds the mission, starts OpenReliant on it with `--editor-link`, and connects once the
-   game listens; it tries again for a few seconds while the game starts. **Link to the game**
-   waits for a game started some other way with `--editor-link`, and connects as it listens.
+   game listens; it tries again for half a minute while the game starts. **Link to game** waits for
+   a game started some other way with `--editor-link`, and connects as it listens. While a game is
+   linked, Play only builds: the game reads the new build at the mission's next attempt.
 2. The game greets the editor (`Hello`). A game the editor has no profile for gets a toast, and the
    link closes.
-3. As the mission starts, the game sends its file. The editor matches it with its last build, and
-   sends the script's flags at once: the game waits a fifth of a second for them before the start
-   parts run, so a breakpoint in a start part can stop it. The editor answers from the task that
-   reads the link, not from the frame, so a busy frame doesn't miss the window.
+3. As the mission starts, the game sends its file. The editor matches it with the build of its text,
+   and sends the script's flags at once: the game holds its start parts until they come, for a
+   second at most, so a breakpoint in a start part can stop it. The editor answers from the task
+   that reads the link, not from the frame, so a busy frame doesn't hold the game up, and answers a
+   mission it has no build of with no flags, so that its start goes on at once.
 4. Each new attempt at the mission reads its file again, and the editor sends the flags again.
-5. **Let the script go** closes the link. The game lets the script go as the editor goes: its hold,
-   its step and the pause clear, and it plays on. The breakpoints stay in the editor, and come back
-   with the next Play or Link to the game; the editor never links again on its own.
+5. **Unlink** closes the link. The game lets the script go as the editor goes: its hold, its step
+   and the pause clear, and it plays on. The breakpoints stay in the editor, and come back with the
+   next Play or Link to game; the editor never links again on its own.
 
 ### Matching the game's mission with the build
 
 Breakpoints and the held line need the map of the build's source lines to the script's statements
-(below). The editor uses it only while the game runs that build: the mission's number is the
-document's, and the scripts and their routines are the same bytes as the build's. Otherwise:
+(below). The build is of the text as it is, which the editor checks as it's typed. The editor uses
+the map only while the game runs that build: the mission's number is the document's, and the
+scripts and their routines are the same bytes as the build's. Otherwise:
 
-| The game plays | The editor says | Breakpoints |
+| The game plays | Toolbar chip | Breakpoints |
 |---|---|---|
-| Another mission | `Mission 12 playing` | Not sent |
-| An older build of this mission | `Older build playing · restart the mission` | Not sent; the next attempt reads the new file |
-| This build | `Mission 90 playing` | Sent |
+| Another mission | `StarLancer · mission 12` | Not sent |
+| An older build of this mission | `Older build · restart mission` | Not sent; the next attempt reads the new file |
+| This build | `StarLancer · mission 90` | Sent |
 
 The globals the game sends are its current values, so the match leaves them out.
 
@@ -82,10 +85,10 @@ The globals the game sends are its current values, so the match leaves them out.
 |---|---|---|---|
 | Not linked | `OpenReliant · not linked` | `Live changes: not linked` | `OpenReliant · not linked` |
 | Waiting for the game | `OpenReliant · waiting` | | |
-| Linked, no mission | `StarLancer · linked` | | `StarLancer · linked · OpenReliant 0.15.0 · editor link on 22539` |
+| Linked, no mission | `StarLancer · linked` | `Live changes: planned` | `StarLancer · linked · OpenReliant 0.15.0 · port 22539` |
 | A mission playing | `StarLancer · mission 90` | | |
-| Held | `Held before line 46 · 41.8 s` | `Held` and the debugging keys | |
-| Paused | `Paused · 41.8 s` | `Paused` | |
+| Held | `Held · line 46 · 41 s` | `Held` and the debugging keys | |
+| Paused | `Paused · 41 s` | `Paused` | |
 
 The chip of a held script names the line, and the condition where one held it:
 `Held · line 53 · condition true`. The clock beside it is the script's, from the state.
@@ -130,8 +133,8 @@ a condition that has held up the game for more than a second in all.
 | Step into | F11 | F7 | Stops before the next statement any thread runs (2) |
 | Run to cursor | Ctrl+F10 | Ctrl+Cmd+C | Runs on to the cursor's line: the editor sets a flag there, and takes it away at the next hold |
 | Pause mission | F6 | F8 | Stops the whole mission, ships and all, or lets it go on (run control 0) |
-| Let the script go | Shift+F5 | Cmd+. | Closes the link; the script plays on |
-| Link to the game | | | Connects to a game already running |
+| Unlink | Shift+F5 | Cmd+. | Closes the link; the script plays on |
+| Link to game | | | Connects to a game already running |
 
 A held script holds up the mission's own work: the ships' orders, the controls, the script's other
 threads, its timers and its clock wait, while the ships fly on as their orders last left them. Pause
@@ -157,11 +160,12 @@ As the [Script](README.md#script) page draws it:
   changed since the last hold is orange.
 - **Watch**: expressions, each worked out on each hold. A new watch is typed at the end of the list.
 - **Output**: the link's messages and the log points' lines, with the script's clock.
-- **The Blocks view**, once it's made ([#3](https://github.com/OpenReliant/openreliant-editor/issues/3)),
-  marks the breakpoints and the held statement on the blocks.
+- **The Blocks view**, once it's made
+  ([#3](https://github.com/OpenReliant/openreliant-editor/issues/3)), marks the breakpoints and the
+  held statement on the blocks.
 
-The values are the state as of the hold. While the script runs, Variables and Watch ask for the
-state four times a second, which costs the game nothing it would notice.
+The values are the state as of the hold. While the script runs, Variables and Watch poll the state,
+4 times a second by default, which costs the game nothing it would notice.
 
 ### The Debugging screen
 
@@ -179,10 +183,10 @@ The Settings' Editor link page, which the [Keys](README.md#keys) page's layout g
 
 | Setting | Default |
 |---|---|
-| Link when playing | On |
-| Port | 22539 |
-| Ask for the state while the script runs | 4 times a second |
-| Breakpoints | Kept for each source file, with Remove all |
+| Link on Play: Play adds `--editor-link` | On |
+| Port: `--editor-link-port` | 22539 |
+| State polling: Off, 1 Hz or 4 Hz | 4 Hz |
+| Breakpoints: per source file, with Remove all | |
 | Live changes | Off, until OpenReliant takes them |
 
 ## In the editor
@@ -192,7 +196,7 @@ The Settings' Editor link page, which the [Keys](README.md#keys) page's layout g
 | `link/connection.zig` | The connection: connects, reads the messages on a task of its own into a queue the frame takes from, and writes them. It answers `Mission file` with the flags itself, through the session's breakpoints. |
 | `debug/session.zig` | The debugging session: the link's state, the match with the build, the flags, the holds, conditions, counts and log points, and the actions |
 | `debug/breakpoints.zig` | The breakpoints of each source file: kind, condition, count, message, enabled; kept in the settings folder |
-| `debug/expression.zig` | Conditions, watches and log points' expressions: read with OpenReliant's Luau parser, worked out over the state |
+| `debug/expression.zig` | Stage 2: conditions, watches and log points' expressions, read with OpenReliant's Luau parser and worked out over the state |
 | `panels.zig` | Threads, Breakpoints, Variables, Watch and Output |
 
 OpenReliant's library reads the text payloads of its own messages, `key=value` lines, into
@@ -212,35 +216,38 @@ StarLancer's offsets or opcodes:
 
 | Need | For | Issue |
 |---|---|---|
-| The compiler's map of source lines to the script's statements, from its library | Line breakpoints, the held line, the listing's lines | To file |
-| The link's text payloads read into records in its library, which `openreliant debug` reads them with now | The editor and `openreliant debug` reading them alike | To file |
-| The start of a mission waiting for the editor's flags, rather than for a fifth of a second | Breakpoints in the start parts, on a slow computer too | To file |
-| The script's events: a trigger firing, a part starting, a command running, a hold | The timeline | To file |
+| The compiler's map of source lines to the script's statements, from its library | Line breakpoints, the held line, the listing's lines | [#1206](https://github.com/OpenReliant/openreliant/issues/1206) |
+| The link's text payloads read into records in its library, which `openreliant debug` reads them with now | The editor and `openreliant debug` reading them alike | [#1206](https://github.com/OpenReliant/openreliant/issues/1206) |
+| The start of a mission waiting for the editor's flags, rather than for a fifth of a second | Breakpoints in the start parts, on a slow computer too | [#1206](https://github.com/OpenReliant/openreliant/issues/1206) |
+| The script's events: a trigger firing, a part starting, a command running, a hold | The timeline | [#1207](https://github.com/OpenReliant/openreliant/issues/1207) |
 | The live scene | The Live scene panel, the inspector's Live section, watches of ranges | [#1059](https://github.com/OpenReliant/openreliant/issues/1059) |
 | The editor's live changes to the mission | Live changes, the status bar's switch | [#1057](https://github.com/OpenReliant/openreliant/issues/1057) |
 | Starting a mission partway through | Play from part, linked | [#577](https://github.com/OpenReliant/openreliant/issues/577) |
 
-The first is small: the compiler keeps each statement's place in the source until the script is
-written, and writes down the offset of the instruction the VM stops before. The second is an
-improvement on the original's fixed wait: the game waits for the editor's flags, or for a second at
-most, while an editor is linked.
+The compiler keeps each statement's place in the source until the script is written, and writes
+down the offset of the instruction the VM stops before. The start's wait is an improvement on the
+original's fixed one: the game waits for the editor's flags, or for a second at most, while an
+editor is linked, and doesn't wait without one.
 
 ## In stages
 
 Each stage is a release of its own, with OpenReliant's part merged first.
 
-1. **Holding.** OpenReliant: the compiler's map, the payloads' records, and the start's wait.
-   Editor: the connection, Play linked, Link to the game, Let the script go, line breakpoints, the
-   held line, Continue, the steps, Run to cursor and Pause, Threads, Variables and Output, the
-   link's states, and the Editor link settings.
-2. **Conditions and watches.** Conditions, hit counts, log points, breakpoints by offset and the
-   kinds of entry, the breakpoint's editor, Watch, the values shown inline, the Debugging screen
-   with the listing beside the source, and `@@` offsets in the palette.
-3. **The timeline**, once OpenReliant sends the script's events.
-4. **The live scene**, once OpenReliant carries it (#1059): the Live scene panel, the inspector's
-   Live section, watches of ranges, and the Scene view's ships where they are now in the game.
-5. **Live changes**, once OpenReliant takes them (#1057): each build sent into the running game,
-   with the status bar's switch.
+1. **Holding** ([#5](https://github.com/OpenReliant/openreliant-editor/issues/5)). OpenReliant: the
+   compiler's map, the payloads' records, and the start's wait. Editor: the connection, Play
+   linked, Link to game, Unlink, line breakpoints, the held line, Continue, the steps, Run to cursor
+   and Pause, Threads, Variables and Output, the link's states, and the Editor link settings.
+2. **Conditions and watches** ([#19](https://github.com/OpenReliant/openreliant-editor/issues/19)).
+   Conditions, hit counts, log points, breakpoints by offset and the kinds of entry, the
+   breakpoint's editor, Watch, the values shown inline, the Debugging screen with the listing
+   beside the source, and `@@` offsets in the palette.
+3. **The timeline** ([#20](https://github.com/OpenReliant/openreliant-editor/issues/20)), once
+   OpenReliant sends the script's events.
+4. **The live scene** ([#21](https://github.com/OpenReliant/openreliant-editor/issues/21)), once
+   OpenReliant carries it: the Live scene panel, the inspector's Live section, watches of ranges,
+   and the Scene view's ships where they are now in the game.
+5. **Live changes** ([#22](https://github.com/OpenReliant/openreliant-editor/issues/22)), once
+   OpenReliant takes them: each build sent into the running game, with the status bar's switch.
 
 ## Checking it
 
@@ -255,8 +262,8 @@ Each stage is a release of its own, with OpenReliant's part merged first.
 
 ## Open questions
 
-- **Let the script go closes the link.** It could instead keep the link and only clear the
-  breakpoints in the game, as a debugger's detach without leaving.
+- **Unlink closes the link.** It could instead keep the link and only clear the breakpoints in the
+  game, as a debugger's detach without leaving.
 - **The editor checks conditions.** OpenReliant could check them in the game later, so that a
   condition on a line that runs often costs nothing; the link would need a message for it.
 - **Breakpoints are kept in the settings folder.** They could go in the mod, to share them, but a

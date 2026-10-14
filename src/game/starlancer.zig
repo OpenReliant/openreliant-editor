@@ -14,6 +14,7 @@ const syntax = source.syntax;
 const commands = openreliant.engine.game.executor.commands;
 const conditions = openreliant.engine.vm.conditions;
 const vm = openreliant.engine.vm;
+const mission_editor = openreliant.engine.game.mission.editor;
 
 const game = @import("../game.zig");
 
@@ -36,6 +37,15 @@ pub const profile: game.Profile = .{
     .readGameMission = readGameMission,
     .decompile = decompile,
     .difference = difference,
+    .sameScript = sameScript,
+    .scriptFlags = scriptFlags,
+    .link = .{
+        .script_flags = mission_editor.tagNamed("script_flags"),
+        .run_control = mission_editor.tagNamed("run_control"),
+        .stopped = @backingInt(mission_editor.Sent.stopped),
+        .first_finished = @backingInt(mission_editor.Sent.first_finished),
+        .runControl = runControl,
+    },
 };
 
 const bigfile = openreliant.engine.game.bigfile;
@@ -113,6 +123,51 @@ fn difference(arena: Allocator, a: []const u8, b: []const u8) game.ReadError!?[]
         error.OutOfMemory => |oom| return oom,
         else => return error.NotAMission,
     };
+}
+
+fn sameScript(a: []const u8, b: []const u8) bool {
+    const first = dte.Mission.parse(a) catch return false;
+    const second = dte.Mission.parse(b) catch return false;
+    const first_script = first.script() catch return false;
+    const second_script = second.script() catch return false;
+    if (!std.mem.eql(u8, first_script, second_script)) return false;
+    const first_parts = first.parts() catch return false;
+    const second_parts = second.parts() catch return false;
+    if (first_parts.len != second_parts.len) return false;
+    for (first_parts, second_parts) |one, other| if (one.block() != other.block()) return false;
+    const first_triggers = first.triggers() catch return false;
+    const second_triggers = second.triggers() catch return false;
+    if (first_triggers.len != second_triggers.len) return false;
+    for (first_triggers, second_triggers) |one, other| if (one.block() != other.block()) return false;
+    return true;
+}
+
+/// The flags the editor link copies over the mission's section 10, as many bytes as
+/// `dte.Mission.scriptFlagsSize` gives, with bit 0 set on the bytes the script holds before
+/// (`vm_run`, docs/engine/editor-link.md in OpenReliant). An offset past the script is left out.
+fn scriptFlags(arena: Allocator, image: []const u8, offsets: []const u32) Allocator.Error!?[]u8 {
+    const mission = dte.Mission.parse(image) catch return null;
+    const flags = try arena.alloc(u8, mission.scriptFlagsSize());
+    @memset(flags, 0);
+    for (offsets) |offset| {
+        if (offset < flags.len) flags[offset] = holds;
+    }
+    return flags;
+}
+
+/// The flag of a byte the script holds before.
+const holds = 1;
+
+fn runControl(control: game.Control) [8]u8 {
+    const RunControl = mission_editor.RunControl;
+    const payload: RunControl = switch (control) {
+        .pause => |on| .{ .command = .pause, .argument = @intFromBool(on) },
+        .run_on => .{ .command = .run_on, .argument = 0 },
+        .step_into => .{ .command = .step_into, .argument = 0 },
+        .step_over => .{ .command = .step_over, .argument = 0 },
+        .run_part => |part| .{ .command = .run_part, .argument = part },
+    };
+    return std.mem.toBytes(payload);
 }
 
 /// Luau's keywords, the contextual ones too, which mission source is written in.
@@ -213,7 +268,7 @@ fn watches(arena: Allocator, condition: conditions.Condition) Allocator.Error![]
 
 fn build(arena: Allocator, text: []const u8) Allocator.Error!game.Built {
     var failure: source.compile.Failure = undefined;
-    const made = source_parser.build(arena, text, &failure) catch |err| switch (err) {
+    const made = source_parser.buildMapped(arena, text, &failure) catch |err| switch (err) {
         error.OutOfMemory => |oom| return oom,
         error.Invalid => {
             const problems = try arena.alloc(game.Problem, 1);
@@ -221,7 +276,13 @@ fn build(arena: Allocator, text: []const u8) Allocator.Error!game.Built {
             return .{ .problems = problems };
         },
     };
-    return .{ .mission = made };
+    const statements = try arena.alloc(game.Statement, made.statements.len);
+    for (statements, made.statements) |*statement, from| statement.* = .{
+        .offset = from.offset,
+        .at = .{ .line = from.at.line, .column = from.at.column },
+        .stops = from.stops,
+    };
+    return .{ .mission = .{ .file = made.file, .statements = statements } };
 }
 
 /// A problem from OpenReliant's message, with the kind of mistake it is where the editor can offer
@@ -611,14 +672,15 @@ fn newMission(arena: Allocator, name: []const u8) Allocator.Error![]const u8 {
     , .{name});
 }
 
-/// `openreliant <game folder> --mission <number>`, with `--part`, `--skip-launch` and `--watch`
-/// for the options asked for.
+/// `openreliant <game folder> --mission <number>`, with `--part`, `--skip-launch`, `--watch` and
+/// `--editor-link` for the options asked for.
 fn playArguments(arena: Allocator, game_folder: []const u8, number: u32, play: game.Play) Allocator.Error![]const []const u8 {
     var arguments: std.ArrayList([]const u8) = .empty;
     try arguments.appendSlice(arena, &.{ game_folder, "--mission", try arena.print("{d}", .{number}) });
     if (play.part) |part| try arguments.appendSlice(arena, &.{ "--part", part });
     if (play.skip_launch) try arguments.append(arena, "--skip-launch");
     if (play.watch) |ship| try arguments.appendSlice(arena, &.{ "--watch", ship });
+    if (play.link) |port| try arguments.appendSlice(arena, &.{ "--editor-link", "--editor-link-port", try arena.print("{d}", .{port}) });
     return arguments.toOwnedSlice(arena);
 }
 
@@ -743,7 +805,57 @@ test "a build of the first mission makes a mission whose listing reads" {
     defer arena.deinit();
     const built = try build(arena.allocator(), first_mission);
     const mission = built.mission;
-    try std.testing.expect(std.mem.find(u8, try listing(arena.allocator(), mission), "routines") != null);
+    try std.testing.expect(std.mem.find(u8, try listing(arena.allocator(), mission.file), "routines") != null);
+}
+
+test "the first mission's statements hold on their lines" {
+    var arena: std.heap.ArenaAllocator = .init(std.testing.allocator);
+    defer arena.deinit();
+    const mission = (try build(arena.allocator(), first_mission)).mission;
+    const script = try (try dte.Mission.parse(mission.file)).script();
+    // The design's held line, the Sabres' attack on line 46 counting from 1, holds before its
+    // command.
+    const attack = mission.statementOn(45).?;
+    try std.testing.expectEqual(dte.Opcode.command, @as(dte.Opcode, @fromBackingInt(script[attack.offset])));
+    try std.testing.expectEqual(attack, mission.statementAt(attack.offset).?);
+    // Its trigger's `return 1` can't hold, so a breakpoint there moves on, to the next trigger.
+    try std.testing.expectEqual(null, mission.statementOn(46));
+    try std.testing.expectEqual(52, mission.breakpointFor(46, 100).?.at.line);
+}
+
+test scriptFlags {
+    var arena: std.heap.ArenaAllocator = .init(std.testing.allocator);
+    defer arena.deinit();
+    const mission = (try build(arena.allocator(), first_mission)).mission;
+    const attack = mission.statementOn(45).?.offset;
+    const flags = (try scriptFlags(arena.allocator(), mission.file, &.{ attack, 1_000_000 })).?;
+    const parsed = try dte.Mission.parse(mission.file);
+    try std.testing.expectEqual(parsed.scriptFlagsSize(), flags.len);
+    try std.testing.expectEqual(1, std.mem.count(u8, flags, &.{holds}));
+    try std.testing.expectEqual(holds, flags[attack]);
+    try std.testing.expectEqual(null, try scriptFlags(arena.allocator(), "not a mission", &.{}));
+}
+
+test sameScript {
+    var arena: std.heap.ArenaAllocator = .init(std.testing.allocator);
+    defer arena.deinit();
+    const built = (try build(arena.allocator(), first_mission)).mission.file;
+    // A comment changes nothing the game runs; another statement does.
+    const commented = try std.mem.concat(arena.allocator(), u8, &.{ "-- A comment.\n", first_mission });
+    try std.testing.expect(sameScript(built, (try build(arena.allocator(), commented)).mission.file));
+    const changed = try std.mem.replaceOwned(u8, arena.allocator(), first_mission, "Wait(5)", "Wait(6)");
+    try std.testing.expect(!sameScript(built, (try build(arena.allocator(), changed)).mission.file));
+    try std.testing.expect(!sameScript(built, "not a mission"));
+}
+
+test runControl {
+    const RunControl = mission_editor.RunControl;
+    const step = std.mem.bytesToValue(RunControl, &runControl(.step_over));
+    try std.testing.expectEqual(RunControl.Command.step_over, step.command);
+    const paused = std.mem.bytesToValue(RunControl, &runControl(.{ .pause = true }));
+    try std.testing.expectEqual(RunControl.Command.pause, paused.command);
+    try std.testing.expectEqual(1, paused.argument);
+    try std.testing.expectEqual(7, std.mem.bytesToValue(RunControl, &runControl(.{ .run_part = 7 })).argument);
 }
 
 test "a name that isn't declared is a mistake the editor can fix" {
@@ -785,8 +897,8 @@ test "a new mission builds" {
 test playArguments {
     var arena: std.heap.ArenaAllocator = .init(std.testing.allocator);
     defer arena.deinit();
-    const arguments = try playArguments(arena.allocator(), "StarLancer", 90, .{ .part = "(F)Start", .skip_launch = true });
-    const expected = [_][]const u8{ "StarLancer", "--mission", "90", "--part", "(F)Start", "--skip-launch" };
+    const arguments = try playArguments(arena.allocator(), "StarLancer", 90, .{ .part = "(F)Start", .skip_launch = true, .link = 4000 });
+    const expected = [_][]const u8{ "StarLancer", "--mission", "90", "--part", "(F)Start", "--skip-launch", "--editor-link", "--editor-link-port", "4000" };
     try std.testing.expectEqual(expected.len, arguments.len);
     for (expected, arguments) |want, got| try std.testing.expectEqualStrings(want, got);
 }
@@ -794,9 +906,9 @@ test playArguments {
 test "a built mission decompiles to source that builds the same mission" {
     var arena: std.heap.ArenaAllocator = .init(std.testing.allocator);
     defer arena.deinit();
-    const built = (try build(arena.allocator(), first_mission)).mission;
+    const built = (try build(arena.allocator(), first_mission)).mission.file;
     const text = try decompile(arena.allocator(), built);
-    const again = (try build(arena.allocator(), text)).mission;
+    const again = (try build(arena.allocator(), text)).mission.file;
     try std.testing.expectEqual(null, try difference(arena.allocator(), built, again));
 }
 

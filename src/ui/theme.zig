@@ -99,6 +99,8 @@ pub const held = rgb(0x2a1a0d);
 pub const held_text = rgb(0xffd2a6);
 pub const held_dim = rgb(0xc79a73);
 pub const held_line = fade(accent, 0.14);
+/// The row of the thread the game holds.
+pub const held_row = rgb(0x1b1510);
 
 /// Breakpoints and errors.
 pub const breakpoint = rgb(0xe5484d);

@@ -388,7 +388,7 @@ fn toolbar(app: *App) void {
     row.next(6, widgets.divider_height);
     widgets.toolbarDivider();
     row.next(6, widgets.tool_button_height);
-    const held = app.held;
+    const held = app.held();
     if (widgets.toolButton("continue", .{
         .label = "Continue",
         .icon = .step_forward,
@@ -397,14 +397,14 @@ fn toolbar(app: *App) void {
         .key = if (held) app.keyText(.@"continue") else null,
         .disabled = app.unavailable(.@"continue"),
     })) app.run(.@"continue");
-    inline for (.{ .{ Command.step_over, ui.icons.Icon.redo_dot }, .{ Command.step_into, ui.icons.Icon.arrow_down_to_dot }, .{ Command.pause, ui.icons.Icon.pause }, .{ Command.let_go, ui.icons.Icon.square } }) |button| {
+    inline for (.{ .{ Command.step_over, ui.icons.Icon.redo_dot }, .{ Command.step_into, ui.icons.Icon.arrow_down_to_dot }, .{ Command.pause, ui.icons.Icon.pause }, .{ Command.unlink, ui.icons.Icon.square } }) |button| {
         row.next(6, widgets.tool_button_height);
         const tip = if (app.keyText(button[0])) |key| gui.print("{s}, {s}", .{ commands.info(button[0]).label, key }) else commands.info(button[0]).label;
         if (widgets.toolButton(@tagName(button[0]), .{ .icon = button[1], .icon_only = true, .disabled = app.unavailable(button[0]), .tooltip = tip })) app.run(button[0]);
     }
 
     // The chips, at the toolbar's end.
-    var chips: [2]widgets.Chip = undefined;
+    var chips: [3]widgets.Chip = undefined;
     var chip_count: usize = 0;
     if (document) |open| {
         const found = open.problems();
@@ -417,11 +417,11 @@ fn toolbar(app: *App) void {
             chip_count += 1;
         }
     }
-    // The link is to OpenReliant, which names the game it plays once it answers.
-    chips[chip_count] = if (app.linked_game) |name|
-        .{ .style = .linked, .text = name }
-    else
-        .{ .style = .idle, .text = "OpenReliant", .extra = "not linked", .tooltip = gui.print("The editor link: planned · {f}", .{commands.plans.debugger}) };
+    if (holdChip(app)) |chip| {
+        chips[chip_count] = chip;
+        chip_count += 1;
+    }
+    chips[chip_count] = linkChip(app);
     chip_count += 1;
     var total: f32 = 0;
     for (chips[0..chip_count]) |chip| total += widgets.chipWidth(chip) + px(8);
@@ -435,6 +435,38 @@ fn toolbar(app: *App) void {
         widgets.chip(chip);
     }
     gui.setCursor(.{ .x = window_pos.x, .y = top + px(toolbar_height) });
+}
+
+/// The chip of a held script, or a paused mission: where it holds, and the script's clock.
+fn holdChip(app: *const App) ?widgets.Chip {
+    const session = &app.session;
+    const clock = if (session.state) |snapshot| gui.print("{d} s", .{snapshot.state.clock}) else null;
+    if (session.held) |held| {
+        const text = if (session.heldStatement()) |statement| gui.print("Held · line {d}", .{statement.at.line + 1}) else gui.print("Held · offset {d}", .{held.offset});
+        return .{ .style = .held, .text = text, .extra = clock, .extra_mono = true, .tooltip = "Threads, timers, clock stopped · ships fly on" };
+    }
+    if (session.paused) return .{ .style = .held, .text = "Paused", .extra = clock, .extra_mono = true, .tooltip = "Whole mission paused" };
+    return null;
+}
+
+/// The chip of the editor link: to OpenReliant, which names the game once it answers, then the
+/// mission it plays.
+pub fn linkChip(app: *const App) widgets.Chip {
+    const session = &app.session;
+    return switch (session.link_state) {
+        .off => .{ .style = .idle, .text = "OpenReliant", .extra = "not linked", .tooltip = "Play links · or Game · Link to game" },
+        .waiting => .{ .style = .idle, .text = "OpenReliant", .extra = "waiting", .tooltip = gui.print("127.0.0.1:{d}", .{session.port}) },
+        .linked => linked: {
+            const greeting = session.greeting.?;
+            const tooltip = gui.print("OpenReliant {s} · 127.0.0.1:{d}", .{ greeting.openreliant, session.port });
+            const playing = session.playing orelse break :linked .{ .style = .linked, .text = greeting.game, .extra = "linked", .tooltip = tooltip };
+            if (session.held != null) break :linked .{ .style = .linked, .text = greeting.game, .tooltip = tooltip };
+            break :linked switch (playing.match) {
+                .older_build => .{ .style = .warning, .text = "Older build", .extra = "restart mission", .tooltip = "Rebuild, restart: each attempt rereads the file" },
+                .this_build, .other_mission, .unknown => .{ .style = .linked, .text = greeting.game, .extra = gui.print("mission {d}", .{playing.number}), .tooltip = tooltip },
+            };
+        },
+    };
 }
 
 /// The toolbar's row of controls, each centred on the row as the design's flex row centres them.
@@ -498,11 +530,12 @@ fn statusBar(app: *App) void {
         const text = gui.print("{d} problem{s}", .{ found.len, if (found.len == 1) "" else "s" });
         gui.drawText(list, .{ .x = x, .y = text_y }, theme.error_text, text);
         x += gui.textSize(text).x + gap;
-    } else if (app.held) {
+    } else if (app.held() or app.session.paused) {
+        const text = if (app.held()) "Held" else "Paused";
         gui.dot(list, .{ .x = x + px(3.5), .y = middle }, 3.5, theme.accent);
         x += px(7) + px(6);
-        gui.drawText(list, .{ .x = x, .y = text_y }, theme.held_text, "Held");
-        x += gui.textSize("Held").x + gap;
+        gui.drawText(list, .{ .x = x, .y = text_y }, theme.held_text, text);
+        x += gui.textSize(text).x + gap;
     }
     const cursor = document.editor.cursor();
     for ([_][]const u8{ document.file, gui.print("Ln {d}, Col {d}", .{ cursor.line + 1, cursor.index + 1 }), keyHints(app) }) |part| {
@@ -512,7 +545,7 @@ fn statusBar(app: *App) void {
 
     // At the end: the last build, and live changes.
     var right = window_pos.x + width - px(10);
-    const live = if (found.len > 0) "Live changes paused" else "Live changes: not linked";
+    const live = if (app.session.link_state == .off) "Live changes: not linked" else "Live changes: planned";
     right -= gui.textSize(live).x;
     gui.drawText(list, .{ .x = right, .y = text_y }, theme.text_muted, live);
     right -= gap;
@@ -531,7 +564,7 @@ fn keyHints(app: *App) []const u8 {
     const views = app.settings.keymap.chords(.view_1, system);
     const view_key = if (views.len > 0) gui.print("{f}", .{views[0].written(system)}) else "";
     const views_hint = if (view_key.len > 0) gui.print("{s} to 3 switch views", .{view_key}) else "";
-    if (app.held) {
+    if (app.held()) {
         return gui.print("{s} continue · {s} step over · {s} step into · {s}", .{ app.keyText(.@"continue") orelse "", app.keyText(.step_over) orelse "", app.keyText(.step_into) orelse "", views_hint });
     }
     return gui.print("{s} build · {s} breakpoint · {s}", .{ app.keyText(.build) orelse "", app.keyText(.toggle_breakpoint) orelse "", views_hint });

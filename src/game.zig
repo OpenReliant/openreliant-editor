@@ -33,7 +33,7 @@ pub const Profile = struct {
     source_extension: []const u8,
     /// The words of mission source, for colours, completion and help. Made once by `language`.
     language: *const fn (arena: Allocator) Allocator.Error!Language,
-    /// Builds mission source into a mission file.
+    /// Builds mission source into a mission file, with the map of its script's statements.
     build: *const fn (arena: Allocator, text: []const u8) Allocator.Error!Built,
     /// The records the source declares, for the outline, with the errors Luau's parser finds.
     outline: *const fn (arena: Allocator, text: []const u8) Allocator.Error!Outline,
@@ -57,6 +57,45 @@ pub const Profile = struct {
     /// How mission `b` differs from mission `a`, in a few words; null where they're the same
     /// mission, as the game plays them.
     difference: *const fn (arena: Allocator, a: []const u8, b: []const u8) ReadError!?[]const u8,
+    /// Whether missions `a` and `b` have the same script, with the same routines for the same
+    /// parts and triggers, so that a map of `a`'s statements holds for `b`. Their globals' values
+    /// can differ, as a game's mission file gives them as they stand.
+    sameScript: *const fn (a: []const u8, b: []const u8) bool,
+    /// The script's flags for `mission`, as its script VM reads them: a byte for each byte of the
+    /// script, with the flag that holds the script set on each of `offsets`. Null for a file that
+    /// isn't a mission the profile can read.
+    scriptFlags: *const fn (arena: Allocator, mission: []const u8, offsets: []const u32) Allocator.Error!?[]u8,
+    /// The game's own messages on the editor link.
+    link: Link,
+};
+
+/// The game's own messages on the editor link, beside OpenReliant's, by the tags its table gives
+/// them: StarLancer's are OpenReliant's `engine.game.mission.editor`.
+pub const Link = struct {
+    /// The script's flags, from the editor (`Profile.scriptFlags`).
+    script_flags: u16,
+    /// Run control, from the editor (`runControl`).
+    run_control: u16,
+    /// A thread stopped, from the game: the offset in the script it stopped before.
+    stopped: u16,
+    /// Whether the thread pool's first thread has finished, from the game.
+    first_finished: u16,
+    /// The payload of run control that asks for `control`.
+    runControl: *const fn (control: Control) [8]u8,
+};
+
+/// What the editor asks of the game's script with run control.
+pub const Control = union(enum) {
+    /// Pauses the whole mission, or lets it go on.
+    pause: bool,
+    /// Lets the held script run on to the next breakpoint.
+    run_on,
+    /// Runs to the next statement any thread runs.
+    step_into,
+    /// Runs to the next statement of the same block, past the parts it calls.
+    step_over,
+    /// Runs a part at once, on a new thread, by its index.
+    run_part: u32,
 };
 
 pub const ReadError = Allocator.Error || error{
@@ -95,6 +134,8 @@ pub const Play = struct {
     skip_launch: bool = false,
     /// The ship to watch, by its name.
     watch: ?[]const u8 = null,
+    /// The port the game's editor link listens at, for the editor to link to it; null for none.
+    link: ?u16 = null,
 };
 
 /// A place in a file, counting lines and columns from 0.
@@ -105,10 +146,54 @@ pub const Place = struct {
 
 /// What a build of mission source made.
 pub const Built = union(enum) {
-    /// The mission file.
-    mission: []const u8,
+    mission: Mission,
     /// Why there's none.
     problems: []const Problem,
+};
+
+/// A mission file built from source, with the map of its script's statements to the source.
+pub const Mission = struct {
+    file: []const u8,
+    /// Each statement of the script, in the order of their offsets.
+    statements: []const Statement,
+
+    /// The statement that ends at `offset`, the offset of a stop, if one does.
+    pub fn statementAt(mission: Mission, offset: u32) ?Statement {
+        const index = std.sort.binarySearch(Statement, mission.statements, offset, Statement.order) orelse return null;
+        return mission.statements[index];
+    }
+
+    /// Where a breakpoint on `line` holds the script: the first statement it can hold before on
+    /// that line, or on the next line that has one, up to `last_line`. Null where none does.
+    pub fn breakpointFor(mission: Mission, line: u32, last_line: u32) ?Statement {
+        var best: ?Statement = null;
+        for (mission.statements) |statement| {
+            if (!statement.stops or statement.at.line < line or statement.at.line > last_line) continue;
+            const better = if (best) |found| statement.at.line < found.at.line else true;
+            if (better) best = statement;
+        }
+        return best;
+    }
+
+    /// The first statement the script can hold before on `line`.
+    pub fn statementOn(mission: Mission, line: u32) ?Statement {
+        return mission.breakpointFor(line, line);
+    }
+};
+
+/// A statement of a built mission's script.
+pub const Statement = struct {
+    /// The offset in the script of the instruction it ends with, which the script holds before, as
+    /// the editor link gives a stop.
+    offset: u32,
+    /// Where it starts in the source.
+    at: Place,
+    /// Whether the script can hold before it: it can't before a `return`.
+    stops: bool,
+
+    fn order(offset: u32, statement: Statement) std.math.Order {
+        return std.math.order(offset, statement.offset);
+    }
 };
 
 pub const Problem = struct {
@@ -350,6 +435,25 @@ fn editDistance(a: []const u8, b: []const u8) usize {
         @memcpy(previous[0 .. b.len + 1], current[0 .. b.len + 1]);
     }
     return previous[b.len];
+}
+
+test Mission {
+    const statements = [_]Statement{
+        .{ .offset = 10, .at = .{ .line = 4, .column = 4 }, .stops = true },
+        .{ .offset = 14, .at = .{ .line = 5, .column = 4 }, .stops = false },
+        .{ .offset = 20, .at = .{ .line = 8, .column = 4 }, .stops = true },
+        .{ .offset = 26, .at = .{ .line = 8, .column = 20 }, .stops = true },
+    };
+    const built: Mission = .{ .file = "", .statements = &statements };
+    try std.testing.expectEqual(8, built.statementAt(20).?.at.line);
+    try std.testing.expectEqual(null, built.statementAt(12));
+    // A breakpoint on a line that holds goes there, one on a `return` or a blank line to the next
+    // line that holds, its first statement, but no further than the line given.
+    try std.testing.expectEqual(10, built.breakpointFor(4, 9).?.offset);
+    try std.testing.expectEqual(20, built.breakpointFor(5, 9).?.offset);
+    try std.testing.expectEqual(null, built.breakpointFor(5, 7));
+    try std.testing.expectEqual(null, built.statementOn(5));
+    try std.testing.expectEqual(20, built.statementOn(8).?.offset);
 }
 
 test editDistance {

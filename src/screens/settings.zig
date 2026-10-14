@@ -1,5 +1,6 @@
 //! The settings: the Keys page sets every action's keys on Windows and Linux and on macOS side by
-//! side, the current system's in front, and the Game page where the game and `openreliant` are.
+//! side, the current system's in front, the Game page where the game and `openreliant` are, and
+//! the Editor link page how the editor links to the game.
 
 const std = @import("std");
 const c = @import("c");
@@ -9,6 +10,7 @@ const App = app_mod.App;
 const SettingsPage = app_mod.SettingsPage;
 const commands = @import("../commands.zig");
 const Command = commands.Command;
+const StateRate = @import("../debug/session.zig").StateRate;
 const keys = @import("../keys.zig");
 const shell = @import("../shell.zig");
 const ui = @import("../ui.zig");
@@ -43,7 +45,7 @@ pub fn draw(app: *App) void {
     const top = gui.cursor().y + px(3);
     const bottom = pos.y + size.y - px(24);
     const height = bottom - top - px(3);
-    const notes = app.settings_page == .keys;
+    const notes = app.settings_page == .keys or app.settings_page == .editor_link;
     const content_left = pos.x + px(3) + px(nav_width) + px(3);
     const content_right = pos.x + size.x - px(3) - (if (notes) px(notes_width) + px(3) else 0);
 
@@ -55,16 +57,17 @@ pub fn draw(app: *App) void {
     switch (app.settings_page) {
         .keys => keysPage(app),
         .game => gamePage(app),
-        .general, .appearance, .editor_link => plannedPage(app.settings_page),
+        .editor_link => linkPage(app),
+        .general, .appearance => plannedPage(app.settings_page),
     }
     c.ImGui_EndChild();
 
     if (notes) {
         panel("notes", .{ .x = content_right + px(3), .y = top }, .{ .x = px(notes_width), .y = height });
-        keyNotes();
+        if (app.settings_page == .keys) keyNotes() else linkNotes(app);
         c.ImGui_EndChild();
     }
-    statusBar(app, bottom, pos.x, size.x);
+    if (app.settings_page == .editor_link) linkStatusBar(app, bottom, pos.x, size.x) else statusBar(app, bottom, pos.x, size.x);
 }
 
 /// A panel of the page: the design's `.panel`, a dark box with a line around it.
@@ -113,11 +116,299 @@ fn plannedPage(page: SettingsPage) void {
     widgets.caption(switch (page) {
         .general => "General",
         .appearance => "Appearance",
-        .editor_link => "Editor link",
         else => "",
     }, theme.text_strong, 15, .semibold);
     gui.space(6);
-    widgets.caption(gui.print("Planned · {f}", .{if (page == .editor_link) commands.plans.debugger else commands.plans.settings}), theme.text_dim, fonts.size.small, .regular);
+    widgets.caption(gui.print("Planned · {f}", .{commands.plans.settings}), theme.text_dim, fonts.size.small, .regular);
+}
+
+/// The Editor link page: whether Play links the game, the port, how often the state is asked for
+/// while the script runs, the breakpoints kept, and live changes, planned.
+fn linkPage(app: *App) void {
+    const page_left = gui.cursor().x;
+    const width = gui.available().x;
+    const list = gui.drawList();
+    // The heading, with the link's chip and Unlink at its end: 12 pixels of padding
+    // around its title and the line under it, a pixel apart.
+    const head_top = gui.cursor().y;
+    const title_line = 15 * fonts.line_height;
+    const detail_line = fonts.size.small * fonts.line_height;
+    const head_height = px(12 + title_line + 1 + detail_line + 12 + 1);
+    gui.sans(.semibold, 15);
+    gui.drawText(list, .{ .x = page_left + px(14), .y = gui.textTopIn(head_top + px(12 + title_line / 2), 15) }, theme.text_strong, "Editor link");
+    gui.popFont();
+    gui.sans(.regular, fonts.size.small);
+    gui.drawText(list, .{ .x = page_left + px(14), .y = gui.textTopIn(head_top + px(12 + title_line + 1 + detail_line / 2), fonts.size.small) }, theme.text_dim, "Debugging · live changes");
+    gui.popFont();
+    const unlink = commands.info(.unlink).label;
+    const button_width = widgets.toolButtonWidth(.{ .label = unlink });
+    const chip = shell.linkChip(app);
+    const right = page_left + width - px(14);
+    const head_middle = head_top + head_height / 2;
+    gui.setCursor(.{ .x = right - button_width, .y = head_middle - px(widgets.tool_button_height) / 2 });
+    if (widgets.toolButton("unlink", .{ .label = unlink, .disabled = app.unavailable(.unlink) })) app.run(.unlink);
+    gui.setCursor(.{ .x = right - button_width - px(8) - widgets.chipWidth(chip), .y = head_middle - px(widgets.chip_height) / 2 });
+    widgets.chip(chip);
+    gui.rect(list, .{ .x = page_left, .y = head_top + head_height - px(1) }, .{ .x = page_left + width, .y = head_top + head_height }, theme.divider, 0);
+    gui.setCursor(.{ .x = page_left, .y = head_top + head_height });
+
+    const link = &app.settings.link;
+    {
+        const row: Row = .begin("when playing", "Link on Play", "Play adds ", "--editor-link", false);
+        defer row.end();
+        row.centre(switch_height);
+        if (widgets.toggle("link when playing", link.when_playing, null)) {
+            link.when_playing = !link.when_playing;
+            app.settings.save(app.io);
+        }
+    }
+    {
+        const row: Row = .begin("port", "Port", "", "--editor-link-port", false);
+        defer row.end();
+        row.centre(field_height);
+        portField(app);
+    }
+    {
+        const row: Row = .begin("state", "State polling", "Variables, Watch · while running", null, false);
+        defer row.end();
+        const labels = [_][]const u8{ "Off", "1 Hz", "4 Hz" };
+        row.centre(choice_height);
+        if (choice("state rate", &labels, @backingInt(link.state_rate))) |chosen| {
+            link.state_rate = @fromBackingInt(@intCast(chosen));
+            app.settings.save(app.io);
+        }
+    }
+    {
+        const row: Row = .begin("breakpoints", "Breakpoints", "Per source file", null, false);
+        defer row.end();
+        const count = app.breakpoint_store.count();
+        const text = gui.print("{d} file{s} · {d} breakpoint{s}", .{ count.files, if (count.files == 1) "" else "s", count.breakpoints, if (count.breakpoints == 1) "" else "s" });
+        gui.sans(.regular, fonts.size.ui);
+        gui.drawText(gui.drawList(), .{ .x = gui.cursor().x, .y = gui.textTop(row.middle) }, theme.text_menu, text);
+        gui.popFont();
+        const remove = "Remove all";
+        gui.setCursor(.{ .x = right - widgets.toolButtonWidth(.{ .label = remove }), .y = gui.cursor().y });
+        row.centre(widgets.tool_button_height);
+        const none: ?widgets.Disabled = if (count.breakpoints == 0) .{ .reason = "No breakpoints" } else null;
+        if (widgets.toolButton("remove all", .{ .label = remove, .disabled = none })) app.removeAllBreakpoints();
+    }
+    {
+        const planned: widgets.Disabled = .{ .reason = gui.print("Planned · {f}", .{commands.plans.live_changes}) };
+        const row: Row = .begin("live changes", "Live changes", "Hot-swap each build", null, true);
+        defer row.end();
+        const control_x = gui.cursor().x;
+        row.centre(switch_height);
+        _ = widgets.toggle("live changes", false, planned);
+        gui.setCursor(.{ .x = control_x + px(30) + px(10), .y = row.middle });
+        planTag(planned.reason);
+    }
+    c.ImGui_Dummy(.{ .x = 0, .y = 0 });
+}
+
+/// A row of the Editor link page: its label and the line under it, in a column of their own, with
+/// the control after them in the middle of the row (`centre`), until `end`. The line under the
+/// label can end in a word in the code font, and a row for what's planned is dimmed whole.
+const Row = struct {
+    top: f32,
+    middle: f32,
+    dimmed: bool,
+
+    /// The design's row: 10 pixels of padding around its label's two lines, 2 pixels apart, and
+    /// its line, with the label's column 220 pixels wide.
+    const padding = 10;
+    const label_line = fonts.size.ui * fonts.line_height;
+    const detail_line = fonts.size.small * fonts.line_height;
+    const height = padding * 2 + label_line + 2 + detail_line + 1;
+    const label_column = 220;
+    /// How much a row for what's planned shows.
+    const dimmed_alpha = 0.45;
+
+    fn begin(id: []const u8, label: []const u8, detail: []const u8, detail_code: ?[]const u8, dimmed: bool) Row {
+        const at = gui.cursor();
+        const width = gui.available().x;
+        const list = gui.drawList();
+        gui.pushId(id);
+        if (dimmed) gui.pushVar(c.ImGuiStyleVar_Alpha, dimmed_alpha);
+        gui.rect(list, .{ .x = at.x, .y = at.y + px(height) - px(1) }, .{ .x = at.x + width, .y = at.y + px(height) }, theme.table_line, 0);
+        const label_middle = at.y + px(padding + label_line / 2);
+        const detail_middle = at.y + px(padding + label_line + 2 + detail_line / 2);
+        gui.sans(.regular, fonts.size.ui);
+        gui.drawText(list, .{ .x = at.x + px(14), .y = gui.textTopIn(label_middle, fonts.size.ui) }, theme.text, label);
+        gui.popFont();
+        gui.sans(.regular, fonts.size.small);
+        gui.drawText(list, .{ .x = at.x + px(14), .y = gui.textTopIn(detail_middle, fonts.size.small) }, theme.text_dim, detail);
+        const detail_end = at.x + px(14) + gui.textSize(detail).x;
+        gui.popFont();
+        if (detail_code) |code| {
+            gui.mono(.regular, fonts.size.small);
+            gui.drawText(list, .{ .x = detail_end, .y = gui.textTopIn(detail_middle, fonts.size.small) }, theme.text_dim, code);
+            gui.popFont();
+        }
+        const row: Row = .{ .top = at.y, .middle = at.y + px(padding + (label_line + 2 + detail_line) / 2), .dimmed = dimmed };
+        gui.setCursor(.{ .x = at.x + px(14) + px(label_column) + px(16), .y = row.middle });
+        return row;
+    }
+
+    /// Moves the cursor for a control `control_height` design pixels high, to sit in the middle of
+    /// the row.
+    fn centre(row: Row, control_height: f32) void {
+        gui.setCursor(.{ .x = gui.cursor().x, .y = row.middle - px(control_height) / 2 });
+    }
+
+    fn end(row: Row) void {
+        if (row.dimmed) gui.popVar(1);
+        gui.popId();
+        gui.setCursor(.{ .x = c.ImGui_GetWindowPos().x, .y = row.top + px(height) });
+    }
+};
+
+/// The heights of the page's controls: the switch, the port's field and the choice.
+const switch_height = 16;
+const field_height = 28;
+const choice_height = 30;
+
+/// The port the game listens at, as a field of numbers, saved as it's left.
+fn portField(app: *App) void {
+    const State = struct {
+        var buffer: [8:0]u8 = @splat(0);
+        var editing = false;
+    };
+    const at = gui.cursor();
+    const size = gui.vec2(px(110), px(28));
+    const list = gui.drawList();
+    gui.rect(list, at, gui.add(at, size), theme.button, 4);
+    gui.outline(list, at, gui.add(at, size), theme.border, 4);
+    if (!State.editing) _ = std.mem.printSentinel(&State.buffer, "{d}", .{app.settings.link.port}, 0) catch {};
+    gui.mono(.medium, fonts.size.ui);
+    defer gui.popFont();
+    gui.setCursor(.{ .x = at.x + px(7), .y = at.y });
+    c.ImGui_SetNextItemWidth(size.x - px(14));
+    gui.pushColor(c.ImGuiCol_FrameBg, theme.fade(theme.field, 0));
+    gui.pushColor(c.ImGuiCol_FrameBgHovered, theme.fade(theme.field, 0));
+    gui.pushColor(c.ImGuiCol_FrameBgActive, theme.fade(theme.field, 0));
+    gui.pushVar(c.ImGuiStyleVar_FrameBorderSize, 0);
+    gui.pushVar2(c.ImGuiStyleVar_FramePadding, .{ .x = px(2), .y = gui.textTop(at.y + size.y / 2) - at.y });
+    _ = c.ImGui_InputText("##port", &State.buffer, State.buffer.len + 1, c.ImGuiInputTextFlags_CharsDecimal);
+    gui.popVar(2);
+    gui.popColor(3);
+    State.editing = c.ImGui_IsItemActive();
+    if (c.ImGui_IsItemDeactivatedAfterEdit()) {
+        if (std.fmt.parseInt(u16, std.mem.sliceTo(&State.buffer, 0), 10)) |port| {
+            if (port != 0) {
+                app.settings.link.port = port;
+                app.settings.save(app.io);
+            }
+        } else |_| {}
+    }
+}
+
+/// The design's choice of a few, the settings' `.seg`: each option as wide as its label, the one
+/// chosen lit. The option clicked, if one is.
+fn choice(id: []const u8, options: []const []const u8, current: usize) ?usize {
+    gui.pushId(id);
+    defer gui.popId();
+    gui.sans(.regular, fonts.size.ui);
+    defer gui.popFont();
+    var width = px(3) * 2 + px(2) * @as(f32, @floatFromInt(options.len - 1));
+    for (options) |option| width += gui.textSize(option).x + px(12) * 2;
+    const height = px(30);
+    const at = gui.cursor();
+    const list = gui.drawList();
+    gui.rect(list, at, .{ .x = at.x + width, .y = at.y + height }, theme.field, 5);
+    gui.outline(list, at, .{ .x = at.x + width, .y = at.y + height }, theme.border, 5);
+    var chosen: ?usize = null;
+    var x = at.x + px(3);
+    for (options, 0..) |option, index| {
+        const item_width = gui.textSize(option).x + px(12) * 2;
+        gui.setCursor(.{ .x = x, .y = at.y + px(3) });
+        gui.pushIdInt(index);
+        if (c.ImGui_InvisibleButton("option", .{ .x = item_width, .y = px(24) }, 0)) chosen = index;
+        gui.popId();
+        const on = index == current;
+        if (on) gui.rect(list, .{ .x = x, .y = at.y + px(3) }, .{ .x = x + item_width, .y = at.y + px(27) }, theme.border, 3);
+        gui.drawText(list, .{ .x = x + px(12), .y = gui.textTop(at.y + height / 2) }, if (on) theme.white else theme.text_muted, option);
+        x += item_width + px(2);
+    }
+    gui.setCursor(at);
+    c.ImGui_Dummy(.{ .x = width, .y = height });
+    return chosen;
+}
+
+/// The design's `.plan`: what's planned, in a small grey pill, its middle at the cursor.
+fn planTag(text: []const u8) void {
+    gui.sans(.semibold, 11);
+    defer gui.popFont();
+    const at = gui.cursor();
+    const width = gui.textSize(text).x + px(7) * 2;
+    const height = px(20);
+    const middle = at.y;
+    gui.rect(gui.drawList(), .{ .x = at.x, .y = middle - height / 2 }, .{ .x = at.x + width, .y = middle + height / 2 }, theme.pill, 10);
+    gui.drawText(gui.drawList(), .{ .x = at.x + px(7), .y = gui.textTop(middle) }, theme.text_muted, text);
+    gui.setCursor(.{ .x = at.x, .y = middle - height / 2 });
+    c.ImGui_Dummy(.{ .x = width, .y = height });
+}
+
+/// The notes beside the Editor link page: the game linked, what a hold stops, and how to link a
+/// game started by hand.
+fn linkNotes(app: *App) void {
+    const session = &app.session;
+    const left = gui.cursor().x + px(12);
+    gui.setCursor(.{ .x = left, .y = gui.cursor().y + px(2) });
+    const greeting = if (session.link_state == .linked) session.greeting else null;
+    const plays = if (session.playing) |playing| gui.print("mission {d} · {s}", .{ playing.number, switch (playing.match) {
+        .this_build => "this build",
+        .older_build => "older build",
+        .other_mission => "other mission",
+        .unknown => "checking",
+    } }) else "no mission";
+    const linked_rows = [_][2][]const u8{
+        .{ "Linked", if (greeting) |linked| gui.print("{s} · OpenReliant {s}", .{ linked.game, linked.openreliant }) else if (session.link_state == .waiting) "Waiting" else "No" },
+        .{ "Address", gui.print("127.0.0.1:{d}", .{if (session.link_state == .off) app.settings.link.port else session.port}) },
+        .{ "Plays", plays },
+        .{ "Clients", "1 at a time" },
+    };
+    // Where no game is linked, it plays nothing the editor knows of.
+    const game_rows: []const [2][]const u8 = if (greeting != null) &linked_rows else &.{ linked_rows[0], linked_rows[1], linked_rows[3] };
+    noteSection(left, "The game", game_rows, note_gap);
+    noteSection(left, "While held", &.{
+        .{ "Script", "Threads, timers, clock stop" },
+        .{ "Ships", "Fly on · last orders" },
+        .{ "Pause", "Whole mission stops" },
+        .{ "Start parts", "Loading screen holds" },
+    }, note_gap);
+    gui.setCursor(.{ .x = left, .y = gui.cursor().y + px(14) });
+    const box_at = gui.cursor();
+    const box_width = gui.available().x - px(12);
+    const box_height = px(84);
+    const list = gui.drawList();
+    gui.rect(list, box_at, .{ .x = box_at.x + box_width, .y = box_at.y + box_height }, theme.panel, 5);
+    gui.outline(list, box_at, .{ .x = box_at.x + box_width, .y = box_at.y + box_height }, theme.table_head_line, 5);
+    gui.setCursor(.{ .x = box_at.x + px(10), .y = box_at.y + px(10) });
+    widgets.sectionHeading("Link by hand");
+    gui.setCursor(.{ .x = box_at.x + px(10), .y = gui.cursor().y + px(6) });
+    widgets.monoCaption("openreliant --editor-link", theme.text_menu, fonts.size.small, .regular);
+    gui.setCursor(.{ .x = box_at.x + px(10), .y = gui.cursor().y + px(2) });
+    widgets.caption(gui.print("Then Game · {s}", .{commands.info(.link).label}), theme.text_muted, fonts.size.small, .regular);
+}
+
+fn linkStatusBar(app: *App, top: f32, left: f32, width: f32) void {
+    const list = c.ImGui_GetWindowDrawList();
+    gui.rect(list, .{ .x = left, .y = top }, .{ .x = left + width, .y = top + px(24) }, theme.bar, 0);
+    gui.rect(list, .{ .x = left, .y = top }, .{ .x = left + width, .y = top + px(1) }, theme.divider, 0);
+    gui.sans(.regular, fonts.size.smaller);
+    defer gui.popFont();
+    const y = gui.textTop(top + px(24) / 2);
+    const session = &app.session;
+    const first = gui.print("Editor link · port {d}", .{app.settings.link.port});
+    gui.drawText(list, .{ .x = left + px(10), .y = y }, theme.text_muted, first);
+    const state = switch (session.link_state) {
+        .off => "Not linked",
+        .waiting => "Waiting for game",
+        .linked => gui.print("Linked · {s}", .{session.greeting.?.game}),
+    };
+    gui.drawText(list, .{ .x = left + px(10) + gui.textSize(first).x + px(16), .y = y }, theme.text_muted, state);
+    const end = "Live changes: planned";
+    gui.drawText(list, .{ .x = left + width - px(10) - gui.textSize(end).x, .y = y }, theme.text_muted, end);
 }
 
 fn gamePage(app: *App) void {
@@ -411,12 +702,12 @@ fn keyNotes() void {
         .{ "F11", "Show Desktop · left free" },
         .{ "F-keys", "Media keys by default · fn+F6" },
         .{ "Text", "Option+arrows: words · Cmd+arrows: line ends" },
-    });
+    }, key_note_gap);
     noteSection(left, "Windows, Linux", &.{
         .{ "Debugging", "Visual Studio's keys" },
         .{ "Quit", "Alt+F4 · Linux also Ctrl+Q" },
         .{ "Text", "Ctrl+arrows: words · Home, End" },
-    });
+    }, key_note_gap);
     gui.setCursor(.{ .x = left, .y = gui.cursor().y + px(18) });
     const box_at = gui.cursor();
     const box_width = gui.available().x - px(12);
@@ -432,10 +723,13 @@ fn keyNotes() void {
     widgets.caption("Per system · changed keys only", theme.text_dim, fonts.size.small, .regular);
 }
 
-fn noteSection(left: f32, heading: []const u8, rows: []const [2][]const u8) void {
+/// A section of the notes: its heading, and a row for each pair, the second wrapped in its column,
+/// `gap` design pixels under the last line of the row before.
+fn noteSection(left: f32, heading: []const u8, rows: []const [2][]const u8, gap: f32) void {
     gui.setCursor(.{ .x = left, .y = gui.cursor().y + px(16) });
     widgets.sectionHeading(heading);
     gui.space(6);
+    const spacing = c.ImGui_GetStyle().*.ItemSpacing.y;
     for (rows) |row| {
         gui.setCursor(.{ .x = left, .y = gui.cursor().y });
         const at = gui.cursor();
@@ -444,9 +738,14 @@ fn noteSection(left: f32, heading: []const u8, rows: []const [2][]const u8) void
         gui.wrapAt(c.ImGui_GetWindowPos().x + c.ImGui_GetWindowWidth() - px(12));
         widgets.caption(row[1], theme.text, fonts.size.ui, .regular);
         c.ImGui_PopTextWrapPos();
-        gui.space(4);
+        gui.setCursor(.{ .x = left, .y = gui.cursor().y - spacing + px(gap) });
     }
 }
+
+/// The space under a row of the notes: the Keys page's, and the Editor link page's, whose rows are
+/// 8 pixels apart in lines of 1.45 ems.
+const key_note_gap = 16;
+const note_gap = 8 + (fonts.line_height - 1.3) * fonts.size.ui;
 
 fn statusBar(app: *App, top: f32, left: f32, width: f32) void {
     const list = c.ImGui_GetWindowDrawList();

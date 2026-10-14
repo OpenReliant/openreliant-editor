@@ -7,8 +7,11 @@ const Allocator = std.mem.Allocator;
 const Io = std.Io;
 const c = @import("c");
 
+const breakpoints = @import("debug/breakpoints.zig");
 const commands = @import("commands.zig");
 const Command = commands.Command;
+const session_mod = @import("debug/session.zig");
+const Session = session_mod.Session;
 const document_mod = @import("mission/document.zig");
 const Document = document_mod.Document;
 const game = @import("game.zig");
@@ -136,7 +139,7 @@ pub const Panel = enum {
 pub const OutputLine = struct {
     time: [8]u8,
     text: []const u8,
-    kind: enum { info, success, failure } = .info,
+    kind: toasts.Kind = .info,
 };
 
 /// The outline's selection: a record, by its section and the line its declaration starts on.
@@ -191,11 +194,13 @@ pub const App = struct {
     quit: bool = false,
     /// Whether the window should close once unsaved changes are dealt with.
     closing: bool = false,
-    /// The game the editor link reports in its `Hello`, whose profile the editor then uses; null
-    /// while no game is linked. The link comes with the debugger.
-    linked_game: ?[]const u8 = null,
-    /// The state of the debugger: whether a script is held.
-    held: bool = false,
+    /// The debugger: the editor link to the game, and what it holds.
+    session: Session,
+    /// Each source file's breakpoints, kept in the settings folder.
+    breakpoint_store: breakpoints.Store,
+    /// What the session was last aimed at (`aimSession`): the open mission, the version of its
+    /// text checked and its breakpoints, hashed.
+    aimed: u64 = 0,
 
     /// A folder chosen in the system's dialog, which may answer on another thread: the path, a
     /// copy SDL made, passed over once.
@@ -225,6 +230,8 @@ pub const App = struct {
             .listing_view = listing_view,
             .output_arena = .init(gpa),
             .mods_arena = .init(gpa),
+            .session = .init(gpa, io, profile, wakeWindow),
+            .breakpoint_store = .load(gpa, io, settings.folder),
         };
         if (settings.game_folder == null) {
             if (project.findGameFolder(io, app.mods_arena.allocator(), profile)) |found| settings.setGameFolder(io, found);
@@ -234,9 +241,14 @@ pub const App = struct {
 
     pub fn deinit(app: *App) void {
         // Quitting has already asked about unsaved changes.
-        if (app.document) |document| document.close();
+        if (app.document) |document| {
+            app.keepBreakpoints();
+            document.close();
+        }
         app.document = null;
         app.closeMod();
+        app.session.deinit();
+        app.breakpoint_store.deinit();
         app.listing_view.deinit();
         app.editor_language.deinit();
         app.language_arena.deinit();
@@ -257,6 +269,7 @@ pub const App = struct {
             if (document.checkPending()) app.window.keepBusy();
             if (document.update(c.SDL_GetTicks())) app.clampSelection();
         }
+        app.debugFrame();
         switch (app.screen) {
             .start => start_screen.draw(app),
             .settings => settings_screen.draw(app),
@@ -274,8 +287,8 @@ pub const App = struct {
             const known = commands.info(command);
             switch (known.when) {
                 .always => {},
-                .held => if (!app.held) continue,
-                .not_held => if (app.held) continue,
+                .held => if (!app.held()) continue,
+                .not_held => if (app.held()) continue,
             }
             for (app.settings.keymap.chords(command, keys.System.current)) |chord| {
                 const repeat: c.ImGuiInputFlags = if (repeats(command)) c.ImGuiInputFlags_Repeat else 0;
@@ -305,9 +318,28 @@ pub const App = struct {
             .save_all => if (app.document == null) .{ .reason = needs_document } else null,
             .close_mod => if (app.project == null) .{ .reason = "No mod open" } else null,
             .go_to => if (app.document == null) .{ .reason = needs_document } else null,
+            .@"continue" => if (!app.held()) .{ .reason = "Not held" } else null,
+            .step_over, .step_into, .pause => app.debugUnavailable(),
+            .run_to_cursor => if (!app.held()) .{ .reason = "Not held" } else if (!app.session.mapped()) .{ .reason = "Other build playing" } else null,
+            .unlink => if (app.session.link_state == .off) .{ .reason = "Not linked" } else null,
+            .link => switch (app.session.link_state) {
+                .off => null,
+                .waiting => .{ .reason = "Waiting for game" },
+                .linked => .{ .reason = "Linked" },
+            },
             .view_1, .view_2, .view_3, .view_4 => if (app.screen != .workspace) .{ .reason = "Open a mission first" } else app.viewUnavailable(command),
             .layout_full, .reset_layout => if (app.screen != .workspace) .{ .reason = "Open a mission first" } else null,
             else => null,
+        };
+    }
+
+    /// Why the steps and Pause can't run now, or null when they can: while the game plays a
+    /// mission, linked.
+    fn debugUnavailable(app: *const App) ?widgets.Disabled {
+        return switch (app.session.link_state) {
+            .off => .{ .reason = "Not linked" },
+            .waiting => .{ .reason = "Waiting for game" },
+            .linked => if (app.session.playing == null) .{ .reason = "No mission" } else null,
         };
     }
 
@@ -351,8 +383,14 @@ pub const App = struct {
             .new_mod, .open_hog, .switch_mode, .layout_guided, .add_record => {},
             .open_file => app.chooseFile(),
             .edit_game_mission => app.palette.show(.game_missions),
-            .@"continue", .step_over, .step_into, .run_to_cursor, .pause, .let_go => {},
-            .play_mod_only, .reload_scripts, .link => {},
+            .@"continue" => app.session.release(.run_on),
+            .step_over => app.session.release(.step_over),
+            .step_into => app.session.release(.step_into),
+            .run_to_cursor => app.runToCursor(),
+            .pause => app.session.togglePause(),
+            .unlink => app.session.unlink(),
+            .link => app.session.connect(app.settings.link.port, .waiting),
+            .play_mod_only, .reload_scripts => {},
             .new_mission => app.newMission(),
             .play => app.play(.{}),
             .play_from_part => app.palette.show(.play_from_part),
@@ -396,10 +434,11 @@ pub const App = struct {
             .build => app.build(),
             .show_source => app.source_tab = .source,
             .show_listing => app.source_tab = .listing,
-            .toggle_breakpoint => if (app.document) |document| {
-                document.toggleBreakpoint(document.editor.cursor().line);
+            .toggle_breakpoint => if (app.document) |document| app.toggleBreakpoint(document.editor.cursor().line),
+            .clear_breakpoints => if (app.document) |document| {
+                document.clearBreakpoints();
+                app.keepBreakpoints();
             },
-            .clear_breakpoints => if (app.document) |document| document.clearBreakpoints(),
             .show_mission_panel => app.showPanel(.mission),
             .show_find_panel => app.showPanel(.find),
             .show_problems => app.showPanel(.problems),
@@ -430,7 +469,7 @@ pub const App = struct {
         c.ImGui_SetWindowFocusStr(panel.title());
     }
 
-    pub fn log(app: *App, kind: @FieldType(OutputLine, "kind"), comptime format: []const u8, args: anytype) void {
+    pub fn log(app: *App, kind: toasts.Kind, comptime format: []const u8, args: anytype) void {
         const text = std.fmt.allocPrint(app.output_arena.allocator(), format, args) catch return;
         app.output.append(app.output_arena.allocator(), .{ .time = document_mod.clockNow(), .text = text, .kind = kind }) catch {};
     }
@@ -442,6 +481,8 @@ pub const App = struct {
             app.toasts.push(.failure, gui.print("Can't save {s}", .{document.file}), @errorName(err));
             return;
         };
+        // The breakpoints are kept on their lines as saved.
+        app.keepBreakpoints();
         app.log(.info, "Saved {s}", .{document.file});
     }
 
@@ -457,7 +498,8 @@ pub const App = struct {
         switch (result) {
             .built => |file| {
                 app.log(.success, "Built {s}", .{file});
-                app.toasts.push(.success, gui.print("Built {s}", .{file}), "Not linked: the game reads it next time");
+                const detail = if (app.session.playingMission()) "Game reads it next attempt" else "Game reads it next play";
+                app.toasts.push(.success, gui.print("Built {s}", .{file}), detail);
             },
             .problems => |found| {
                 const first = found[0];
@@ -544,8 +586,10 @@ pub const App = struct {
         return number;
     }
 
-    /// Builds the mission, then starts OpenReliant on it.
-    pub fn play(app: *App, options: game.Play) void {
+    /// Builds the mission, then starts OpenReliant on it, linked to the editor where the settings
+    /// say so. A game linked already plays the new build from the mission's next attempt, and no
+    /// other starts; a link that waits for a game takes the one started.
+    pub fn play(app: *App, asked: game.Play) void {
         const document = app.document orelse return;
         const number = document.number orelse {
             app.toasts.push(.failure, "No mission number", "Name it like mission90.mission.luau");
@@ -553,11 +597,14 @@ pub const App = struct {
         };
         app.build();
         if (document.problems().len > 0 or document.built == null) return;
+        if (app.session.link_state == .linked) return;
         const game_folder = app.settings.game_folder orelse return;
         var arena_state: std.heap.ArenaAllocator = .init(app.gpa);
         defer arena_state.deinit();
         const arena = arena_state.allocator();
         const program = app.findOpenReliant(arena);
+        var options = asked;
+        if (app.settings.link.when_playing) options.link = app.settings.link.port;
         const arguments = app.profile.playArguments(arena, game_folder, number, options) catch return;
         const argv = std.mem.concat(arena, []const u8, &.{ &.{program}, arguments }) catch return;
         _ = std.process.spawn(app.io, .{ .argv = argv, .stdin = .ignore, .stdout = .ignore, .stderr = .ignore }) catch |err| {
@@ -566,7 +613,95 @@ pub const App = struct {
             return;
         };
         app.log(.info, "Playing mission {d}: {s} {s}", .{ number, std.fs.path.basename(program), std.mem.join(arena, " ", arguments) catch "" });
-        app.toasts.push(.success, gui.print("Playing mission {d}", .{number}), "OpenReliant started");
+        app.toasts.push(.success, gui.print("Playing mission {d}", .{number}), if (options.link != null) "OpenReliant started · linking" else "OpenReliant started");
+        if (options.link) |port| if (app.session.link_state == .off) app.session.connect(port, .{ .starting = starting_patience_ms });
+    }
+
+    /// How long the editor tries to link to a game it started, while the game starts.
+    const starting_patience_ms = 30_000;
+
+    /// The debugger's part of the frame: the session aimed at the open mission, what the game sent
+    /// taken, the held line shown, and the session's lines written to Output.
+    fn debugFrame(app: *App) void {
+        app.aimSession();
+        app.session.update(c.SDL_GetTicks(), app.settings.link.state_rate);
+        for (app.session.takeNotes()) |note| app.log(note.kind, "{s}", .{note.text});
+        app.session.freeNotes();
+        const document = app.document orelse return;
+        const held_line = if (app.session.heldStatement()) |statement| statement.at.line else null;
+        document.setHeldLine(held_line);
+        if (app.session.takeRevealed()) {
+            if (held_line) |line| app.goTo(line, 0);
+            app.window.raise();
+        }
+    }
+
+    /// Aims the session at the open mission whenever it, the text's build or the breakpoints
+    /// change.
+    fn aimSession(app: *App) void {
+        var buffer: [document_mod.max_breakpoints]usize = undefined;
+        var hasher: std.hash.Wyhash = .init(0);
+        const lines: []const usize = if (app.document) |document| document.breakpoints(&buffer) else &.{};
+        if (app.document) |document| {
+            hasher.update(std.mem.asBytes(&@intFromPtr(document)));
+            hasher.update(std.mem.asBytes(&document.checked_version));
+        }
+        hasher.update(std.mem.sliceAsBytes(lines));
+        const key = hasher.final();
+        if (key == app.aimed) return;
+        app.aimed = key;
+        const document = app.document orelse return app.session.aim(.{ .number = null, .mission = null, .offsets = &.{} });
+        var arena: std.heap.ArenaAllocator = .init(app.gpa);
+        defer arena.deinit();
+        const mission = document.mission();
+        const offsets = if (mission) |built| breakpoints.offsets(arena.allocator(), built, document.outline(), lines) catch &.{} else &.{};
+        app.session.aim(.{ .number = document.number, .mission = mission, .offsets = offsets });
+    }
+
+    /// Whether the game holds the script.
+    pub fn held(app: *const App) bool {
+        return app.session.held != null;
+    }
+
+    /// Sets or clears the breakpoint on `line`. One set where the script can't hold goes to the
+    /// next line that holds, as the build's map says.
+    pub fn toggleBreakpoint(app: *App, line: usize) void {
+        const document = app.document orelse return;
+        if (document.hasBreakpoint(line)) {
+            document.setBreakpoint(line, false);
+        } else if (document.mission()) |mission| {
+            const statement = breakpoints.place(mission, document.outline(), @intCast(line)) orelse {
+                app.toasts.push(.info, "Can't hold here", "return and end can't hold");
+                return;
+            };
+            document.setBreakpoint(statement.at.line, true);
+        } else document.setBreakpoint(line, true);
+        app.keepBreakpoints();
+    }
+
+    /// Removes the breakpoints of every source file, the open mission's too.
+    pub fn removeAllBreakpoints(app: *App) void {
+        if (app.document) |document| document.clearBreakpoints();
+        app.breakpoint_store.removeAll(app.io);
+        app.log(.info, "Removed all breakpoints", .{});
+    }
+
+    /// Keeps the open mission's breakpoints in the settings folder.
+    fn keepBreakpoints(app: *App) void {
+        const document = app.document orelse return;
+        var buffer: [document_mod.max_breakpoints]usize = undefined;
+        app.breakpoint_store.keep(app.io, document.path, document.breakpoints(&buffer));
+    }
+
+    /// Lets the held script run on to the cursor's line.
+    fn runToCursor(app: *App) void {
+        const document = app.document orelse return;
+        const mission = document.mission() orelse return;
+        const statement = breakpoints.place(mission, document.outline(), @intCast(document.editor.cursor().line)) orelse {
+            app.toasts.push(.info, "Can't hold here", "Cursor on a statement");
+            return;
+        };
+        app.session.runTo(statement.offset);
     }
 
     /// Where `openreliant` is: where the settings say, beside the editor, beside the game's folder
@@ -620,6 +755,7 @@ pub const App = struct {
         app.document = document;
         app.selection = null;
         app.source_tab = .source;
+        for (app.breakpoint_store.lines(document.path)) |line| document.setBreakpoint(line, true);
         script_view.attach(app, document);
         app.updateTitle();
     }
@@ -629,6 +765,7 @@ pub const App = struct {
     fn releaseDocument(app: *App) void {
         const document = app.document orelse return;
         if (document.dirty()) app.save();
+        app.keepBreakpoints();
         document.close();
         app.document = null;
     }
@@ -885,6 +1022,14 @@ pub const App = struct {
         }
     }
 };
+
+/// Wakes the window from its wait for events: the editor link's task calls it as the game's
+/// messages come.
+fn wakeWindow() void {
+    var event = std.mem.zeroes(c.SDL_Event);
+    event.type = c.SDL_EVENT_USER;
+    _ = c.SDL_PushEvent(&event);
+}
 
 /// The text editor's language from the game's words: its keywords, its declarations, its
 /// commands, and the name its variables are read under.

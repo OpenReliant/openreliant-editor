@@ -1,9 +1,12 @@
 //! The workspace's dockable panels. Each is an ImGui window the dock space holds; the source panel
-//! is `views/script.zig`. Panels whose data comes from a linked game show what they will hold,
-//! greyed out, until the editor link is made.
+//! is `views/script.zig`. The debugging panels show the game's script while the editor is linked
+//! (`debug/session.zig`), and what they will hold until then.
 
 const std = @import("std");
 const c = @import("c");
+
+const openreliant = @import("openreliant");
+const State = openreliant.engine.link.State;
 
 const app_mod = @import("app.zig");
 const App = app_mod.App;
@@ -259,6 +262,8 @@ fn recordRow(document: *const Document, record: game.Record, selected: bool, fai
     if (record.section == .flight_groups) shown.indent = 54;
     if (failed) {
         shown.end = .{ .text = .{ .text = gui.print("line {d}", .{document.problems()[0].at.line + 1}), .color = theme.error_count } };
+    } else if (holds(document, record)) {
+        shown.end = .{ .badge = .{ .text = "held", .background = theme.accent, .foreground = theme.on_accent } };
     } else if (record.starts) {
         shown.end = .{ .badge = .{ .text = "start", .background = theme.teal_badge, .foreground = theme.teal_badge_text } };
     } else if (record.section == .triggers and hasBreakpointIn(document, record)) {
@@ -267,6 +272,12 @@ fn recordRow(document: *const Document, record: game.Record, selected: bool, fai
         shown.end = .{ .text = .{ .text = record.detail, .mono = record.section == .ships } };
     }
     return shown;
+}
+
+/// Whether the game holds the script on a line of `record`'s code.
+fn holds(document: *const Document, record: game.Record) bool {
+    const line = document.held_line orelse return false;
+    return line >= record.first_line and line <= record.last_line;
 }
 
 fn hasBreakpointIn(document: *const Document, record: game.Record) bool {
@@ -335,10 +346,106 @@ fn tableHeader(columns: []const []const u8, widths: []const f32) void {
     c.ImGui_Dummy(.{ .x = width, .y = height });
 }
 
+/// The threads' columns: their names and widths.
+const thread_columns = [_][]const u8{ "Slot", "State", "Where", "Started by", "Depth", "Waits for" };
+const thread_widths = [_]f32{ 46, 64, 136, 196, 58, 80 };
+
 fn threads(app: *App) void {
-    _ = app;
-    tableHeader(&.{ "Slot", "State", "Where", "Started by", "Depth", "Waits for" }, &.{ 46, 64, 136, 196, 58, 80 });
-    waiting(.cable, "The script's threads show here while the game is linked", commands.plans.debugger);
+    tableHeader(&thread_columns, &thread_widths);
+    const session = &app.session;
+    if (session.link_state != .linked) return waiting(.cable, "Threads show while linked", null);
+    if (session.playing == null) return waiting(.cable, "No mission playing", null);
+    const snapshot = session.state orelse return waiting(.cable, "Waiting for state", null);
+    const state = snapshot.state;
+    _ = c.ImGui_BeginChild("threads", .{ .x = 0, .y = -px(36) }, 0, 0);
+    for (state.threads) |thread| {
+        gui.pushIdInt(thread.slot);
+        defer gui.popId();
+        threadRow(app, state, thread);
+    }
+    c.ImGui_EndChild();
+    padded(12, 10);
+    widgets.caption(if (session.first_finished) "Start parts: done" else "Start parts: running", theme.text_dim, fonts.size.small, .regular);
+}
+
+/// A thread's row: its slot, whether the game holds it, where it is, what started it, its depth,
+/// and what it waits for. A double click goes to its line.
+fn threadRow(app: *App, state: State, thread: State.Thread) void {
+    const session = &app.session;
+    const at = gui.cursor();
+    const width = gui.available().x;
+    const height = px(27);
+    _ = c.ImGui_InvisibleButton("thread", .{ .x = width, .y = height }, 0);
+    const double_clicked = gui.hovered() and c.ImGui_IsMouseDoubleClicked(c.ImGuiMouseButton_Left);
+    const list = gui.drawList();
+    const held = if (session.held) |hold| thread.at == hold.offset else false;
+    if (held) gui.rect(list, at, .{ .x = at.x + width, .y = at.y + height }, theme.held_row, 0) else if (gui.hovered()) gui.rect(list, at, .{ .x = at.x + width, .y = at.y + height }, theme.row_hover, 0);
+    gui.rect(list, .{ .x = at.x, .y = at.y + height - px(1) }, .{ .x = at.x + width, .y = at.y + height }, theme.table_line, 0);
+    const middle = at.y + height / 2;
+    var x = at.x + px(12);
+    gui.mono(.regular, fonts.size.ui);
+    gui.drawText(list, .{ .x = x, .y = gui.textTop(middle) }, theme.text_row, gui.print("{d}", .{thread.slot}));
+    gui.popFont();
+    x += px(thread_widths[0]);
+    if (held) {
+        stateTag(list, x, middle, "Held");
+    } else {
+        const waits = thread.interrupted or thread.wake > state.clock;
+        gui.sans(.regular, fonts.size.ui);
+        gui.drawText(list, .{ .x = x, .y = gui.textTop(middle) }, theme.text_dim, if (waits) "Waiting" else "Ready");
+        gui.popFont();
+    }
+    x += px(thread_widths[1]);
+    // Where: its line, from the build's map, and its offset.
+    const line = if (thread.at) |offset| session.lineOf(offset) else null;
+    var where_x = x;
+    if (line) |found| {
+        gui.mono(.regular, fonts.size.ui);
+        const text = gui.print("line {d}", .{found + 1});
+        gui.drawText(list, .{ .x = where_x, .y = gui.textTop(middle) }, if (held) theme.held_text else theme.text_row, text);
+        where_x += gui.textSize(text).x;
+        gui.popFont();
+    }
+    gui.sans(.regular, fonts.size.ui);
+    const offset_text = if (thread.at) |offset| gui.print("{s}offset {d}", .{ if (line != null) " · " else "", offset }) else "outside the script";
+    gui.drawText(list, .{ .x = where_x, .y = gui.textTop(middle) }, theme.text_dim, offset_text);
+    gui.popFont();
+    x += px(thread_widths[2]);
+    gui.mono(.regular, fonts.size.ui);
+    gui.drawText(list, .{ .x = x, .y = gui.textTop(middle) }, theme.text_row, startedBy(app, thread, line));
+    x += px(thread_widths[3]);
+    gui.drawText(list, .{ .x = x, .y = gui.textTop(middle) }, theme.text_row, gui.print("{d}", .{thread.depth}));
+    gui.popFont();
+    x += px(thread_widths[4]);
+    gui.sans(.regular, fonts.size.ui);
+    const waits_for = if (thread.interrupted) "its trigger" else if (thread.wake != 0) gui.print("clock {d} s", .{thread.wake}) else "nothing";
+    gui.drawText(list, .{ .x = x, .y = gui.textTop(middle) }, theme.text_dim, waits_for);
+    gui.popFont();
+    if (double_clicked) if (line) |found| app.goTo(found, 0);
+}
+
+/// The design's tag of the thread the game holds: the state on the accent, 7 pixels to each side.
+fn stateTag(list: *c.ImDrawList, left: f32, middle: f32, text: []const u8) void {
+    gui.sans(.semibold, 11);
+    defer gui.popFont();
+    const height = px(17);
+    const max = gui.vec2(left + gui.textSize(text).x + px(7) * 2, middle + height / 2);
+    gui.rect(list, .{ .x = left, .y = middle - height / 2 }, max, theme.accent, 3);
+    gui.drawText(list, .{ .x = left + px(7), .y = gui.textTop(middle) }, theme.on_accent, text);
+}
+
+/// What started a thread, as the source writes it: its trigger, or the part whose code it runs.
+fn startedBy(app: *App, thread: State.Thread, line: ?u32) []const u8 {
+    const document = app.document orelse return "";
+    const known = document.outline();
+    if (thread.trigger) |index| {
+        for (known.records) |record| {
+            if (record.section == .triggers and record.index == index) return gui.print("on({s}, \"{s}\")", .{ record.subject, record.condition });
+        }
+        return gui.print("trigger {d}", .{index});
+    }
+    if (thread.depth == 0) if (line) |found| if (known.at(found)) |record| if (record.section == .parts) return record.title;
+    return "a part";
 }
 
 fn breakpoints(app: *App) void {
@@ -364,7 +471,7 @@ fn breakpoints(app: *App) void {
         if (gui.hovered()) gui.rect(list, at, .{ .x = at.x + width, .y = at.y + height }, theme.row_hover, 0);
         gui.rect(list, .{ .x = at.x, .y = at.y + height - px(1) }, .{ .x = at.x + width, .y = at.y + height }, theme.table_line, 0);
         const middle = at.y + height / 2;
-        gui.dot(list, .{ .x = at.x + px(17), .y = middle }, 4.5, theme.breakpoint);
+        if (app.session.mapped()) gui.dot(list, .{ .x = at.x + px(17), .y = middle }, 4.5, theme.breakpoint) else gui.ring(list, .{ .x = at.x + px(17), .y = middle }, 3.75, 1.5, theme.breakpoint);
         gui.mono(.regular, fonts.size.ui);
         gui.drawText(list, .{ .x = at.x + px(28), .y = gui.textTop(middle) }, theme.text_row, gui.print("{d}", .{line + 1}));
         gui.drawText(list, .{ .x = at.x + px(76), .y = gui.textTop(middle) }, theme.syntax.name, statement[0..@min(statement.len, 48)]);
@@ -517,9 +624,13 @@ fn kindNoun(section: game.Section) []const u8 {
     };
 }
 
+/// The game's variables the source uses, then the mission's globals, with their values from the
+/// game's state while it's linked, in orange where they changed since the last hold.
 fn variables(app: *App) void {
     padded(0, 4);
     const document = app.document;
+    const session = &app.session;
+    const state: ?State = if (session.mapped()) if (session.state) |snapshot| snapshot.state else null else null;
     _ = c.ImGui_BeginChild("variables", .{ .x = 0, .y = 0 }, 0, 0);
     defer c.ImGui_EndChild();
     _ = widgets.row("game", .{ .label = "Game", .indent = 12, .open = true, .strong = true });
@@ -527,20 +638,32 @@ fn variables(app: *App) void {
     for (app.language.words) |word| {
         if (word.kind != .game_variable) continue;
         if (!usedIn(document, app.language.variables, word.name)) continue;
-        variableRow(word.name, "", theme.syntax.game);
+        const value = if (state) |known| gui.print("{d}", .{scriptWord(known.variable(word.name) orelse 0)}) else "";
+        variableRow(word.name, value, theme.syntax.game, session.variableChanged(word.name));
         shown += 1;
     }
-    if (shown == 0) variableRow("none used", "", theme.text_dim);
+    if (shown == 0) variableRow("none used", "", theme.text_dim, false);
     _ = widgets.row("globals", .{ .label = "Globals", .indent = 12, .open = true, .strong = true });
     var globals: usize = 0;
     if (document) |open| for (open.outline().records) |record| {
         if (record.section != .globals) continue;
-        variableRow(record.title, record.detail, theme.syntax.name);
+        // A global's value from the game, by its place among the globals; its first value from the
+        // source until then.
+        const value = if (state) |known| if (record.index < known.globals.len) gui.print("{d}", .{scriptWord(known.globals[record.index])}) else "" else record.detail;
+        variableRow(record.title, value, theme.syntax.name, session.globalChanged(record.index));
         globals += 1;
     };
-    if (globals == 0) variableRow("none", "", theme.text_dim);
-    padded(12, 8);
-    widgets.caption(gui.print("Values while the game is linked · planned {f}", .{commands.plans.debugger}), theme.text_off, fonts.size.smaller, .regular);
+    if (globals == 0) variableRow("none", "", theme.text_dim, false);
+    if (state == null) {
+        padded(12, 8);
+        widgets.caption("Values while this build plays", theme.text_off, fonts.size.smaller, .regular);
+    }
+}
+
+/// One of the script's words, as the state gives it, unsigned, as a signed number: the scripts
+/// count down past 0.
+fn scriptWord(word: u32) i32 {
+    return @bitCast(word);
 }
 
 /// Whether the source reads the game's variable `name` under the name `under`, as
@@ -561,8 +684,9 @@ fn usedIn(document: ?*Document, under: []const u8, name: []const u8) bool {
     return false;
 }
 
-/// A variable's line, as the design's `.vr`: its name in the code font, its value at the end.
-fn variableRow(name: []const u8, value: []const u8, color: theme.Color) void {
+/// A variable's line, as the design's `.vr`: its name in the code font, its value at the end, in
+/// orange where it changed since the last hold.
+fn variableRow(name: []const u8, value: []const u8, color: theme.Color, changed: bool) void {
     const at = gui.cursor();
     const width = gui.available().x;
     const height = px(22);
@@ -571,12 +695,12 @@ fn variableRow(name: []const u8, value: []const u8, color: theme.Color) void {
     gui.mono(.regular, fonts.size.ui);
     const y = gui.textTop(at.y + height / 2);
     gui.drawText(list, .{ .x = at.x + px(34), .y = y }, color, name);
-    gui.drawText(list, .{ .x = at.x + width - px(12) - gui.textSize(value).x, .y = y }, theme.text_row, value);
+    gui.drawText(list, .{ .x = at.x + width - px(12) - gui.textSize(value).x, .y = y }, if (changed) theme.accent else theme.text_row, value);
     gui.popFont();
 }
 
 fn watch() void {
-    waiting(.eye, "Watched values show here while the game is linked", commands.plans.debugger);
+    waiting(.eye, "Watches show while linked", commands.plans.watches);
 }
 
 fn liveScene() void {
@@ -619,6 +743,10 @@ fn inspector(app: *App) void {
     widgets.caption(where, theme.text_dim, fonts.size.small, .regular);
     c.ImGui_EndGroup();
     gui.setCursor(.{ .x = left, .y = @max(gui.cursor().y, at.y + px(34)) + px(18) });
+    if (holds(document, record.*)) {
+        heldBar(app, document, record.*, content_width);
+        gui.setCursor(.{ .x = left, .y = gui.cursor().y + px(18) });
+    }
 
     const edit_off = app.unavailable(.add_record);
     switch (record.section) {
@@ -638,7 +766,33 @@ fn inspector(app: *App) void {
     gui.setCursor(.{ .x = left, .y = gui.cursor().y + px(18) });
     widgets.sectionHeading("Live");
     gui.space(9);
-    widgets.caption(gui.print("While the game is linked · planned {f}", .{commands.plans.debugger}), theme.text_off, fonts.size.small, .regular);
+    widgets.caption(gui.print("While linked · planned {f}", .{commands.plans.live_scene}), theme.text_off, fonts.size.small, .regular);
+}
+
+/// The inspector's line for the thread the game holds in the record: its slot and statement, on
+/// the held colours.
+fn heldBar(app: *App, document: *Document, record: game.Record, width: f32) void {
+    const at = gui.cursor();
+    const height = px(32);
+    const list = gui.drawList();
+    gui.rect(list, at, .{ .x = at.x + width, .y = at.y + height }, theme.held, 4);
+    const middle = at.y + height / 2;
+    widgets.drawIcon(list, .{ .x = at.x + px(12), .y = middle }, .pause, fonts.size.icon_tiny, theme.accent);
+    const slot = heldSlot(app);
+    const statement = if (script_view.statementOf(document, record, document.held_line.?)) |found| found[0] else 1;
+    const text = if (slot) |found| gui.print("Thread {d} · held · statement {d}", .{ found, statement }) else gui.print("Held · statement {d}", .{statement});
+    gui.sans(.regular, fonts.size.ui);
+    gui.drawText(list, .{ .x = at.x + px(32), .y = gui.textTop(middle) }, theme.held_text, text);
+    gui.popFont();
+    c.ImGui_Dummy(.{ .x = width, .y = height });
+}
+
+/// The slot of the thread the game holds, from the state.
+fn heldSlot(app: *App) ?u32 {
+    const held = app.session.held orelse return null;
+    const snapshot = app.session.state orelse return null;
+    for (snapshot.state.threads) |thread| if (thread.at == held.offset) return thread.slot;
+    return null;
 }
 
 fn capitalNoun(section: game.Section) []const u8 {

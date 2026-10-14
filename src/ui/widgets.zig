@@ -62,38 +62,41 @@ const view_tab_rounding = 4;
 /// The view tabs' line and padding around the tabs.
 const view_tabs_inset = 1 + 2;
 
+/// How wide the design's `.tb` button is with `options`: its parts with 6 pixels between them,
+/// in 10 pixels of padding, or 30 pixels for an icon alone.
+pub fn toolButtonWidth(options: ToolButton) f32 {
+    if (options.icon_only) return px(30);
+    gui.sans(options.weight, options.size);
+    defer gui.popFont();
+    var width = px(10) * 2;
+    var parts: f32 = 0;
+    if (options.icon != null) {
+        width += px(fonts.size.icon);
+        parts += 1;
+    }
+    if (options.label.len > 0) {
+        width += gui.textSize(options.label).x;
+        parts += 1;
+    }
+    if (options.key) |key| {
+        width += keyChipWidth(key);
+        parts += 1;
+    }
+    if (options.pill) |pill_shown| {
+        width += pillWidth(pill_shown.text);
+        parts += 1;
+    }
+    if (parts > 1) width += px(6) * (parts - 1);
+    return width;
+}
+
 /// The design's `.tb` button. True when clicked.
 pub fn toolButton(id: []const u8, options: ToolButton) bool {
     const icon_size = fonts.size.icon;
+    const width = toolButtonWidth(options);
     gui.sans(options.weight, options.size);
     defer gui.popFont();
     const label_width = if (options.label.len > 0) gui.textSize(options.label).x else 0;
-    const key_width = if (options.key) |key| keyChipWidth(key) else 0;
-    const pill_width = if (options.pill) |pill_shown| pillWidth(pill_shown.text) else 0;
-    var width: f32 = undefined;
-    if (options.icon_only) {
-        width = px(30);
-    } else {
-        width = px(10) * 2;
-        var parts: f32 = 0;
-        if (options.icon != null) {
-            width += px(icon_size);
-            parts += 1;
-        }
-        if (options.label.len > 0) {
-            width += label_width;
-            parts += 1;
-        }
-        if (options.key != null) {
-            width += key_width;
-            parts += 1;
-        }
-        if (options.pill != null) {
-            width += pill_width;
-            parts += 1;
-        }
-        if (parts > 1) width += px(6) * (parts - 1);
-    }
     const height = px(options.height);
     const at = gui.cursor();
     const clicked = c.ImGui_InvisibleButton(gui.z(id), .{ .x = width, .y = height }, 0) and options.disabled == null;
@@ -145,7 +148,7 @@ pub fn toolButton(id: []const u8, options: ToolButton) bool {
     if (options.key) |key| {
         const on_accent = options.style == .primary and options.disabled == null;
         drawKeyChip(list, .{ .x = x, .y = middle }, key, if (on_accent) .on_accent else .normal);
-        x += key_width + px(6);
+        x += keyChipWidth(key) + px(6);
     }
     if (options.pill) |pill_shown| drawPill(list, .{ .x = x, .y = middle }, pill_shown);
 
@@ -764,25 +767,19 @@ pub fn checkbox(id: []const u8, label: []const u8, checked: bool, disabled: ?Dis
     return clicked;
 }
 
-/// A switch as the status bar's Live changes: a track with a knob.
-pub fn toggle(id: []const u8, label: []const u8, on: bool, disabled: ?Disabled) bool {
-    gui.sans(.regular, fonts.size.smaller);
-    defer gui.popFont();
-    const track_width = px(24);
-    const track_height = px(13);
-    const width = track_width + px(7) + gui.textSize(label).x;
-    const height = px(20);
+/// The design's switch, the settings' `.sw`: a track 30 by 16 pixels, orange while on, with a
+/// knob 12 pixels wide at the end it's switched to. True when clicked.
+pub fn toggle(id: []const u8, on: bool, disabled: ?Disabled) bool {
+    const width = px(30);
+    const height = px(16);
     const at = gui.cursor();
     const clicked = c.ImGui_InvisibleButton(gui.z(id), .{ .x = width, .y = height }, 0) and disabled == null;
+    if (disabled == null) gui.handCursor();
     const list = gui.drawList();
     const middle = at.y + height / 2;
-    const min = gui.vec2(at.x, middle - track_height / 2);
-    const max = gui.vec2(at.x + track_width, middle + track_height / 2);
-    const lit = on and disabled == null;
-    gui.rect(list, min, max, if (lit) theme.accent else theme.border, 7);
-    const knob_x = if (on) max.x - px(2) - px(4.5) else min.x + px(2) + px(4.5);
-    gui.dot(list, .{ .x = knob_x, .y = middle }, 4.5, if (lit) theme.on_accent else theme.text_off);
-    gui.drawText(list, .{ .x = max.x + px(7), .y = gui.textTop(middle) }, if (disabled == null) theme.text_menu else theme.text_off, label);
+    gui.rect(list, at, .{ .x = at.x + width, .y = at.y + height }, if (on) theme.accent else theme.border, 8);
+    const knob_x = if (on) at.x + px(16) + px(6) else at.x + px(2) + px(6);
+    gui.dot(list, .{ .x = knob_x, .y = middle }, 6, if (on) theme.on_accent else theme.text_dim);
     if (disabled) |off| gui.tooltip(off.reason);
     return clicked;
 }

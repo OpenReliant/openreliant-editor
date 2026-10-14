@@ -1,15 +1,18 @@
 //! The editor's own settings, kept for each user where the system keeps such files (SDL's
 //! preferences folder for OpenReliant's editor): `editor.ini` with the game's folder, where
-//! `openreliant` is and the mods opened lately, and `keys.ini` with the keys changed from their
-//! defaults, each system's on its own.
+//! `openreliant` is, the editor link's settings and the mods opened lately, and `keys.ini` with the
+//! keys changed from their defaults, each system's on its own.
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const Io = std.Io;
 const c = @import("c");
 
+const openreliant = @import("openreliant");
+
 const commands = @import("commands.zig");
 const Command = commands.Command;
+const StateRate = @import("debug/session.zig").StateRate;
 const ini = @import("ini.zig");
 const keys = @import("keys.zig");
 const Chord = keys.Chord;
@@ -29,6 +32,7 @@ pub const Settings = struct {
     /// The mod folders opened lately, the latest first.
     recent: std.ArrayList([]const u8) = .empty,
     keymap: Keymap = .{},
+    link: Link = .{},
 
     pub fn load(gpa: Allocator, io: Io) Settings {
         var settings: Settings = .{ .arena = .init(gpa) };
@@ -42,6 +46,7 @@ pub const Settings = struct {
             const entries = ini.parse(arena, text) catch &.{};
             settings.game_folder = ini.get(entries, "Game", "Folder");
             settings.openreliant = ini.get(entries, "Game", "OpenReliant");
+            settings.link.read(entries);
             for (entries) |entry| {
                 if (std.ascii.eqlIgnoreCase(entry.section, "Recent") and settings.recent.items.len < recent_count) {
                     settings.recent.append(arena, entry.value) catch break;
@@ -72,6 +77,7 @@ pub const Settings = struct {
         try out.writeAll("; OpenReliant Editor's settings.\n[Game]\n");
         if (settings.game_folder) |path| try out.print("Folder={s}\n", .{path});
         if (settings.openreliant) |path| try out.print("OpenReliant={s}\n", .{path});
+        try settings.link.write(out);
         try out.writeAll("\n[Recent]\n");
         for (settings.recent.items, 1..) |path, index| try out.print("{d}={s}\n", .{ index, path });
     }
@@ -103,6 +109,33 @@ pub const Settings = struct {
     pub fn setGameFolder(settings: *Settings, io: Io, path: []const u8) void {
         settings.game_folder = settings.arena.allocator().dupe(u8, path) catch return;
         settings.save(io);
+    }
+};
+
+/// The editor link's settings, `[Link]` in editor.ini.
+pub const Link = struct {
+    /// Whether Play starts the game linked to the editor (`WhenPlaying`).
+    when_playing: bool = true,
+    /// The port the game listens at, as `--editor-link-port` gives it (`Port`).
+    port: u16 = openreliant.engine.link.default_port,
+    /// How often Variables and Watch poll the script's state while it runs (`State`: `off`, `1`
+    /// or `4`, in Hz).
+    state_rate: StateRate = .four_hz,
+
+    const rate_names = std.EnumArray(StateRate, []const u8).init(.{ .off = "off", .one_hz = "1", .four_hz = "4" });
+
+    fn read(settings: *Link, entries: []const ini.Entry) void {
+        if (ini.get(entries, "Link", "WhenPlaying")) |value| settings.when_playing = !std.mem.eql(u8, value, "0");
+        if (ini.get(entries, "Link", "Port")) |value| settings.port = std.fmt.parseInt(u16, value, 10) catch settings.port;
+        if (ini.get(entries, "Link", "State")) |value| {
+            for (std.enums.values(StateRate)) |rate| {
+                if (std.ascii.eqlIgnoreCase(value, rate_names.get(rate))) settings.state_rate = rate;
+            }
+        }
+    }
+
+    fn write(settings: Link, out: *Io.Writer) Io.Writer.Error!void {
+        try out.print("\n[Link]\nWhenPlaying={d}\nPort={d}\nState={s}\n", .{ @intFromBool(settings.when_playing), settings.port, rate_names.get(settings.state_rate) });
     }
 };
 
@@ -191,6 +224,22 @@ fn writeFile(io: Io, folder: []const u8, name: []const u8, data: []const u8) voi
     Io.Dir.cwd().writeFile(io, .{ .sub_path = path, .data = data }) catch |err| {
         std.log.warn("can't save {s}: {t}", .{ path, err });
     };
+}
+
+test "the editor link's settings read back as written" {
+    var arena: std.heap.ArenaAllocator = .init(std.testing.allocator);
+    defer arena.deinit();
+    const changed: Link = .{ .when_playing = false, .port = 4000, .state_rate = .one_hz };
+    var buffer: [256]u8 = undefined;
+    var out: Io.Writer = .fixed(&buffer);
+    try changed.write(&out);
+    var read_back: Link = .{};
+    read_back.read(try ini.parse(arena.allocator(), out.buffered()));
+    try std.testing.expectEqual(changed, read_back);
+    // A port that isn't one leaves the default.
+    var defaults: Link = .{};
+    defaults.read(try ini.parse(arena.allocator(), "[Link]\nPort=99999\n"));
+    try std.testing.expectEqual(openreliant.engine.link.default_port, defaults.port);
 }
 
 test "changed keys read back as written" {
