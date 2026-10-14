@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mod workspace</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+@font-face{font-family:"Newtown";src:url("../fonts/Newtown.ttf") format("truetype");font-display:swap}
+*{box-sizing:border-box}
+body{margin:0;background:#07080c}
+a{color:#f6a259}a:hover{color:#ffc58f}
+.i{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.i14{width:14px;height:14px}
+.i12{width:12px;height:12px}
+.solid{fill:currentColor;stroke:none}
+.mono{font-family:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.menu{background:none;border:0;color:#c9cfdb;padding:4px 9px;border-radius:4px;font:inherit;font-size:12.5px;cursor:pointer}
+.menu:hover{background:#1a1f2b;color:#ffffff}
+.tb{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:4px;border:1px solid #262d3d;background:#161a24;color:#dfe3ea;font:inherit;font-size:12.5px;cursor:pointer;white-space:nowrap;text-decoration:none}
+.tb:hover{background:#1d2230;border-color:#323a4e;color:#ffffff}
+.tbi{width:30px;padding:0;justify-content:center}
+.mpick{display:inline-flex;align-items:center;gap:7px;height:30px;padding:0 10px;border:1px solid #262d3d;border-radius:5px;background:#11141c;color:#f3f4f7;font:inherit;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.mpick:hover{border-color:#36405a}
+.views{display:flex;gap:2px;padding:2px;border:1px solid #262d3d;border-radius:6px;background:#0b0d12}
+.view{display:inline-flex;align-items:center;gap:7px;height:26px;padding:0 11px;border-radius:4px;color:#9aa3b5;text-decoration:none;font-size:12.5px;font-weight:500;white-space:nowrap}
+.view:hover{color:#ffffff;background:#171b26}
+.view-on,.view-on:hover{background:#262d3d;color:#ffffff;box-shadow:inset 0 -2px 0 #f08a2c}
+.key{font:500 10.5px/1 "JetBrains Mono",ui-monospace,monospace;color:#9aa3b5;padding:2px 4px;border:1px solid #2a3142;border-radius:3px;background:#0c0f15}
+.panel{background:#10131b;display:flex;flex-direction:column;min-width:0;border:1px solid #1a1f2b;border-radius:3px;overflow:hidden}
+.tabbar{display:flex;align-items:stretch;flex:none;height:30px;background:#0c0f15;border-bottom:1px solid #1c2230;overflow:hidden}
+.tab{display:inline-flex;align-items:center;gap:7px;padding:0 12px;border:0;border-right:1px solid #1c2230;background:none;color:#9aa3b5;font:inherit;font-size:12.5px;white-space:nowrap;cursor:pointer;text-decoration:none}
+.tab:hover{color:#e8eaf0}
+.tab-on{background:#10131b;color:#f3f4f7;box-shadow:inset 0 2px 0 #f08a2c}
+.pill{min-width:18px;padding:0 5px;border-radius:9px;background:#1f2533;color:#c9cfdb;font-size:10.5px;line-height:16px;text-align:center}
+.pill-warn{background:#3a2a0e;color:#ffd08a}
+.sect{font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#8a93a6}
+.row{display:flex;align-items:center;gap:7px;width:100%;height:24px;padding:0 10px;border:0;background:none;color:#d4d8e1;font:inherit;font-size:12.5px;text-align:left;white-space:nowrap;cursor:pointer}
+.row:hover{background:#171b26}
+.sel,.sel:hover{background:#3b2412;color:#ffe2c4}
+.cnt{margin-left:auto;color:#8a93a6;font-size:11.5px}
+.frame{display:flex;align-items:center;gap:7px;width:100%;height:26px;padding:0 8px;background:#161a24;border:1px solid #262d3d;border-radius:3px;color:#e8eaf0;font:inherit;font-size:12.5px;text-align:left;min-width:0;cursor:pointer}
+.frame:hover{border-color:#36405a}
+.inp{width:100%;min-width:0;height:26px;padding:0 8px;border:1px solid #262d3d;border-radius:3px;background:#161a24;color:#e8eaf0;font:inherit;font-size:12.5px}
+.inp:focus{outline:none;border-color:#f08a2c}
+.lbl{display:block;margin-bottom:4px;color:#9aa3b5;font-size:12px}
+.card{display:flex;flex-direction:column;min-width:0;border:1px solid #1f2533;border-radius:5px;background:#0e1118}
+.card-h{display:flex;align-items:center;gap:9px;padding:9px 11px;border-bottom:1px solid #1a1f2b}
+.kv{display:grid;grid-template-columns:70px minmax(0,1fr);gap:5px 10px;margin:0;padding:10px 11px;font-size:12.5px}
+.kv dt{color:#8a93a6}
+.kv dd{margin:0;min-width:0;color:#e2e5ec;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.note{display:flex;align-items:center;gap:7px;margin-top:auto;padding:7px 11px;border-top:1px solid #1a1f2b;color:#9fd9cf;font-size:12px}
+.tbl{border-collapse:collapse;width:100%;font-size:12.5px}
+.tbl th{background:#0f1219;color:#8a93a6;font-weight:500;text-align:left;padding:5px 12px;border-bottom:1px solid #1f2533;white-space:nowrap}
+.tbl td{padding:4px 12px;border-bottom:1px solid #161b26;white-space:nowrap;color:#d4d8e1}
+.code{font-family:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;line-height:19px}
+.ln{display:flex;align-items:center;min-height:19px;white-space:pre}
+.num{width:44px;flex:none;padding-right:12px;text-align:right;color:#7a8398}
+.ih{color:#f4a35c}.ik{color:#8fb4ff}.ival{color:#dfe3ea}.ic{color:#7c869b;font-style:italic}
+.chk{display:flex;align-items:flex-start;gap:9px;padding:8px 0;border-bottom:1px solid #171c27;font-size:12.5px;color:#d4d8e1}
+</style>
+</head>
+<body>
+<div style="min-height: 100vh; display: flex; flex-direction: column; background: #07080c; color: #e8eaf0; font-family: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 13px; line-height: 1.45">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; min-height: 34px; padding: 3px 10px; background: #0c0f15; border-bottom: 1px solid #1a1f2b">
+<div style="display: flex; align-items: baseline; gap: 8px; padding-right: 4px">
+<span style="font-family: Newtown, 'IBM Plex Sans', sans-serif; font-size: 16px; letter-spacing: 0.02em; color: #e8eaf0">Open<span style="color: #f08a2c">Reliant</span></span>
+<span style="font-size: 10.5px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: #8a93a6">Editor</span>
+</div>
+<nav aria-label="Menus" style="display: flex; flex-wrap: wrap; gap: 2px">
+<button class="menu" type="button">File</button>
+<button class="menu" type="button">Edit</button>
+<button class="menu" type="button">View</button>
+<button class="menu" type="button">Mod</button>
+<button class="menu" type="button">Debug</button>
+<button class="menu" type="button">Game</button>
+<button class="menu" type="button">Window</button>
+<button class="menu" type="button">Help</button>
+</nav>
+<a href="command-palette.html" style="margin-left: auto; display: flex; align-items: center; gap: 8px; width: 340px; max-width: 100%; height: 26px; padding: 0 8px; border: 1px solid #262d3d; border-radius: 4px; background: #11141c; color: #8a93a6; text-decoration: none; font-size: 12.5px">
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="M16 16l4 4"></path></svg>
+<span style="flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Search files, records, commands</span>
+<span class="key">Cmd+Shift+P</span>
+</a>
+<nav aria-label="Mode" style="display: flex; gap: 2px; padding: 2px; border: 1px solid #262d3d; border-radius: 5px; background: #11141c">
+<a href="mod-manifest.html" aria-current="page" style="display: inline-flex; align-items: center; gap: 6px; padding: 3px 12px; border-radius: 3px; background: #262d3d; color: #ffffff; text-decoration: none; font-size: 12.5px; font-weight: 500"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #f08a2c"><path d="M21 8l-9-5-9 5 9 5 9-5z"></path><path d="M3 8v8l9 5 9-5V8"></path><path d="M12 13v8"></path></svg>Mod</a>
+<a href="mission-script.html" style="display: inline-flex; align-items: center; gap: 6px; padding: 3px 12px; border-radius: 3px; color: #9aa3b5; text-decoration: none; font-size: 12.5px"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4"></path><path d="M5 4h11l-2 4 2 4H5"></path></svg>Mission</a>
+</nav>
+</header>
+
+<div role="toolbar" aria-label="Example: Bananas" style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 10px; background: #0e1118; border-bottom: 1px solid #1a1f2b">
+<button class="mpick" type="button" aria-haspopup="listbox" title="StarLancer/mods/bananas">
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #f08a2c"><path d="M21 8l-9-5-9 5 9 5 9-5z"></path><path d="M3 8v8l9 5 9-5V8"></path><path d="M12 13v8"></path></svg>
+Example: Bananas
+<svg class="i i12" viewBox="0 0 24 24" aria-hidden="true" style="color: #8a93a6"><path d="M6 9l6 6 6-6"></path></svg>
+</button>
+<nav class="views" aria-label="Views of the mod">
+<a href="mod-manifest.html" class="view view-on" aria-current="page" title="Cmd+1"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16"></path><path d="M4 12h10"></path><path d="M4 18h13"></path></svg>Manifest</a>
+<a href="mod-code.html" class="view" title="Cmd+2"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 7l-5 5 5 5"></path><path d="M16 7l5 5-5 5"></path></svg>Code</a>
+<a href="mod-game-files.html" class="view" title="Cmd+3"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="5" rx="1.5"></rect><path d="M5 9v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9"></path><path d="M10 13h4"></path></svg>Game files</a>
+<a href="mod-share.html" class="view" title="Cmd+4"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12"></path><path d="M8 7l4-4 4 4"></path><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"></path></svg>Share</a>
+</nav>
+<span aria-hidden="true" style="width: 1px; height: 20px; margin: 0 4px; background: #262d3d"></span>
+<button class="tb" type="button" title="Build its models and missions, Cmd+B">
+<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 9l-7 7 2.5 2.5 7-7"></path><path d="M12.5 4.5l7 7 2-2-7-7z"></path><path d="M10.5 6.5l4 4"></path></svg>
+Build
+</button>
+<div style="display: flex">
+<button class="tb" type="button" style="border-radius: 4px 0 0 4px">
+<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5l12 7-12 7z"></path></svg>
+Play with this mod
+</button>
+<button class="tb tbi" type="button" aria-label="Play with my other mods, or with this mod alone" style="border-radius: 0 4px 4px 0; border-left: 0">
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg>
+</button>
+</div>
+<button class="tb" type="button">
+<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.7"></path><path d="M20 4v5h-5"></path></svg>
+Reload scripts
+</button>
+<div style="margin-left: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 8px">
+<span style="display: inline-flex; align-items: center; gap: 7px; height: 26px; padding: 0 11px; border: 1px solid #2b3346; border-radius: 13px; background: #121622; color: #c9cfdb; font-size: 12px">
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #f08a2c"><path d="M14.7 6.3a4 4 0 0 0-5.6 5.6L3 18l3 3 6.1-6.1a4 4 0 0 0 5.6-5.6l-2.5 2.5-2.8-.2-.2-2.8z"></path></svg>
+Developer mode
+</span>
+<span style="display: inline-flex; align-items: center; gap: 7px; height: 26px; padding: 0 11px; border: 1px solid #1f3b37; border-radius: 13px; background: #0f1d1c; color: #bfeee5; font-size: 12px">
+<span aria-hidden="true" style="width: 7px; height: 7px; border-radius: 50%; background: #3ccfb4"></span>
+StarLancer
+</span>
+</div>
+</div>
+
+<div style="flex: 1 1 auto; display: flex; flex-wrap: wrap; gap: 3px; padding: 3px; min-height: 0">
+
+<section class="panel" aria-label="Mod files" style="flex: 1 1 250px">
+<div class="tabbar" role="tablist" aria-label="Left panels">
+<button class="tab tab-on" type="button" role="tab" aria-selected="true">
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8l-9-5-9 5 9 5 9-5z"></path><path d="M3 8v8l9 5 9-5V8"></path><path d="M12 13v8"></path></svg>
+Mod
+</button>
+<button class="tab" type="button" role="tab" aria-selected="false">Find</button>
+</div>
+<div style="display: flex; gap: 6px; padding: 8px">
+<label class="frame" style="flex: 1; cursor: text">
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #8a93a6"><circle cx="11" cy="11" r="6.5"></circle><path d="M16 16l4 4"></path></svg>
+<input type="search" placeholder="Filter files" aria-label="Filter files" style="flex: 1; min-width: 0; background: none; border: 0; outline: none; color: #e8eaf0; font: inherit; font-size: 12.5px">
+</label>
+<button class="tb tbi" type="button" aria-label="Add a file to the mod">
+<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+</button>
+</div>
+<ul style="list-style: none; margin: 0; padding: 0 0 10px; display: flex; flex-direction: column">
+<li><button class="row" type="button" aria-expanded="true" style="padding-left: 6px; color: #f3f4f7; font-weight: 600">
+<svg class="i i12" viewBox="0 0 24 24" aria-hidden="true" style="color: #8a93a6"><path d="M6 9l6 6 6-6"></path></svg>
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #f08a2c"><path d="M21 8l-9-5-9 5 9 5 9-5z"></path><path d="M3 8v8l9 5 9-5V8"></path><path d="M12 13v8"></path></svg>
+Example: Bananas
+<span class="cnt mono">bananas</span>
+</button></li>
+<li><button class="row sel" type="button" aria-current="true" style="padding-left: 36px">
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #f4a35c"><path d="M14 3H6v18h12V7z"></path><path d="M14 3v4h4"></path><path d="M9 12h6"></path><path d="M9 16h6"></path></svg>
+mod.ini
+<span class="cnt" style="color: #e9b98d">manifest</span>
+</button></li>
+<li><button class="row" type="button" style="padding-left: 36px; color: #8a93a6">
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" style="stroke-dasharray: 3 3"></rect><path d="M12 9v6"></path><path d="M9 12h6"></path></svg>
+mod.png
+<span style="margin-left: auto; padding: 0 6px; border-radius: 3px; background: #3a2a0e; color: #ffd08a; font-size: 10.5px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; line-height: 16px">add</span>
+</button></li>
+<li><button class="row" type="button" aria-expanded="true" style="padding-left: 20px">
+<svg class="i i12" viewBox="0 0 24 24" aria-hidden="true" style="color: #8a93a6"><path d="M6 9l6 6 6-6"></path></svg>
+Scripts
+<span class="cnt">3</span>
+</button></li>
+<li><a href="mod-code.html" class="row" style="padding-left: 36px; text-decoration: none">
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #63d1c0"><path d="M14 3H6v18h12V7z"></path><path d="M14 3v4h4"></path><path d="M10 12l-2 2 2 2"></path><path d="M14 12l2 2-2 2"></path></svg>
+records.luau
+<span class="cnt">Load</span>
+</a></li>
+<li><a href="mod-code.html" class="row" style="padding-left: 36px; text-decoration: none">
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #63d1c0"><path d="M14 3H6v18h12V7z"></path><path d="M14 3v4h4"></path><path d="M10 12l-2 2 2 2"></path><path d="M14 12l2 2-2 2"></path></svg>
+menu.luau
+<span class="cnt">Menu</span>
+</a></li>
+<li><a href="mod-code.html" class="row" style="padding-left: 36px; text-decoration: none">
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #63d1c0"><path d="M14 3H6v18h12V7z"></path><path d="M14 3v4h4"></path><path d="M10 12l-2 2 2 2"></path><path d="M14 12l2 2-2 2"></path></svg>
+troopers.luau
+<span class="cnt">Global</span>
+</a></li>
+<li><button class="row" type="button" aria-expanded="true" style="padding-left: 20px">
+<svg class="i i12" viewBox="0 0 24 24" aria-hidden="true" style="color: #8a93a6"><path d="M6 9l6 6 6-6"></path></svg>
+Models
+<span class="cnt">1</span>
+</button></li>
+<li><button class="row" type="button" style="padding-left: 36px">
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #c4a7ff"><path d="M12 2l9 5v10l-9 5-9-5V7z"></path><path d="M12 22V12"></path><path d="M21 7l-9 5-9-5"></path></svg>
+banana.shp
+<span class="cnt">built</span>
+</button></li>
+<li><button class="row" type="button" style="padding-left: 58px; color: #9aa3b5">
+<svg class="i i12" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H6v18h12V7z"></path><path d="M14 3v4h4"></path></svg>
+banana.obj
+<span class="cnt">source</span>
+</button></li>
+<li><button class="row" type="button" style="padding-left: 58px; color: #9aa3b5">
+<svg class="i i12" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H6v18h12V7z"></path><path d="M14 3v4h4"></path></svg>
+banana.mtl
+<span class="cnt">source</span>
+</button></li>
+<li><button class="row" type="button" aria-expanded="true" style="padding-left: 20px">
+<svg class="i i12" viewBox="0 0 24 24" aria-hidden="true" style="color: #8a93a6"><path d="M6 9l6 6 6-6"></path></svg>
+Textures and pictures
+<span class="cnt">3</span>
+</button></li>
+<li><button class="row" type="button" style="padding-left: 36px">
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #e7c06b"><rect x="3" y="4" width="18" height="16" rx="2"></rect><circle cx="9" cy="10" r="2"></circle><path d="M21 16l-5-5-9 9"></path></svg>
+banana.png
+<span class="cnt">texture</span>
+</button></li>
+<li><button class="row" type="button" style="padding-left: 36px">
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #e7c06b"><rect x="3" y="4" width="18" height="16" rx="2"></rect><circle cx="9" cy="10" r="2"></circle><path d="M21 16l-5-5-9 9"></path></svg>
+bananatip.png
+<span class="cnt">texture</span>
+</button></li>
+<li><button class="row" type="button" style="padding-left: 36px">
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #e7c06b"><rect x="3" y="4" width="18" height="16" rx="2"></rect><circle cx="9" cy="10" r="2"></circle><path d="M21 16l-5-5-9 9"></path></svg>
+banana_shot.png
+<span class="cnt">shot</span>
+</button></li>
+<li><button class="row" type="button" aria-expanded="true" style="padding-left: 20px">
+<svg class="i i12" viewBox="0 0 24 24" aria-hidden="true" style="color: #8a93a6"><path d="M6 9l6 6 6-6"></path></svg>
+Sounds
+<span class="cnt">1</span>
+</button></li>
+<li><button class="row" type="button" style="padding-left: 36px">
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #8fb4ff"><path d="M3 12h2"></path><path d="M7 8v8"></path><path d="M11 5v14"></path><path d="M15 9v6"></path><path d="M19 11v2"></path></svg>
+boing.wav
+<span class="cnt">shot sound</span>
+</button></li>
+<li><button class="row" type="button" aria-expanded="true" style="padding-left: 20px">
+<svg class="i i12" viewBox="0 0 24 24" aria-hidden="true" style="color: #8a93a6"><path d="M6 9l6 6 6-6"></path></svg>
+Missions
+<span class="cnt">0</span>
+</button></li>
+<li><a href="mission-guided.html" class="row" style="padding-left: 36px; text-decoration: none; color: #f6a259">
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+New mission
+</a></li>
+</ul>
+<div style="margin-top: auto; display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-top: 1px solid #1a1f2b; color: #8a93a6; font-size: 11.5px">
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>
+<span class="mono" style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis">StarLancer/mods/bananas</span>
+<button class="tb" type="button" style="height: 22px; padding: 0 7px; font-size: 11.5px">Show</button>
+</div>
+</section>
+
+<div style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 3px">
+
+<section class="panel" aria-label="Manifest" style="flex: 1 1 0; min-height: 420px">
+<div class="tabbar" role="tablist" aria-label="Manifest views">
+<button class="tab" type="button" role="tab" aria-selected="false">
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #f08a2c"><path d="M4 6h16"></path><path d="M4 12h10"></path><path d="M4 18h13"></path></svg>
+Manifest
+</button>
+<button class="tab tab-on" type="button" role="tab" aria-selected="true">
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H6v18h12V7z"></path><path d="M14 3v4h4"></path></svg>
+mod.ini
+</button>
+<span style="margin-left: auto; display: flex; align-items: center; padding: 0 12px; color: #7a8398; font-size: 12px">Synced with mod.ini · comments kept</span>
+</div>
+
+
+<div class="code" style="flex: 1 1 auto; min-height: 0; overflow: auto; padding: 8px 0; background: #0b0d12">
+<div class="ln"><span class="num">1</span><span class="ih">[Mod]</span></div>
+<div class="ln"><span class="num">2</span><span class="ik">Name</span><span class="ic">=</span><span class="ival">Example: Bananas</span></div>
+<div class="ln"><span class="num">3</span><span class="ik">Version</span><span class="ic">=</span><span class="ival">1.0</span></div>
+<div class="ln"><span class="num">4</span><span class="ik">Author</span><span class="ic">=</span><span class="ival">OpenReliant</span></div>
+<div class="ln"><span class="num">5</span><span class="ik">Description</span><span class="ic">=</span><span class="ival">A scripting example for mod makers, not a supported mod. A new gun, missile, pilot and ship: ...</span></div>
+<div class="ln"><span class="num">6</span><span class="ik">OpenReliant</span><span class="ic">=</span><span class="ival">0.7</span></div>
+<div class="ln"><span class="num">7</span></div>
+<div class="ln"><span class="num">8</span><span class="ic">; Each section lists what the mod adds of one kind. The number after a name is the one the mod's own</span></div>
+<div class="ln"><span class="num">9</span><span class="ic">; missions or models use for it; this mod has neither, so it leaves them empty.</span></div>
+<div class="ln"><span class="num">10</span><span class="ih">[Guns]</span></div>
+<div class="ln"><span class="num">11</span><span class="ik">banana_gun</span><span class="ic">=</span></div>
+<div class="ln"><span class="num">12</span></div>
+<div class="ln"><span class="num">13</span><span class="ih">[Gun banana_gun]</span></div>
+<div class="ln"><span class="num">14</span><span class="ik">Base</span><span class="ic">=</span><span class="ival">pulse_cannon</span></div>
+<div class="ln"><span class="num">15</span><span class="ik">Name</span><span class="ic">=</span><span class="ival">Banana Gun</span></div>
+<div class="ln"><span class="num">16</span><span class="ic">; Each shot is a banana, banana_shot.png, 40 across either way of its middle, and goes boing.</span></div>
+<div class="ln"><span class="num">17</span><span class="ik">Shot</span><span class="ic">=</span><span class="ival">banana_shot.png</span></div>
+<div class="ln"><span class="num">18</span><span class="ik">ShotSize</span><span class="ic">=</span><span class="ival">40</span></div>
+<div class="ln"><span class="num">19</span><span class="ik">Sound</span><span class="ic">=</span><span class="ival">boing.wav</span></div>
+<div class="ln"><span class="num">20</span><span class="ic">; The muzzle flash is drawn with the same banana, half as long as the Pulse Cannon's.</span></div>
+<div class="ln"><span class="num">21</span><span class="ik">Flash</span><span class="ic">=</span><span class="ival">banana_shot.png</span></div>
+<div class="ln"><span class="num">22</span><span class="ik">FlashSize</span><span class="ic">=</span><span class="ival">300</span></div>
+<div class="ln"><span class="num">23</span></div>
+<div class="ln"><span class="num">24</span><span class="ih">[Missiles]</span></div>
+<div class="ln"><span class="num">25</span><span class="ik">banana</span><span class="ic">=</span></div>
+</div>
+</section>
+
+<section class="panel" aria-label="Files and load order" style="flex: 0 0 auto; height: 228px">
+<div class="tabbar" role="tablist" aria-label="Bottom panels">
+<button class="tab tab-on" type="button" role="tab" aria-selected="true">What the files do</button>
+<button class="tab" type="button" role="tab" aria-selected="false">Load order <span class="pill">4</span></button>
+<button class="tab" type="button" role="tab" aria-selected="false">Output</button>
+</div>
+<div style="overflow: auto">
+<table class="tbl">
+<thead><tr><th scope="col">File</th><th scope="col">In the game</th><th scope="col">Used by</th></tr></thead>
+<tbody>
+<tr><td class="mono">banana.shp</td><td>adds model</td><td style="color: #9aa3b5">missile Banana</td></tr>
+<tr><td class="mono">banana.png, bananatip.png</td><td>adds textures</td><td style="color: #9aa3b5">banana.shp</td></tr>
+<tr><td class="mono">banana_shot.png</td><td>adds picture</td><td style="color: #9aa3b5">Banana Gun shot, flash</td></tr>
+<tr><td class="mono">boing.wav</td><td>adds sound</td><td style="color: #9aa3b5">Banana Gun</td></tr>
+<tr><td class="mono">banana.obj, banana.mtl</td><td style="color: #9aa3b5">source · packed</td><td style="color: #9aa3b5">Build → banana.shp</td></tr>
+<tr><td colspan="3" style="color: #8a93a6">Adds only · replaces nothing</td></tr>
+</tbody>
+</table>
+</div>
+</section>
+
+</div>
+
+<section class="panel" aria-label="Preview and checks" style="flex: 1 1 320px">
+<div class="tabbar" role="tablist" aria-label="Right panels">
+<button class="tab tab-on" type="button" role="tab" aria-selected="true">In the game</button>
+<button class="tab" type="button" role="tab" aria-selected="false">Inspector</button>
+</div>
+<div style="display: flex; flex-direction: column; gap: 16px; padding: 14px 12px; overflow: auto">
+<div class="sect">In-game preview · mods screen</div>
+<div style="display: flex; flex-direction: column; gap: 10px; padding: 14px; border: 1px solid #2a2f3c; background: #05070b; font-family: Newtown, 'IBM Plex Sans', sans-serif; text-transform: uppercase; letter-spacing: 0.03em">
+<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; aspect-ratio: 5 / 2; border: 1px dashed #4a3a24; color: #b48a5c; font-size: 12px; text-align: center">
+NO THUMBNAIL
+<span style="font-family: 'IBM Plex Sans', sans-serif; text-transform: none; letter-spacing: 0; font-size: 11.5px; color: #8a7a66">mod.png · 700×280</span>
+</div>
+<div style="color: #ffffff; font-size: 15px">Example: Bananas</div>
+<div style="color: #f08a2c; font-size: 12px">Version 1.0 · OpenReliant</div>
+<div style="color: #c9cfdb; font-family: 'IBM Plex Sans', sans-serif; text-transform: none; letter-spacing: 0; font-size: 12px; line-height: 1.45">A scripting example for mod makers, not a supported mod. A new gun, missile, pilot and ship: the Banana Boat, a Predator that fires the Banana Gun ...</div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; font-size: 11.5px">
+<div><div style="color: #f08a2c">Replaces files of</div><div style="color: #9aa3b5">None</div></div>
+<div><div style="color: #f08a2c">Files replaced by</div><div style="color: #9aa3b5">None</div></div>
+</div>
+</div>
+<div style="display: flex; flex-direction: column">
+<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px">
+<div class="sect">Checks</div>
+<span class="pill pill-warn">2 warnings</span>
+</div>
+<div class="chk">
+<svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="color: #ffc24a; margin-top: 1px"><path d="M12 3l10 18H2z"></path><path d="M12 10v5"></path><path d="M12 18v.5"></path></svg>
+<div style="flex: 1; min-width: 0">No thumbnail</div>
+<button class="tb" type="button" style="height: 24px">Make one</button>
+</div>
+<div class="chk">
+<svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="color: #ffc24a; margin-top: 1px"><path d="M12 3l10 18H2z"></path><path d="M12 10v5"></path><path d="M12 18v.5"></path></svg>
+<div style="flex: 1; min-width: 0">No Url · no update link</div>
+</div>
+<div class="chk">
+<svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="color: #3ccfb4; margin-top: 1px"><path d="M5 12l5 5 9-10"></path></svg>
+<div>OpenReliant 0.7+</div>
+</div>
+<div class="chk">
+<svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="color: #3ccfb4; margin-top: 1px"><path d="M5 12l5 5 9-10"></path></svg>
+<div>Bases OK</div>
+</div>
+<div class="chk" style="border-bottom: 0">
+<svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="color: #3ccfb4; margin-top: 1px"><path d="M5 12l5 5 9-10"></path></svg>
+<div>File names and folder layout OK</div>
+</div>
+</div>
+</div>
+</section>
+
+</div>
+
+<footer style="display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; min-height: 24px; padding: 2px 10px; background: #0c0f15; border-top: 1px solid #1a1f2b; color: #9aa3b5; font-size: 11.5px">
+<span style="display: inline-flex; align-items: center; gap: 6px; color: #bfeee5"><span aria-hidden="true" style="width: 7px; height: 7px; border-radius: 50%; background: #3ccfb4"></span>Linked</span>
+<span>Example: Bananas</span>
+<span>11 files</span>
+<span>saved</span>
+<span style="margin-left: auto">not packed</span>
+<button type="button" role="switch" aria-checked="true" style="display: inline-flex; align-items: center; gap: 7px; padding: 0; border: 0; background: none; color: #c9cfdb; font: inherit; font-size: 11.5px; cursor: pointer">
+<span aria-hidden="true" style="position: relative; width: 24px; height: 13px; border-radius: 7px; background: #f08a2c"><span style="position: absolute; top: 2px; right: 2px; width: 9px; height: 9px; border-radius: 50%; background: #170b02"></span></span>
+Live changes
+</button>
+</footer>
+
+</div>
+</body>
+</html>

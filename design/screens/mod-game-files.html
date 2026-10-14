@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Game files</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+@font-face{font-family:"Newtown";src:url("../fonts/Newtown.ttf") format("truetype");font-display:swap}
+*{box-sizing:border-box}
+body{margin:0;background:#07080c}
+a{color:#f6a259}a:hover{color:#ffc58f}
+.i{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.i14{width:14px;height:14px}
+.i12{width:12px;height:12px}
+.mono{font-family:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.menu{background:none;border:0;color:#c9cfdb;padding:4px 9px;border-radius:4px;font:inherit;font-size:12.5px;cursor:pointer}
+.menu:hover{background:#1a1f2b;color:#ffffff}
+.tb{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:4px;border:1px solid #262d3d;background:#161a24;color:#dfe3ea;font:inherit;font-size:12.5px;cursor:pointer;white-space:nowrap;text-decoration:none}
+.tb:hover{background:#1d2230;border-color:#323a4e;color:#ffffff}
+.tbi{width:30px;padding:0;justify-content:center}
+.mpick{display:inline-flex;align-items:center;gap:7px;height:30px;padding:0 10px;border:1px solid #262d3d;border-radius:5px;background:#11141c;color:#f3f4f7;font:inherit;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.mpick:hover{border-color:#36405a}
+.views{display:flex;gap:2px;padding:2px;border:1px solid #262d3d;border-radius:6px;background:#0b0d12}
+.view{display:inline-flex;align-items:center;gap:7px;height:26px;padding:0 11px;border-radius:4px;color:#9aa3b5;text-decoration:none;font-size:12.5px;font-weight:500;white-space:nowrap}
+.view:hover{color:#ffffff;background:#171b26}
+.view-on,.view-on:hover{background:#262d3d;color:#ffffff;box-shadow:inset 0 -2px 0 #f08a2c}
+.key{font:500 10.5px/1 "JetBrains Mono",ui-monospace,monospace;color:#9aa3b5;padding:2px 4px;border:1px solid #2a3142;border-radius:3px;background:#0c0f15}
+.panel{background:#10131b;display:flex;flex-direction:column;min-width:0;border:1px solid #1a1f2b;border-radius:3px;overflow:hidden}
+.tabbar{display:flex;align-items:stretch;flex:none;height:30px;background:#0c0f15;border-bottom:1px solid #1c2230;overflow:hidden}
+.tab{display:inline-flex;align-items:center;gap:7px;padding:0 12px;border:0;border-right:1px solid #1c2230;background:none;color:#9aa3b5;font:inherit;font-size:12.5px;white-space:nowrap;cursor:pointer;text-decoration:none}
+.tab:hover{color:#e8eaf0}
+.tab-on{background:#10131b;color:#f3f4f7;box-shadow:inset 0 2px 0 #f08a2c}
+.sect{font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#8a93a6}
+.row{display:flex;align-items:center;gap:7px;width:100%;height:24px;padding:0 10px;border:0;background:none;color:#d4d8e1;font:inherit;font-size:12.5px;text-align:left;white-space:nowrap;cursor:pointer}
+.row:hover{background:#171b26}
+.sel,.sel:hover{background:#3b2412;color:#ffe2c4}
+.cnt{margin-left:auto;color:#8a93a6;font-size:11.5px}
+.frame{display:flex;align-items:center;gap:7px;width:100%;height:26px;padding:0 8px;background:#161a24;border:1px solid #262d3d;border-radius:3px;color:#e8eaf0;font:inherit;font-size:12.5px;text-align:left;min-width:0;cursor:pointer}
+.tbl{border-collapse:collapse;width:100%;font-size:12.5px}
+.tbl th{background:#0f1219;color:#8a93a6;font-weight:500;text-align:left;padding:5px 12px;border-bottom:1px solid #1f2533;white-space:nowrap}
+.tbl td{padding:5px 12px;border-bottom:1px solid #161b26;white-space:nowrap;color:#d4d8e1}
+.wave{position:relative;height:84px;border:1px solid #1a1f2b;border-radius:4px;background:#0b0d12;overflow:hidden}
+.kv{display:grid;grid-template-columns:86px minmax(0,1fr);gap:6px 10px;margin:0;font-size:12.5px}
+.kv dt{color:#8a93a6}
+.kv dd{margin:0;min-width:0;color:#e2e5ec}
+</style>
+</head>
+<body>
+<div style="min-height: 100vh; display: flex; flex-direction: column; background: #07080c; color: #e8eaf0; font-family: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 13px; line-height: 1.45">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; min-height: 34px; padding: 3px 10px; background: #0c0f15; border-bottom: 1px solid #1a1f2b">
+<div style="display: flex; align-items: baseline; gap: 8px; padding-right: 4px">
+<span style="font-family: Newtown, 'IBM Plex Sans', sans-serif; font-size: 16px; letter-spacing: 0.02em; color: #e8eaf0">Open<span style="color: #f08a2c">Reliant</span></span>
+<span style="font-size: 10.5px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: #8a93a6">Editor</span>
+</div>
+<nav aria-label="Menus" style="display: flex; flex-wrap: wrap; gap: 2px">
+<button class="menu" type="button">File</button>
+<button class="menu" type="button">Edit</button>
+<button class="menu" type="button">View</button>
+<button class="menu" type="button">Mod</button>
+<button class="menu" type="button">Game</button>
+<button class="menu" type="button">Window</button>
+<button class="menu" type="button">Help</button>
+</nav>
+<a href="command-palette.html" style="margin-left: auto; display: flex; align-items: center; gap: 8px; width: 340px; max-width: 100%; height: 26px; padding: 0 8px; border: 1px solid #262d3d; border-radius: 4px; background: #11141c; color: #8a93a6; text-decoration: none; font-size: 12.5px">
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="M16 16l4 4"></path></svg>
+<span style="flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Search game files and commands</span>
+<span class="key">Cmd+Shift+P</span>
+</a>
+<nav aria-label="Mode" style="display: flex; gap: 2px; padding: 2px; border: 1px solid #262d3d; border-radius: 5px; background: #11141c">
+<a href="mod-manifest.html" aria-current="page" style="display: inline-flex; align-items: center; gap: 6px; padding: 3px 12px; border-radius: 3px; background: #262d3d; color: #ffffff; text-decoration: none; font-size: 12.5px; font-weight: 500"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #f08a2c"><path d="M21 8l-9-5-9 5 9 5 9-5z"></path><path d="M3 8v8l9 5 9-5V8"></path><path d="M12 13v8"></path></svg>Mod</a>
+<a href="mission-script.html" style="display: inline-flex; align-items: center; gap: 6px; padding: 3px 12px; border-radius: 3px; color: #9aa3b5; text-decoration: none; font-size: 12.5px"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4"></path><path d="M5 4h11l-2 4 2 4H5"></path></svg>Mission</a>
+</nav>
+</header>
+
+<div role="toolbar" aria-label="Example: Music" style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 10px; background: #0e1118; border-bottom: 1px solid #1a1f2b">
+<button class="mpick" type="button" aria-haspopup="listbox" title="StarLancer/mods/music">
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #f08a2c"><path d="M21 8l-9-5-9 5 9 5 9-5z"></path><path d="M3 8v8l9 5 9-5V8"></path><path d="M12 13v8"></path></svg>
+Example: Music
+<svg class="i i12" viewBox="0 0 24 24" aria-hidden="true" style="color: #8a93a6"><path d="M6 9l6 6 6-6"></path></svg>
+</button>
+<nav class="views" aria-label="Views of the mod">
+<a href="mod-manifest.html" class="view" title="Cmd+1"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16"></path><path d="M4 12h10"></path><path d="M4 18h13"></path></svg>Manifest</a>
+<a href="mod-code.html" class="view" title="Cmd+2"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 7l-5 5 5 5"></path><path d="M16 7l5 5-5 5"></path></svg>Code</a>
+<a href="mod-game-files.html" class="view view-on" aria-current="page" title="Cmd+3"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="5" rx="1.5"></rect><path d="M5 9v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9"></path><path d="M10 13h4"></path></svg>Game files</a>
+<a href="mod-share.html" class="view" title="Cmd+4"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12"></path><path d="M8 7l4-4 4 4"></path><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"></path></svg>Share</a>
+</nav>
+<span aria-hidden="true" style="width: 1px; height: 20px; margin: 0 4px; background: #262d3d"></span>
+<button class="tb" type="button" title="Build its models and missions, Cmd+B">
+<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 9l-7 7 2.5 2.5 7-7"></path><path d="M12.5 4.5l7 7 2-2-7-7z"></path><path d="M10.5 6.5l4 4"></path></svg>
+Build
+</button>
+<div style="display: flex">
+<button class="tb" type="button" style="border-radius: 4px 0 0 4px">
+<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5l12 7-12 7z"></path></svg>
+Play with this mod
+</button>
+<button class="tb tbi" type="button" aria-label="Play with my other mods, or with this mod alone" style="border-radius: 0 4px 4px 0; border-left: 0">
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg>
+</button>
+</div>
+<div style="margin-left: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 8px">
+<span style="display: inline-flex; align-items: center; gap: 7px; height: 26px; padding: 0 11px; border: 1px solid #1f3b37; border-radius: 13px; background: #0f1d1c; color: #bfeee5; font-size: 12px">
+<span aria-hidden="true" style="width: 7px; height: 7px; border-radius: 50%; background: #3ccfb4"></span>
+StarLancer
+</span>
+</div>
+</div>
+
+<div style="flex: 1 1 auto; display: flex; flex-wrap: wrap; gap: 3px; padding: 3px; min-height: 0">
+
+<section class="panel" aria-label="The game's files" style="flex: 1 1 260px">
+<div class="tabbar" role="tablist" aria-label="Group by">
+<button class="tab tab-on" type="button" role="tab" aria-selected="true">By kind</button>
+<button class="tab" type="button" role="tab" aria-selected="false">By archive</button>
+</div>
+<div style="padding: 8px">
+<label class="frame" style="cursor: text">
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #8a93a6"><circle cx="11" cy="11" r="6.5"></circle><path d="M16 16l4 4"></path></svg>
+<input type="search" placeholder="Find a game file by name" aria-label="Find a game file" style="flex: 1; min-width: 0; background: none; border: 0; outline: none; color: #e8eaf0; font: inherit; font-size: 12.5px">
+</label>
+</div>
+<ul style="flex: 1 1 auto; overflow: auto; list-style: none; margin: 0; padding: 0 0 10px; display: flex; flex-direction: column">
+<li><button class="row" type="button" aria-expanded="true" style="padding-left: 6px; color: #f3f4f7; font-weight: 600"><svg class="i i12" viewBox="0 0 24 24" aria-hidden="true" style="color: #8a93a6"><path d="M6 9l6 6 6-6"></path></svg><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #8fb4ff"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>Music<span class="cnt mono">music\ · 37</span></button></li>
+<li><button class="row" type="button" style="padding-left: 40px">New_Ambient 01 - Loop 22K.wav</button></li>
+<li><button class="row" type="button" style="padding-left: 40px">New_Defeat.wav</button></li>
+<li><button class="row" type="button" style="padding-left: 40px">New_Launch.wav</button></li>
+<li><button class="row" type="button" style="padding-left: 40px">New_Mission01.wav<span class="cnt" style="color: #9ff0e3">Master Recordings</span></button></li>
+<li><button class="row" type="button" style="padding-left: 40px">New_Mission02.wav<span class="cnt" style="color: #9ff0e3">Master Recordings</span></button></li>
+<li><button class="row sel" type="button" aria-current="true" style="padding-left: 40px">New_Pensive.wav<span style="margin-left: auto; padding: 0 6px; border-radius: 3px; background: #f08a2c; color: #170b02; font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; line-height: 16px">this mod</span></button></li>
+<li><button class="row" type="button" style="padding-left: 40px">New_Searching Mission 01.wav</button></li>
+<li><button class="row" type="button" style="padding-left: 40px">New_Sim01.wav</button></li>
+<li><button class="row" type="button" style="padding-left: 40px">New_Takeoff - Music.wav</button></li>
+<li><button class="row" type="button" style="padding-left: 40px">New_Victory.wav</button></li>
+<li><button class="row" type="button" aria-expanded="false" style="padding-left: 6px"><svg class="i i12" viewBox="0 0 24 24" aria-hidden="true" style="color: #8a93a6"><path d="M9 6l6 6-6 6"></path></svg><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #8fb4ff"><path d="M3 12h2"></path><path d="M7 8v8"></path><path d="M11 5v14"></path><path d="M15 9v6"></path><path d="M19 11v2"></path></svg>Sounds<span class="cnt">sound banks</span></button></li>
+<li><button class="row" type="button" aria-expanded="false" style="padding-left: 6px"><svg class="i i12" viewBox="0 0 24 24" aria-hidden="true" style="color: #8a93a6"><path d="M9 6l6 6-6 6"></path></svg><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #8fb4ff"><path d="M4 5h16v11H9l-5 4z"></path></svg>Speech<span class="cnt mono">msspeech.hog</span></button></li>
+<li><button class="row" type="button" aria-expanded="false" style="padding-left: 6px"><svg class="i i12" viewBox="0 0 24 24" aria-hidden="true" style="color: #8a93a6"><path d="M9 6l6 6-6 6"></path></svg><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #e7c06b"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c0-4 4-7 8-7s8 3 8 7"></path></svg>Faces<span class="cnt mono">pilots.hog</span></button></li>
+<li><button class="row" type="button" aria-expanded="false" style="padding-left: 6px"><svg class="i i12" viewBox="0 0 24 24" aria-hidden="true" style="color: #8a93a6"><path d="M9 6l6 6-6 6"></path></svg><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #c4a7ff"><path d="M12 2l9 5v10l-9 5-9-5V7z"></path><path d="M12 22V12"></path><path d="M21 7l-9 5-9-5"></path></svg>Models<span class="cnt mono">resource.hog</span></button></li>
+<li><button class="row" type="button" aria-expanded="false" style="padding-left: 6px"><svg class="i i12" viewBox="0 0 24 24" aria-hidden="true" style="color: #8a93a6"><path d="M9 6l6 6-6 6"></path></svg><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #e7c06b"><rect x="3" y="4" width="18" height="16" rx="2"></rect><circle cx="9" cy="10" r="2"></circle><path d="M21 16l-5-5-9 9"></path></svg>Textures<span class="cnt mono">tcachehw.dat</span></button></li>
+<li><button class="row" type="button" aria-expanded="false" style="padding-left: 6px"><svg class="i i12" viewBox="0 0 24 24" aria-hidden="true" style="color: #8a93a6"><path d="M9 6l6 6-6 6"></path></svg><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #e7c06b"><rect x="3" y="3" width="18" height="18" rx="2"></rect><path d="M3 9h18"></path><path d="M9 21V9"></path></svg>Interface<span class="cnt">pictures, fonts</span></button></li>
+<li><button class="row" type="button" aria-expanded="false" style="padding-left: 6px"><svg class="i i12" viewBox="0 0 24 24" aria-hidden="true" style="color: #8a93a6"><path d="M9 6l6 6-6 6"></path></svg><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #f4a35c"><path d="M5 21V4"></path><path d="M5 4h11l-2 4 2 4H5"></path></svg>Missions<span class="cnt mono">missions\</span></button></li>
+<li><button class="row" type="button" aria-expanded="false" style="padding-left: 6px"><svg class="i i12" viewBox="0 0 24 24" aria-hidden="true" style="color: #8a93a6"><path d="M9 6l6 6-6 6"></path></svg><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #9aa3b5"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M10 9l5 3-5 3z"></path></svg>Movies<span class="cnt">.bik</span></button></li>
+<li><button class="row" type="button" aria-expanded="false" style="padding-left: 6px"><svg class="i i12" viewBox="0 0 24 24" aria-hidden="true" style="color: #8a93a6"><path d="M9 6l6 6-6 6"></path></svg><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #9aa3b5"><path d="M4 5h16"></path><path d="M4 10h16"></path><path d="M4 15h16"></path><path d="M4 20h16"></path></svg>Stats tables<span class="cnt">.bin</span></button></li>
+</ul>
+</section>
+
+<div style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 3px">
+
+<section class="panel" aria-label="Compare" style="flex: 1 1 auto; min-height: 430px">
+<div class="tabbar" role="tablist" aria-label="Open files">
+<button class="tab tab-on" type="button" role="tab" aria-selected="true">
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #8fb4ff"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+New_Pensive.wav
+<span style="color: #7a8398">the game's and the mod's</span>
+</button>
+</div>
+<div style="flex: 1 1 auto; display: flex; flex-direction: column; gap: 14px; padding: 16px 18px; overflow: auto">
+
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px">
+<div style="display: flex; flex-direction: column; gap: 2px; min-width: 0">
+<span style="font-size: 15px; font-weight: 600">Main menu music</span>
+<span style="color: #9aa3b5; font-size: 12.5px">Same time scale · shaded: loop</span>
+</div>
+<div role="group" aria-label="Listen" style="margin-left: auto; display: flex; gap: 6px">
+<button class="tb" type="button"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5l12 7-12 7z"></path></svg>Game</button>
+<button class="tb" type="button" style="background: #2a1a0d; border-color: #6a3d16; color: #ffd2a6"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5v14"></path><path d="M15 5v14"></path></svg>Mod · playing</button>
+<button class="tb" type="button" title="Switch between them while playing, Tab">Switch<span class="key">Tab</span></button>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 6px">
+<div style="display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px"><span style="font-weight: 600">Game</span><span class="mono" style="color: #9aa3b5; font-size: 12px">music\New_Pensive.wav · IMA ADPCM · stereo · 22,050 Hz · 1:07.8</span></div>
+<div class="wave">
+<svg viewBox="0 0 1000 80" preserveAspectRatio="none" aria-hidden="true" style="position: absolute; inset: 0; width: 100%; height: 100%">
+<rect x="59" y="0" width="612" height="80" style="fill: rgba(143, 180, 255, 0.07)"></rect>
+<path d="M0 35 L30 30 L59 22 L90 16 L130 10 L170 13 L210 8 L250 11 L290 6 L330 10 L370 7 L410 12 L450 9 L490 11 L530 8 L570 10 L610 13 L650 18 L671 26 L671 54 L650 62 L610 67 L570 70 L530 72 L490 69 L450 71 L410 68 L370 73 L330 70 L290 74 L250 69 L210 72 L170 67 L130 70 L90 64 L59 58 L30 50 L0 45 Z" style="fill: #5a7fc8"></path>
+<path d="M59 0 L59 80" style="stroke: #8fb4ff; stroke-width: 2; vector-effect: non-scaling-stroke"></path>
+</svg>
+<span style="position: absolute; left: calc(5.9% + 6px); top: 4px; color: #a9c4ff; font-size: 11px">loop 5.95 s</span>
+<span style="position: absolute; left: calc(67.1% + 8px); top: 32px; color: #7a8398; font-size: 11px">end 1:07.8</span>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 6px">
+<div style="display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px"><span style="font-weight: 600; color: #ffd2a6">Mod</span><span class="mono" style="color: #9aa3b5; font-size: 12px">New_Pensive.wav · IMA ADPCM · mono · 22,050 Hz · 1:41.1</span></div>
+<div class="wave" style="border-color: #4a2d14">
+<svg viewBox="0 0 1000 80" preserveAspectRatio="none" aria-hidden="true" style="position: absolute; inset: 0; width: 100%; height: 100%">
+<rect x="59" y="0" width="941" height="80" style="fill: rgba(240, 138, 44, 0.07)"></rect>
+<path d="M0 36 L20 32 L40 28 L59 24 L80 18 L120 14 L160 16 L200 12 L240 10 L280 13 L320 9 L360 11 L400 7 L440 10 L480 8 L520 12 L560 9 L600 11 L640 7 L680 10 L720 8 L760 11 L800 9 L840 12 L880 10 L920 13 L960 15 L1000 20 L1000 60 L960 65 L920 67 L880 70 L840 68 L800 71 L760 69 L720 72 L680 70 L640 73 L600 69 L560 71 L520 68 L480 72 L440 70 L400 73 L360 69 L320 71 L280 67 L240 70 L200 68 L160 64 L120 66 L80 62 L59 56 L40 52 L20 48 L0 44 Z" style="fill: #c47426"></path>
+<path d="M59 0 L59 80" style="stroke: #f08a2c; stroke-width: 2; vector-effect: non-scaling-stroke"></path>
+<path d="M316 0 L316 80" style="stroke: #ffffff; stroke-width: 1.5; vector-effect: non-scaling-stroke"></path>
+</svg>
+<span style="position: absolute; left: calc(5.9% + 6px); top: 4px; color: #ffc58f; font-size: 11px">loop 5.95 s</span>
+<span style="position: absolute; left: calc(31.6% + 6px); bottom: 4px; padding: 0 5px; border-radius: 3px; background: rgba(11, 13, 18, 0.85); color: #ffffff; font-size: 11px">0:32.0</span>
+</div>
+</div>
+
+<div style="display: flex; justify-content: space-between; color: #7a8398; font-size: 11px" aria-hidden="true">
+<span>0 s</span><span>20 s</span><span>40 s</span><span>60 s</span><span>80 s</span><span>100 s</span>
+</div>
+
+<div style="display: flex; align-items: flex-start; gap: 9px; padding: 10px 12px; border: 1px solid #1f2533; border-radius: 5px; background: #0e1118; color: #c9cfdb; font-size: 12.5px; line-height: 1.5">
+<svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="color: #8fb4ff; margin-top: 1px"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v.5"></path><path d="M12 11v5"></path></svg>
+<span>Loop point from the game's loop table · mapped by time, any format</span>
+</div>
+
+</div>
+</section>
+
+<section class="panel" aria-label="This mod's files" style="flex: 0 0 auto; height: 176px">
+<div class="tabbar" role="tablist" aria-label="Bottom panels">
+<button class="tab tab-on" type="button" role="tab" aria-selected="true">This mod's files</button>
+<button class="tab" type="button" role="tab" aria-selected="false">Output</button>
+</div>
+<div style="overflow: auto">
+<table class="tbl">
+<thead><tr><th scope="col">File</th><th scope="col">In the game</th><th scope="col">Note</th></tr></thead>
+<tbody>
+<tr style="background: #1f180b"><td class="mono">New_Pensive.wav</td><td>replaces <span class="mono">music\New_Pensive.wav</span></td><td style="color: #ffd98a">overridden by Master Recordings</td></tr>
+<tr><td class="mono">cd_player.luau</td><td>load script</td><td style="color: #9aa3b5">CD player: The Rise</td></tr>
+<tr><td class="mono">mod.ini</td><td>manifest</td><td style="color: #9aa3b5">1.0 · OpenReliant 0.14+</td></tr>
+</tbody>
+</table>
+</div>
+</section>
+
+</div>
+
+<section class="panel" aria-label="Inspector" style="flex: 1 1 300px">
+<div class="tabbar" role="tablist" aria-label="Right panels">
+<button class="tab tab-on" type="button" role="tab" aria-selected="true">Inspector</button>
+</div>
+<div style="display: flex; flex-direction: column; gap: 16px; padding: 14px 12px; overflow: auto">
+<div>
+<div class="mono" style="font-size: 14px; font-weight: 600">New_Pensive.wav</div>
+<div style="color: #8a93a6; font-size: 12px">Music · <span class="mono">music\</span></div>
+</div>
+<dl class="kv">
+<dt>Plays</dt><dd>Main menu · CD player: The Rise</dd>
+<dt>This mod</dt><dd>replaces it</dd>
+<dt>Formats</dt><dd>WAV, FLAC, MP3, Ogg Vorbis, Opus · any rate</dd>
+</dl>
+<div style="display: flex; flex-direction: column; gap: 9px; padding: 11px 12px; border: 1px solid #4a3a14; border-radius: 5px; background: #1f180b">
+<div style="display: flex; align-items: center; gap: 8px; color: #ffd98a; font-weight: 600"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l10 18H2z"></path><path d="M12 10v5"></path><path d="M12 18v.5"></path></svg>Overridden by a later mod</div>
+<span style="color: #e6d3a8; font-size: 12.5px; line-height: 1.5">Master Recordings · <span class="mono">New_Pensive.flac</span> · loads after this mod</span>
+<div style="display: flex; flex-wrap: wrap; gap: 6px">
+<button class="tb" type="button">Load this mod after it</button>
+<a class="tb" href="mod-manifest.html">Load order</a>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<div class="sect">Game file</div>
+<div style="display: flex; flex-wrap: wrap; gap: 6px">
+<button class="tb" type="button"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12"></path><path d="M8 11l4 4 4-4"></path><path d="M5 19h14"></path></svg>Export WAV</button>
+<button class="tb" type="button"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M17 3l4 4-4 4"></path><path d="M3 11V9a2 2 0 0 1 2-2h16"></path><path d="M7 21l-4-4 4-4"></path><path d="M21 13v2a2 2 0 0 1-2 2H3"></path></svg>Replace…</button>
+</div>
+<span style="color: #7a8398; font-size: 11.5px">Copies the file in under the game's name</span>
+</div>
+</div>
+</section>
+
+</div>
+
+<footer style="display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; min-height: 24px; padding: 2px 10px; background: #0c0f15; border-top: 1px solid #1a1f2b; color: #9aa3b5; font-size: 11.5px">
+<span style="display: inline-flex; align-items: center; gap: 6px; color: #bfeee5"><span aria-hidden="true" style="width: 7px; height: 7px; border-radius: 50%; background: #3ccfb4"></span>Linked</span>
+<span>Example: Music</span>
+<span>From your StarLancer install</span>
+<span style="margin-left: auto; color: #ffd98a">1 overridden</span>
+</footer>
+
+</div>
+</body>
+</html>

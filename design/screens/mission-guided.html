@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>A first mission, guided</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+@font-face{font-family:"Newtown";src:url("../fonts/Newtown.ttf") format("truetype");font-display:swap}
+*{box-sizing:border-box}
+body{margin:0;background:#07080c}
+a{color:#f6a259}a:hover{color:#ffc58f}
+.i{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.i14{width:14px;height:14px}
+.i12{width:12px;height:12px}
+.i20{width:20px;height:20px}
+.solid{fill:currentColor;stroke:none}
+.mono{font-family:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.menu{background:none;border:0;color:#c9cfdb;padding:4px 9px;border-radius:4px;font:inherit;font-size:12.5px;cursor:pointer}
+.menu:hover{background:#1a1f2b;color:#ffffff}
+.tb{display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 12px;border-radius:5px;border:1px solid #262d3d;background:#161a24;color:#dfe3ea;font:inherit;font-size:13px;cursor:pointer;white-space:nowrap;text-decoration:none}
+.tb:hover{background:#1d2230;border-color:#323a4e;color:#ffffff}
+.tbi{width:34px;padding:0;justify-content:center}
+.mpick{display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 11px;border:1px solid #262d3d;border-radius:5px;background:#11141c;color:#f3f4f7;font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;white-space:nowrap}
+.mpick:hover{border-color:#36405a}
+.views{display:flex;gap:2px;padding:2px;border:1px solid #262d3d;border-radius:6px;background:#0b0d12}
+.view{display:inline-flex;align-items:center;gap:7px;height:28px;padding:0 12px;border-radius:4px;color:#9aa3b5;text-decoration:none;font-size:13px;font-weight:500;white-space:nowrap}
+.view:hover{color:#ffffff;background:#171b26}
+.view-on,.view-on:hover{background:#262d3d;color:#ffffff;box-shadow:inset 0 -2px 0 #f08a2c}
+.key{font:500 10.5px/1 "JetBrains Mono",ui-monospace,monospace;color:#9aa3b5;padding:2px 4px;border:1px solid #2a3142;border-radius:3px;background:#0c0f15}
+.panel{background:#10131b;display:flex;flex-direction:column;min-width:0;border:1px solid #1a1f2b;border-radius:3px;overflow:hidden}
+.tabbar{display:flex;align-items:stretch;flex:none;height:32px;background:#0c0f15;border-bottom:1px solid #1c2230;overflow:hidden}
+.tab{display:inline-flex;align-items:center;gap:7px;padding:0 13px;border:0;border-right:1px solid #1c2230;background:none;color:#9aa3b5;font:inherit;font-size:13px;white-space:nowrap;cursor:pointer;text-decoration:none}
+.tab-on{background:#10131b;color:#f3f4f7;box-shadow:inset 0 2px 0 #f08a2c}
+.sect{font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#8a93a6}
+.tile{display:flex;align-items:flex-start;gap:11px;width:100%;padding:11px 12px;border:1px solid #232938;border-radius:7px;background:#131722;color:#e8eaf0;font:inherit;text-align:left;cursor:grab}
+.tile:hover{border-color:#3a4256;background:#171c29}
+.tx{display:block;min-width:0}
+.tx b{display:block;font-size:13.5px;font-weight:600}
+.tx small{display:block;margin-top:2px;color:#9aa3b5;font-size:12px;line-height:1.4}
+.ico{width:34px;height:34px;flex:none;display:flex;align-items:center;justify-content:center;border-radius:7px}
+.row{display:flex;align-items:center;gap:8px;width:100%;height:26px;padding:0 10px;border:0;background:none;color:#d4d8e1;font:inherit;font-size:13px;text-align:left;white-space:nowrap;cursor:pointer}
+.row:hover{background:#171b26}
+.cnt{margin-left:auto;color:#8a93a6;font-size:12px}
+.sw{width:9px;height:9px;flex:none;border-radius:2px}
+.lab{position:absolute;font-size:12px;line-height:1;color:#e8eaf0;white-space:nowrap;text-shadow:0 0 3px #07080c,0 0 3px #07080c,0 0 3px #07080c}
+.mk-solid path{fill:currentColor;stroke:#07080c;stroke-width:1.2;stroke-linejoin:round}
+.mk-hollow path{fill:#0a0c11;stroke:currentColor;stroke-width:1.8;stroke-linejoin:round}
+.mk-ghost path{fill:rgba(255,122,107,.12);stroke:currentColor;stroke-width:1.6;stroke-dasharray:3 2;stroke-linejoin:round}
+.step{display:flex;gap:11px;padding:10px 0;border-bottom:1px solid #171c27}
+.dot{width:22px;height:22px;flex:none;display:flex;align-items:center;justify-content:center;border-radius:50%;font-size:11.5px;font-weight:600}
+.done{background:#0f2a26;color:#3ccfb4;border:1px solid #1f4a45}
+.todo{background:#11141c;color:#8a93a6;border:1px solid #2a3142}
+.now{background:#f08a2c;color:#170b02}
+.code{font-family:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;line-height:19px}
+.ln{display:flex;align-items:center;height:19px;white-space:pre}
+.num{width:42px;flex:none;padding-right:12px;text-align:right;color:#7a8398}
+.k{color:#8fb4ff}.d{color:#f4a35c}.f{color:#63d1c0}.s{color:#b5d98a}.n{color:#e7c06b}.c{color:#7c869b;font-style:italic}.v{color:#dfe3ea}.p{color:#9aa3b5}
+</style>
+</head>
+<body>
+<div style="min-height: 100vh; display: flex; flex-direction: column; background: #07080c; color: #e8eaf0; font-family: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 13.5px; line-height: 1.45">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; min-height: 34px; padding: 3px 10px; background: #0c0f15; border-bottom: 1px solid #1a1f2b">
+<div style="display: flex; align-items: baseline; gap: 8px; padding-right: 4px">
+<span style="font-family: Newtown, 'IBM Plex Sans', sans-serif; font-size: 16px; letter-spacing: 0.02em; color: #e8eaf0">Open<span style="color: #f08a2c">Reliant</span></span>
+<span style="font-size: 10.5px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: #8a93a6">Editor</span>
+</div>
+<nav aria-label="Menus" style="display: flex; flex-wrap: wrap; gap: 2px">
+<button class="menu" type="button">File</button>
+<button class="menu" type="button">Edit</button>
+<button class="menu" type="button">View</button>
+<button class="menu" type="button">Mission</button>
+<button class="menu" type="button">Game</button>
+<button class="menu" type="button">Help</button>
+</nav>
+<div style="margin-left: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 10px">
+<nav aria-label="Mode" style="display: flex; gap: 2px; padding: 2px; border: 1px solid #262d3d; border-radius: 5px; background: #11141c">
+<a href="mod-manifest.html" style="display: inline-flex; align-items: center; gap: 6px; padding: 3px 12px; border-radius: 3px; color: #9aa3b5; text-decoration: none; font-size: 12.5px"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8l-9-5-9 5 9 5 9-5z"></path><path d="M3 8v8l9 5 9-5V8"></path><path d="M12 13v8"></path></svg>Mod</a>
+<a href="mission-guided.html" aria-current="page" style="display: inline-flex; align-items: center; gap: 6px; padding: 3px 12px; border-radius: 3px; background: #262d3d; color: #ffffff; text-decoration: none; font-size: 12.5px; font-weight: 500"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #f08a2c"><path d="M5 21V4"></path><path d="M5 4h11l-2 4 2 4H5"></path></svg>Mission</a>
+</nav>
+<span style="display: inline-flex; align-items: center; gap: 8px; height: 26px; padding: 0 4px 0 11px; border: 1px solid #3a2c18; border-radius: 13px; background: #1a130b; color: #ffd2a6; font-size: 12px">
+Guided layout
+<a href="mission-scene.html" style="display: inline-flex; align-items: center; height: 20px; padding: 0 9px; border-radius: 10px; background: #2a1f12; color: #f6a259; text-decoration: none; font-size: 12px">Full layout</a>
+</span>
+</div>
+</header>
+
+<div role="toolbar" aria-label="Your mission" style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 12px; background: #0e1118; border-bottom: 1px solid #1a1f2b">
+<button class="mpick" type="button" aria-haspopup="listbox" title="mission90.mission.luau, in the mod First Mission">
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #f08a2c"><path d="M5 21V4"></path><path d="M5 4h11l-2 4 2 4H5"></path></svg>
+First Mission
+<svg class="i i12" viewBox="0 0 24 24" aria-hidden="true" style="color: #8a93a6"><path d="M6 9l6 6 6-6"></path></svg>
+</button>
+<nav class="views" aria-label="Views of First Mission">
+<a href="mission-script.html" class="view" title="Cmd+1"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 7l-5 5 5 5"></path><path d="M16 7l5 5-5 5"></path></svg>Script</a>
+<a href="mission-guided.html" class="view view-on" aria-current="page" title="Cmd+2"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2z"></path><path d="M9 4v14"></path><path d="M15 6v14"></path></svg>Scene</a>
+<a href="mission-blocks.html" class="view" title="Cmd+3"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="6" rx="2"></rect><rect x="3" y="14" width="12" height="6" rx="2"></rect></svg>Blocks</a>
+</nav>
+<span aria-hidden="true" style="width: 1px; height: 22px; margin: 0 6px; background: #262d3d"></span>
+<button class="tb tbi" type="button" aria-label="Undo"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14L4 9l5-5"></path><path d="M4 9h10a6 6 0 0 1 0 12h-3"></path></svg></button>
+<button class="tb tbi" type="button" aria-label="Redo"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 14l5-5-5-5"></path><path d="M20 9H10a6 6 0 0 0 0 12h3"></path></svg></button>
+<div style="margin-left: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 10px">
+<span style="display: inline-flex; align-items: center; gap: 6px; color: #9aa3b5; font-size: 12.5px">
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #3ccfb4"><path d="M5 12l5 5 9-10"></path></svg>
+Saved · no problems
+</span>
+<button class="tb" type="button" style="height: 34px; padding: 0 16px; background: #f08a2c; border-color: #f08a2c; color: #170b02; font-weight: 600; font-size: 13.5px">
+<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5l12 7-12 7z"></path></svg>
+Play
+<span class="key" style="background: #c96d1c; border-color: #c96d1c; color: #1d0e03">F5</span>
+</button>
+</div>
+</div>
+
+<div style="flex: 1 1 auto; display: flex; flex-wrap: wrap; gap: 3px; padding: 3px; min-height: 0">
+
+<section class="panel" aria-label="Add to the mission" style="flex: 1 1 250px">
+<div class="tabbar"><span class="tab tab-on">Add to the mission</span></div>
+<div style="display: flex; flex-direction: column; gap: 8px; padding: 10px; overflow: auto">
+<button class="tile" type="button" style="border-color: #6a3d16; background: #1d140c">
+<span class="ico" style="background: #3b2412; color: #ff7a6b"><svg class="i i20 solid" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l8 19-8-4.5L4 21z"></path></svg></span>
+<span class="tx"><b>Ship</b><small>Placing Sabre 2</small></span>
+</button>
+<button class="tile" type="button">
+<span class="ico" style="background: #1a1f2b; color: #c9cfdb"><svg class="i i20" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l9 9-9 9-9-9z"></path></svg></span>
+<span class="tx"><b>Nav point</b><small>Marker on the display</small></span>
+</button>
+<button class="tile" type="button">
+<span class="ico" style="background: #12203a; color: #5aa9ff"><svg class="i i20" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l9 5-9 5-9-5z"></path><path d="M3 13l9 5 9-5"></path></svg></span>
+<span class="tx"><b>Flight group</b><small>Ships that appear together</small></span>
+</button>
+<button class="tile" type="button">
+<span class="ico" style="background: #2a1a0d; color: #f08a2c"><svg class="i i20" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2L4 14h7l-1 8 9-12h-7z"></path></svg></span>
+<span class="tx"><b>Event</b><small>On arrival, kill, launch…</small></span>
+</button>
+<div class="sect" style="padding: 10px 2px 2px">Your mission</div>
+<ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column">
+<li><button class="row" type="button"><svg class="i i12 solid" viewBox="0 0 24 24" aria-hidden="true" style="color: #5aa9ff"><path d="M12 2l8 19-8-4.5L4 21z"></path></svg>Player<span class="cnt">Predator</span></button></li>
+<li><button class="row" type="button"><svg class="i i12" viewBox="0 0 24 24" aria-hidden="true" style="color: #c9cfdb"><path d="M12 3l9 9-9 9-9-9z"></path></svg>Nav 1<span class="cnt">40k ahead</span></button></li>
+<li><button class="row" type="button"><svg class="i i12 solid" viewBox="0 0 24 24" aria-hidden="true" style="color: #ff7a6b"><path d="M12 2l8 19-8-4.5L4 21z"></path></svg>Sabre 1<span class="cnt">Enemies</span></button></li>
+<li><button class="row" type="button" style="color: #8a93a6"><svg class="i i12" viewBox="0 0 24 24" aria-hidden="true" style="color: #ff7a6b"><path d="M12 2l8 19-8-4.5L4 21z"></path></svg>Sabre 2<span class="cnt" style="color: #f6a259">placing</span></button></li>
+</ul>
+</div>
+</section>
+
+<div style="flex: 999 1 520px; min-width: 0; display: flex; flex-direction: column; gap: 3px">
+
+<section class="panel" aria-label="Map" style="flex: 1 1 auto; min-height: 460px">
+<div class="tabbar">
+<span class="tab tab-on">
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #f08a2c"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2z"></path><path d="M9 4v14"></path><path d="M15 6v14"></path></svg>
+Map · top
+</span>
+<span style="margin-left: auto; display: flex; align-items: center; padding: 0 12px; color: #8a93a6; font-size: 12px">Scroll: zoom · Drag: pan or move</span>
+</div>
+<div style="position: relative; flex: 1 1 auto; min-height: 380px; overflow: hidden; background-color: #0a0c11; background-image: linear-gradient(#202839 1px, transparent 1px), linear-gradient(90deg, #202839 1px, transparent 1px), linear-gradient(#131824 1px, transparent 1px), linear-gradient(90deg, #131824 1px, transparent 1px); background-size: 270px 270px, 270px 270px, 54px 54px, 54px 54px; background-position: calc(50% + 135px) calc(50% + 135px), calc(50% + 135px) calc(50% + 135px), calc(50% + 27px) calc(50% + 27px), calc(50% + 27px) calc(50% + 27px)">
+<div style="position: absolute; left: 50%; top: 50%; width: 900px; height: 600px; margin: -300px 0 0 -450px">
+<svg class="mk-solid" viewBox="0 0 24 24" aria-hidden="true" style="position: absolute; left: 441px; top: 291px; width: 18px; height: 18px; color: #c9cfdb"><path d="M12 2l10 10-10 10L2 12z"></path></svg>
+<span class="lab" style="left: 464px; top: 296px">Nav 1</span>
+<svg class="mk-hollow" viewBox="0 0 24 24" aria-hidden="true" style="position: absolute; left: 333px; top: 183px; width: 18px; height: 18px; color: #ff7a6b; transform: rotate(180deg)"><path d="M12 2l8 19-8-4.5L4 21z"></path></svg>
+<span class="lab" style="left: 300px; top: 160px">Sabre 1</span>
+<svg class="mk-ghost" viewBox="0 0 24 24" aria-hidden="true" style="position: absolute; left: 547px; top: 181px; width: 22px; height: 22px; color: #ff7a6b; transform: rotate(180deg)"><path d="M12 2l8 19-8-4.5L4 21z"></path></svg>
+<svg viewBox="0 0 24 24" aria-hidden="true" style="position: absolute; left: 566px; top: 200px; width: 18px; height: 18px"><path d="M5 3l14 8-6 2-2 6z" style="fill: #ffffff; stroke: #07080c; stroke-width: 1.4; stroke-linejoin: round"></path></svg>
+<div style="position: absolute; left: 590px; top: 150px; width: 250px; display: flex; flex-direction: column; gap: 6px; padding: 11px 13px; border: 1px solid #6a3d16; border-radius: 8px; background: rgba(29, 20, 12, 0.96); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45)">
+<span style="font-weight: 600; color: #ffd2a6">Click to place Sabre 2</span>
+<span style="color: #d9c3ad; font-size: 12.5px">Group Enemies · faces you</span>
+<span class="mono" style="color: #b8a08a; font-size: 11.5px">x 2000 · z 42000 · yaw 180</span>
+<span style="color: #9a8670; font-size: 11.5px">Esc: cancel</span>
+</div>
+</div>
+<div aria-hidden="true" style="position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); display: flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 12px; background: rgba(12, 15, 21, 0.9); border: 1px solid #1f2533; color: #a9d1ff; font-size: 12px">
+<svg class="i i12" viewBox="0 0 24 24"><path d="M12 5v14"></path><path d="M6 13l6 6 6-6"></path></svg>
+Player start · 40k
+</div>
+<div aria-hidden="true" style="position: absolute; left: 12px; bottom: 12px; display: flex; flex-direction: column; gap: 3px; color: #9aa3b5; font-size: 11px">
+<span>1k</span>
+<span style="width: 54px; height: 6px; border: 1px solid #9aa3b5; border-top: 0"></span>
+</div>
+</div>
+</section>
+
+<section class="panel" aria-label="The mission's source" style="flex: 0 0 auto">
+<button type="button" aria-expanded="true" style="display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px; border: 0; background: #0c0f15; color: #c9cfdb; font: inherit; font-size: 13px; text-align: left; cursor: pointer">
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #f08a2c"><path d="M14 3H6v18h12V7z"></path><path d="M14 3v4h4"></path><path d="M10 12l-2 2 2 2"></path><path d="M14 12l2 2-2 2"></path></svg>
+Source
+<span style="color: #8a93a6; font-size: 12px">lines 17 to 22: Sabre 1</span>
+<span style="margin-left: auto; color: #f6a259; font-size: 12.5px">Hide</span>
+</button>
+<div class="code" style="padding: 6px 0; background: #0b0d12; border-top: 1px solid #1a1f2b">
+<div class="ln"><span class="num">15</span><span class="v">player</span><span class="p"> = </span><span class="d">ship</span><span class="p">(</span><span class="s">"Player"</span><span class="p">, { </span><span class="v">type</span><span class="p"> = </span><span class="s">"predator"</span><span class="p">, </span><span class="v">group</span><span class="p"> = </span><span class="v">alpha</span><span class="p"> })</span></div>
+<div class="ln"><span class="num">16</span><span class="v">nav</span><span class="p"> = </span><span class="d">nav_point</span><span class="p">(</span><span class="s">"Nav 1"</span><span class="p">, { </span><span class="v">group</span><span class="p"> = </span><span class="v">navs</span><span class="p">, </span><span class="v">position</span><span class="p"> = { </span><span class="n">0</span><span class="p">, </span><span class="n">0</span><span class="p">, </span><span class="n">40000</span><span class="p"> } })</span></div>
+<div class="ln" style="background: rgba(60, 207, 180, 0.08)"><span class="num" style="color: #8fe3d3">17</span><span class="v">sabre_1</span><span class="p"> = </span><span class="d">ship</span><span class="p">(</span><span class="s">"Sabre 1"</span><span class="p">, {</span></div>
+<div class="ln" style="background: rgba(60, 207, 180, 0.08)"><span class="num" style="color: #8fe3d3">18</span><span style="padding-left: 4ch"></span><span class="v">type</span><span class="p"> = </span><span class="s">"sabre"</span><span class="p">,</span></div>
+<div class="ln" style="background: rgba(60, 207, 180, 0.08)"><span class="num" style="color: #8fe3d3">19</span><span style="padding-left: 4ch"></span><span class="v">group</span><span class="p"> = </span><span class="v">enemies</span><span class="p">,</span></div>
+<div class="ln" style="background: rgba(60, 207, 180, 0.08)"><span class="num" style="color: #8fe3d3">20</span><span style="padding-left: 4ch"></span><span class="v">position</span><span class="p"> = { </span><span class="n">-2000</span><span class="p">, </span><span class="n">0</span><span class="p">, </span><span class="n">42000</span><span class="p"> },</span></div>
+<div class="ln" style="background: rgba(60, 207, 180, 0.08)"><span class="num" style="color: #8fe3d3">21</span><span style="padding-left: 4ch"></span><span class="v">yaw</span><span class="p"> = </span><span class="n">180</span><span class="p">,</span></div>
+<div class="ln" style="background: rgba(60, 207, 180, 0.08)"><span class="num" style="color: #8fe3d3">22</span><span class="p">})</span></div>
+</div>
+</section>
+
+</div>
+
+<section class="panel" aria-label="Guide" style="flex: 1 1 330px">
+<div class="tabbar"><span class="tab tab-on">
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #f08a2c"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"></path><path d="M4 19V5"></path></svg>
+Guide
+</span></div>
+<div style="display: flex; flex-direction: column; padding: 14px 14px 10px; overflow: auto">
+<div style="font-family: Newtown, 'IBM Plex Sans', sans-serif; font-size: 17px; letter-spacing: 0.02em">First mission</div>
+<div style="display: flex; align-items: center; gap: 10px; margin: 8px 0 6px">
+<div aria-hidden="true" style="flex: 1; height: 6px; border-radius: 3px; background: #1a1f2b; overflow: hidden"><div style="width: 43%; height: 100%; background: #f08a2c"></div></div>
+<span style="color: #9aa3b5; font-size: 12px">Step 4 of 7</span>
+</div>
+<ol style="list-style: none; margin: 0; padding: 0">
+<li class="step"><span class="dot done" aria-label="Done"><svg class="i i12" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg></span><div><div>Name</div><div style="color: #8a93a6; font-size: 12.5px">First Mission</div></div></li>
+<li class="step"><span class="dot done" aria-label="Done"><svg class="i i12" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg></span><div><div>Your ship</div><div style="color: #8a93a6; font-size: 12.5px">Predator · group Alpha</div></div></li>
+<li class="step"><span class="dot done" aria-label="Done"><svg class="i i12" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg></span><div><div>Nav point</div><div style="color: #8a93a6; font-size: 12.5px">Nav 1 · 40k ahead</div></div></li>
+<li class="step" style="flex-direction: column; gap: 10px; margin: 4px -8px; padding: 12px 8px; border: 1px solid #4a2d14; border-radius: 8px; background: #17110b">
+<div style="display: flex; gap: 11px"><span class="dot now" aria-label="Now">4</span><div><div style="font-weight: 600; color: #ffe2c4">Enemies at Nav 1</div><div style="color: #d9c3ad; font-size: 12.5px; line-height: 1.5">2 Sabres · facing you · group Enemies</div></div></div>
+<ul style="list-style: none; margin: 0 0 0 33px; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 12.5px">
+<li style="display: flex; align-items: center; gap: 8px; color: #8fe3d3"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg>Group Enemies</li>
+<li style="display: flex; align-items: center; gap: 8px; color: #8fe3d3"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg>Sabre 1 · left of Nav 1</li>
+<li style="display: flex; align-items: center; gap: 8px; color: #ffd2a6"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7"></circle></svg>Sabre 2 · right of Nav 1</li>
+</ul>
+<div style="display: flex; flex-wrap: wrap; gap: 6px; margin-left: 33px">
+<button class="tb" type="button" style="height: 28px">Show me</button>
+<button class="tb" type="button" style="height: 28px; background: none">Skip</button>
+</div>
+</li>
+<li class="step"><span class="dot todo">5</span><div><div>Attack on arrival</div><div style="color: #8a93a6; font-size: 12.5px">Event on Nav 1 · SetAI fight</div></div></li>
+<li class="step"><span class="dot todo">6</span><div><div>Win when both are down</div><div style="color: #8a93a6; font-size: 12.5px">Event on Enemies · mission_success</div></div></li>
+<li class="step" style="border-bottom: 0"><span class="dot todo">7</span><div><div>Play</div><div style="color: #8a93a6; font-size: 12.5px">F5</div></div></li>
+</ol>
+<div style="display: flex; flex-direction: column; gap: 6px; margin-top: 8px; padding-top: 10px; border-top: 1px solid #1a1f2b; font-size: 12.5px">
+<a href="https://github.com/OpenReliant/openreliant/blob/main/docs/guide/missions.md">Docs: Writing missions</a>
+<a href="mission-blocks.html">Open in Blocks</a>
+</div>
+</div>
+</section>
+
+</div>
+
+<footer style="display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; min-height: 26px; padding: 2px 12px; background: #0c0f15; border-top: 1px solid #1a1f2b; color: #9aa3b5; font-size: 12px">
+<span style="display: inline-flex; align-items: center; gap: 6px; color: #bfeee5"><span aria-hidden="true" style="width: 7px; height: 7px; border-radius: 50%; background: #3ccfb4"></span>StarLancer · linked</span>
+<span>No problems</span>
+<span style="margin-left: auto">Cmd+Shift+P: all commands</span>
+</footer>
+
+</div>
+</body>
+</html>
