@@ -24,7 +24,13 @@ The plan is OpenReliant's [#1126](https://github.com/OpenReliant/openreliant/iss
   does.
 - Windows, macOS and Linux, on x86-64 and Arm, as OpenReliant, with each system's own keys.
 
-It needs OpenReliant and your own copy of StarLancer.
+## Getting it
+
+Download the archive for your system from the [latest release](../../releases/latest) and extract it.
+The editor needs OpenReliant with your copy of StarLancer installed
+([installation guide](https://github.com/OpenReliant/openreliant/blob/main/docs/guide/installation.md)):
+set the game's folder in the editor's Game settings. The macOS builds aren't signed, so macOS blocks
+them at first: run `xattr -d com.apple.quarantine openreliant-editor` once to allow them.
 
 ## Building it
 
