@@ -19,6 +19,7 @@ shows every screen.
   compare and replace, and packing for the catalogue.
 - A native app in Zig, on SDL3 and Dear ImGui, that reads missions and mods exactly as OpenReliant
   does.
+- Windows, macOS and Linux, on x86-64 and Arm, as OpenReliant, with each system's own keys.
 
 It needs OpenReliant and your own copy of StarLancer.
 

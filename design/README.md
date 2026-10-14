@@ -14,7 +14,8 @@ mods Bananas and Music.
 The editor opens a mod: a folder in the game's `mods` folder. A mission is one of the mod's files.
 
 - **Mission mode** works on one mission of the mod. Script, Scene and Blocks are three views of it,
-  a tab apart (Cmd+1 to 3), with one selection, one undo history and one debugger across them.
+  a tab apart (Ctrl+1 to 3, or Cmd+1 to 3 on macOS), with one selection, one undo history and one
+  debugger across them.
 - **Mod mode** works on the mod as a whole, in four views: Manifest, Code, Game files and Share. A
   mission in the mod opens in Mission mode.
 
@@ -23,7 +24,7 @@ The editor opens a mod: a folder in the game's `mods` folder. A mission is one o
 - The guided layout walks through a first mission step by step, and shows the source each step
   writes. The full layout shows every panel. Both are presets of the same dock layout.
 - Blocks, forms and the map all write the same mission source, which is always a tab away.
-- Every action has a button, a menu item, a command in the palette (Cmd+Shift+P) and a key.
+- Every action has a button, a menu item, a command in the palette (Ctrl+Shift+P) and a key.
 - An error says what's wrong in a few words, and offers the fix.
 - The script listing, offsets, conditions on breakpoints and the game's state are there for those
   who want them, out of a beginner's way.
@@ -42,6 +43,23 @@ or opcode. The game's own text, such as its commands' descriptions, shows as the
   OpenReliant carries built in, for the name ([fonts](fonts/README.md)).
 - Red marks breakpoints and errors, teal a linked game, and each flight group has a colour of its
   own on the map and in the outline. A shape or a label always says the same as the colour.
+
+## Platforms
+
+The editor runs on Windows, macOS and Linux, on x86-64 and Arm: the six systems OpenReliant is
+built for.
+
+- One layout everywhere. Dear ImGui draws the whole interface, its menus included, with the fonts
+  the editor carries, so a screen looks the same on each system. SDL3 gives each system's own
+  windows, file dialogs, clipboard and display scaling, and SDL_GPU draws with Vulkan on Windows and
+  Linux and with Metal on macOS, as OpenReliant does.
+- Keys follow each system. The screens show the keys of Windows and Linux. On macOS, Cmd takes
+  Ctrl's place, and debugging uses Xcode's keys, since macOS keeps F11 to show the desktop and its
+  F-keys are media keys by default. The [Keys](#keys) screen sets the two key maps side by side.
+- Paths show with each system's separator, and the editor starts the game by its name on each
+  system: `openreliant`, or `openreliant.exe` on Windows.
+- Releases build for the same six systems as OpenReliant's, and each pull request builds and tests
+  the editor on Windows, macOS and Linux.
 
 ## The screens
 
@@ -148,6 +166,18 @@ same file.
 [Page](screens/mod-share.html). The checks, the next version, packing into a `.hog` with its
 checksum, and the export for the mods catalogue, with the catalogue's entry as players will see it.
 
+### Keys
+
+![The Keys settings on Windows and Linux](images/keys.png)
+
+[Page](screens/keys.html). Every action's keys on Windows and Linux and on macOS, side by side,
+with the current system's in front. An orange dot marks an action whose keys differ by more than
+Cmd for Ctrl. Changed keys are saved for each system on its own.
+
+![The Keys settings on macOS](images/keys-macos.png)
+
+[Page](screens/keys-macos.html). The same settings on macOS.
+
 ## Libraries
 
 | Part | Library |
@@ -175,7 +205,8 @@ checksum, and the export for the mods catalogue, with the catalogue's entry as p
 ## Changing the design
 
 The pages are plain HTML and CSS. After changing one, take its picture again with
-[`pictures.sh`](pictures.sh), which uses Chrome:
+[`pictures.sh`](pictures.sh), which uses Chrome or Chromium on any of the three systems (on Windows,
+from Git Bash):
 
 ```bash
 design/pictures.sh

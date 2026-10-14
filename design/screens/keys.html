@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Keys</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+@font-face{font-family:"Newtown";src:url("../fonts/Newtown.ttf") format("truetype");font-display:swap}
+*{box-sizing:border-box}
+body{margin:0;background:#07080c}
+a{color:#f6a259}a:hover{color:#ffc58f}
+.i{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.i14{width:14px;height:14px}
+.i12{width:12px;height:12px}
+.mono{font-family:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.menu{background:none;border:0;color:#c9cfdb;padding:4px 9px;border-radius:4px;font:inherit;font-size:12.5px;cursor:pointer}
+.menu:hover{background:#1a1f2b;color:#ffffff}
+.tb{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:4px;border:1px solid #262d3d;background:#161a24;color:#dfe3ea;font:inherit;font-size:12.5px;cursor:pointer;white-space:nowrap;text-decoration:none}
+.tb:hover{background:#1d2230;border-color:#323a4e;color:#ffffff}
+.key{display:inline-flex;align-items:center;height:20px;padding:0 6px;border:1px solid #2a3142;border-bottom-width:2px;border-radius:4px;background:#0c0f15;color:#dfe3ea;font:500 11.5px/1 "JetBrains Mono",ui-monospace,monospace;white-space:nowrap}
+.panel{background:#10131b;display:flex;flex-direction:column;min-width:0;border:1px solid #1a1f2b;border-radius:3px;overflow:hidden}
+.nav{display:flex;align-items:center;gap:9px;width:100%;height:30px;padding:0 12px;border:0;border-radius:4px;background:none;color:#c9cfdb;font:inherit;font-size:13px;text-align:left;cursor:pointer}
+.nav:hover{background:#171b26}
+.nav-on,.nav-on:hover{background:#262d3d;color:#ffffff}
+.sect{font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#8a93a6}
+.kr{display:grid;grid-template-columns:minmax(150px,1.4fr) minmax(130px,1fr) minmax(130px,1fr) 40px;align-items:center;min-height:32px;padding:0 14px;border-bottom:1px solid #161b26;font-size:12.5px;color:#d4d8e1}
+.kh{min-height:30px;background:#0f1219;color:#8a93a6;border-bottom:1px solid #1f2533;font-weight:500;position:sticky;top:0}
+.kg{padding:14px 14px 6px;border-bottom:1px solid #1f2533}
+.dot{width:7px;height:7px;display:inline-block;flex:none;border-radius:50%;margin-right:8px}
+.diff{background:#f08a2c}
+.act{display:flex;align-items:center;min-width:0}
+.kc-off .key{color:#8a93a6;background:#0e1118;border-color:#232938}
+.kc-off{color:#8a93a6}
+.kc-on{color:#f3f4f7}
+.edit{width:26px;height:24px;display:inline-flex;align-items:center;justify-content:center;border:1px solid transparent;border-radius:3px;background:none;color:#8a93a6;cursor:pointer}
+.edit:hover{border-color:#262d3d;color:#e8eaf0}
+</style>
+</head>
+<body>
+<div style="min-height: 100vh; display: flex; flex-direction: column; background: #07080c; color: #e8eaf0; font-family: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 13px; line-height: 1.45">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; min-height: 34px; padding: 3px 10px; background: #0c0f15; border-bottom: 1px solid #1a1f2b">
+<div style="display: flex; align-items: baseline; gap: 8px; padding-right: 4px">
+<span style="font-family: Newtown, 'IBM Plex Sans', sans-serif; font-size: 16px; letter-spacing: 0.02em; color: #e8eaf0">Open<span style="color: #f08a2c">Reliant</span></span>
+<span style="font-size: 10.5px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: #8a93a6">Editor</span>
+</div>
+<nav aria-label="Menus" style="display: flex; flex-wrap: wrap; gap: 2px">
+<button class="menu" type="button">File</button>
+<button class="menu" type="button">Edit</button>
+<button class="menu" type="button">View</button>
+<button class="menu" type="button">Window</button>
+<button class="menu" type="button">Help</button>
+</nav>
+<span style="margin-left: auto; color: #8a93a6; font-size: 12px">Settings</span>
+</header>
+
+<div style="flex: 1 1 auto; display: flex; flex-wrap: wrap; gap: 3px; padding: 3px; min-height: 0">
+
+<section class="panel" aria-label="Settings" style="flex: 1 1 220px">
+<div style="padding: 14px 12px 8px; font-family: Newtown, 'IBM Plex Sans', sans-serif; font-size: 16px; letter-spacing: 0.02em">Settings</div>
+<nav aria-label="Settings pages" style="display: flex; flex-direction: column; gap: 2px; padding: 4px 8px">
+<button class="nav" type="button">General</button>
+<button class="nav" type="button">Appearance</button>
+<button class="nav nav-on" type="button" aria-current="page">Keys</button>
+<button class="nav" type="button">Game</button>
+<button class="nav" type="button">Editor link</button>
+</nav>
+</section>
+
+<section class="panel" aria-label="Keys" style="flex: 999 1 640px; max-height: calc(100vh - 64px)">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid #1a1f2b">
+<div style="display: flex; flex-direction: column; gap: 1px; margin-right: 6px">
+<span style="font-size: 15px; font-weight: 600">Keys</span>
+<span style="color: #8a93a6; font-size: 12px">Defaults follow each system</span>
+</div>
+<label style="display: flex; align-items: center; gap: 8px; width: 240px; max-width: 100%; height: 28px; padding: 0 9px; border: 1px solid #262d3d; border-radius: 4px; background: #161a24">
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #8a93a6"><circle cx="11" cy="11" r="6.5"></circle><path d="M16 16l4 4"></path></svg>
+<input type="search" placeholder="Find an action or a key" aria-label="Find an action or a key" style="flex: 1; min-width: 0; background: none; border: 0; outline: none; color: #e8eaf0; font: inherit; font-size: 12.5px">
+</label>
+<span style="color: #8a93a6; font-size: 12px">This system</span>
+<div role="radiogroup" aria-label="This system" style="display: flex; gap: 2px; padding: 2px; border: 1px solid #262d3d; border-radius: 5px; background: #11141c">
+<button type="button" role="radio" aria-checked="true" style="height: 24px; padding: 0 12px; border: 0; border-radius: 3px; background: #262d3d; color: #ffffff; font: inherit; font-size: 12.5px; cursor: pointer">Windows, Linux</button>
+<button type="button" role="radio" aria-checked="false" style="height: 24px; padding: 0 12px; border: 0; border-radius: 3px; background: none; color: #9aa3b5; font: inherit; font-size: 12.5px; cursor: pointer">macOS</button>
+</div>
+<div style="margin-left: auto; display: flex; gap: 6px">
+<button class="tb" type="button">Reset</button>
+<button class="tb" type="button">Export</button>
+</div>
+</div>
+<div style="flex: 1 1 auto; min-height: 0; overflow: auto">
+<div class="kr kh"><span>Action</span><span class="kc-on">Windows, Linux</span><span class="kc-off">macOS</span><span></span></div>
+
+<div class="kg sect">Debugging</div>
+<div class="kr"><span class="act"><span class="dot diff"></span>Continue</span><span class="kc-on"><span class="key">F5</span></span><span class="kc-off"><span class="key">Ctrl+Cmd+Y</span></span><button class="edit" type="button" aria-label="Change the key"><svg class="i i12" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"></path></svg></button></div>
+<div class="kr"><span class="act"><span class="dot diff"></span>Step over</span><span class="kc-on"><span class="key">F10</span></span><span class="kc-off"><span class="key">F6</span></span><button class="edit" type="button" aria-label="Change the key"><svg class="i i12" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"></path></svg></button></div>
+<div class="kr"><span class="act"><span class="dot diff"></span>Step into</span><span class="kc-on"><span class="key">F11</span></span><span class="kc-off"><span class="key">F7</span></span><button class="edit" type="button" aria-label="Change the key"><svg class="i i12" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"></path></svg></button></div>
+<div class="kr"><span class="act"><span class="dot diff"></span>Run to cursor</span><span class="kc-on"><span class="key">Ctrl+F10</span></span><span class="kc-off"><span class="key">Ctrl+Cmd+C</span></span><button class="edit" type="button" aria-label="Change the key"><svg class="i i12" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"></path></svg></button></div>
+<div class="kr"><span class="act"><span class="dot diff"></span>Breakpoint on or off</span><span class="kc-on"><span class="key">F9</span></span><span class="kc-off"><span class="key">Cmd+\</span></span><button class="edit" type="button" aria-label="Change the key"><svg class="i i12" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"></path></svg></button></div>
+<div class="kr"><span class="act"><span class="dot diff"></span>Pause mission</span><span class="kc-on"><span class="key">F6</span></span><span class="kc-off"><span class="key">F8</span></span><button class="edit" type="button" aria-label="Change the key"><svg class="i i12" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"></path></svg></button></div>
+<div class="kr"><span class="act"><span class="dot diff"></span>Let the script go</span><span class="kc-on"><span class="key">Shift+F5</span></span><span class="kc-off"><span class="key">Cmd+.</span></span><button class="edit" type="button" aria-label="Change the key"><svg class="i i12" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"></path></svg></button></div>
+
+<div class="kg sect">Build and play</div>
+<div class="kr"><span class="act"><span class="dot"></span>Build</span><span class="kc-on"><span class="key">Ctrl+B</span></span><span class="kc-off"><span class="key">Cmd+B</span></span><button class="edit" type="button" aria-label="Change the key"><svg class="i i12" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"></path></svg></button></div>
+<div class="kr"><span class="act"><span class="dot diff"></span>Play in game</span><span class="kc-on"><span class="key">F5</span></span><span class="kc-off"><span class="key">Cmd+R</span></span><button class="edit" type="button" aria-label="Change the key"><svg class="i i12" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"></path></svg></button></div>
+<div class="kr"><span class="act"><span class="dot diff"></span>Play from part</span><span class="kc-on"><span class="key">Ctrl+F5</span></span><span class="kc-off"><span class="key">Ctrl+Cmd+R</span></span><button class="edit" type="button" aria-label="Change the key"><svg class="i i12" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"></path></svg></button></div>
+<div class="kr"><span class="act"><span class="dot diff"></span>Reload scripts</span><span class="kc-on"><span class="key">Ctrl+R</span></span><span class="kc-off"><span class="key">Cmd+Shift+R</span></span><button class="edit" type="button" aria-label="Change the key"><svg class="i i12" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"></path></svg></button></div>
+
+<div class="kg sect">General</div>
+<div class="kr"><span class="act"><span class="dot"></span>Command palette</span><span class="kc-on"><span class="key">Ctrl+Shift+P</span></span><span class="kc-off"><span class="key">Cmd+Shift+P</span></span><button class="edit" type="button" aria-label="Change the key"><svg class="i i12" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"></path></svg></button></div>
+<div class="kr"><span class="act"><span class="dot"></span>Go to record or file</span><span class="kc-on"><span class="key">Ctrl+P</span></span><span class="kc-off"><span class="key">Cmd+P</span></span><button class="edit" type="button" aria-label="Change the key"><svg class="i i12" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"></path></svg></button></div>
+<div class="kr"><span class="act"><span class="dot"></span>Views 1 to 4</span><span class="kc-on"><span class="key">Ctrl+1 to 4</span></span><span class="kc-off"><span class="key">Cmd+1 to 4</span></span><button class="edit" type="button" aria-label="Change the key"><svg class="i i12" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"></path></svg></button></div>
+<div class="kr"><span class="act"><span class="dot"></span>Mod or Mission mode</span><span class="kc-on"><span class="key">Ctrl+Shift+M</span></span><span class="kc-off"><span class="key">Cmd+Shift+M</span></span><button class="edit" type="button" aria-label="Change the key"><svg class="i i12" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"></path></svg></button></div>
+<div class="kr"><span class="act"><span class="dot"></span>Settings</span><span class="kc-on"><span class="key">Ctrl+,</span></span><span class="kc-off"><span class="key">Cmd+,</span></span><button class="edit" type="button" aria-label="Change the key"><svg class="i i12" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"></path></svg></button></div>
+<div class="kr"><span class="act"><span class="dot diff"></span>Full screen</span><span class="kc-on"><span class="key">F11</span></span><span class="kc-off"><span class="key">Ctrl+Cmd+F</span></span><button class="edit" type="button" aria-label="Change the key"><svg class="i i12" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"></path></svg></button></div>
+<div class="kr"><span class="act"><span class="dot diff"></span>Quit</span><span class="kc-on"><span class="key">Alt+F4</span></span><span class="kc-off"><span class="key">Cmd+Q</span></span><button class="edit" type="button" aria-label="Change the key"><svg class="i i12" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"></path></svg></button></div>
+
+<div class="kg sect">Editing</div>
+<div class="kr"><span class="act"><span class="dot"></span>Undo</span><span class="kc-on"><span class="key">Ctrl+Z</span></span><span class="kc-off"><span class="key">Cmd+Z</span></span><button class="edit" type="button" aria-label="Change the key"><svg class="i i12" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"></path></svg></button></div>
+<div class="kr"><span class="act"><span class="dot diff"></span>Redo</span><span class="kc-on"><span class="key">Ctrl+Y</span></span><span class="kc-off"><span class="key">Cmd+Shift+Z</span></span><button class="edit" type="button" aria-label="Change the key"><svg class="i i12" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"></path></svg></button></div>
+<div class="kr"><span class="act"><span class="dot diff"></span>Find next</span><span class="kc-on"><span class="key">F3</span></span><span class="kc-off"><span class="key">Cmd+G</span></span><button class="edit" type="button" aria-label="Change the key"><svg class="i i12" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"></path></svg></button></div>
+<div class="kr"><span class="act"><span class="dot diff"></span>Replace</span><span class="kc-on"><span class="key">Ctrl+H</span></span><span class="kc-off"><span class="key">Cmd+Option+F</span></span><button class="edit" type="button" aria-label="Change the key"><svg class="i i12" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"></path></svg></button></div>
+<div class="kr"><span class="act"><span class="dot diff"></span>Go to line</span><span class="kc-on"><span class="key">Ctrl+G</span></span><span class="kc-off"><span class="key">Cmd+L</span></span><button class="edit" type="button" aria-label="Change the key"><svg class="i i12" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"></path></svg></button></div>
+<div class="kr"><span class="act"><span class="dot"></span>Comment line</span><span class="kc-on"><span class="key">Ctrl+/</span></span><span class="kc-off"><span class="key">Cmd+/</span></span><button class="edit" type="button" aria-label="Change the key"><svg class="i i12" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"></path></svg></button></div>
+
+</div>
+</section>
+
+<section class="panel" aria-label="Notes on the key maps" style="flex: 1 1 300px">
+<div style="display: flex; flex-direction: column; gap: 14px; padding: 14px 12px; overflow: auto">
+<div style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: #c9cfdb"><span class="dot diff" aria-hidden="true" style="margin: 0"></span>Differs beyond Cmd for Ctrl</div>
+<div class="sect">macOS</div>
+<dl style="display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 8px 10px; margin: 0; font-size: 12.5px">
+<dt style="color: #8a93a6">Modifier</dt><dd style="margin: 0"><span class="key">Cmd</span> for <span class="key">Ctrl</span></dd>
+<dt style="color: #8a93a6">Debugging</dt><dd style="margin: 0">Xcode's keys</dd>
+<dt style="color: #8a93a6">F11</dt><dd style="margin: 0">Show Desktop · left free</dd>
+<dt style="color: #8a93a6">F-keys</dt><dd style="margin: 0">Media keys by default · fn+F6</dd>
+<dt style="color: #8a93a6">Text</dt><dd style="margin: 0"><span class="key">Option</span>+arrows: words · <span class="key">Cmd</span>+arrows: line ends</dd>
+</dl>
+<div class="sect" style="margin-top: 6px">Windows, Linux</div>
+<dl style="display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 8px 10px; margin: 0; font-size: 12.5px">
+<dt style="color: #8a93a6">Debugging</dt><dd style="margin: 0">Visual Studio's keys</dd>
+<dt style="color: #8a93a6">Quit</dt><dd style="margin: 0"><span class="key">Alt+F4</span> · Linux also <span class="key">Ctrl+Q</span></dd>
+<dt style="color: #8a93a6">Text</dt><dd style="margin: 0"><span class="key">Ctrl</span>+arrows: words · <span class="key">Home</span> <span class="key">End</span></dd>
+</dl>
+<div style="display: flex; flex-direction: column; gap: 6px; padding: 10px; border: 1px solid #1f2533; border-radius: 5px; background: #0e1118; font-size: 12px; color: #9aa3b5">
+<span class="sect">Saved in</span>
+<span class="mono" style="color: #c9cfdb">keys.ini</span>
+<span>Per system · changed keys only</span>
+</div>
+</div>
+</section>
+
+</div>
+
+<footer style="display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; min-height: 24px; padding: 2px 10px; background: #0c0f15; border-top: 1px solid #1a1f2b; color: #9aa3b5; font-size: 11.5px">
+<span>Key map · Windows and Linux defaults</span>
+<span>0 changed</span>
+<span style="margin-left: auto">No conflicts</span>
+</footer>
+
+</div>
+</body>
+</html>
