@@ -1,5 +1,7 @@
 //! An open mission: its source in the text editor, checked as it's typed, its outline from the
-//! last source that parsed, its problems, its breakpoints, and what its last build made.
+//! last source that parsed, its problems, the build of its text with the map of its script's
+//! statements, its breakpoints, the line where the game holds its script, and what its last build
+//! wrote.
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -23,11 +25,13 @@ const LineFlags = packed struct(usize) {
     _: @Int(.unsigned, @bitSizeOf(usize) - 1) = 0,
 };
 
-/// A check of the source: its outline and its problems, in an arena of their own.
+/// A check of the source: its outline, its problems, and its build where it has none, in an arena
+/// of their own.
 const Check = struct {
     arena: std.heap.ArenaAllocator,
     outline: game.Outline = .{ .records = &.{}, .errors = &.{} },
     problems: []const game.Problem = &.{},
+    mission: ?game.Mission = null,
 
     fn deinit(check: *Check) void {
         check.arena.deinit();
@@ -67,6 +71,8 @@ pub const Document = struct {
     listing_arena: std.heap.ArenaAllocator,
     /// Whether the listing changed since the listing view showed it.
     listing_fresh: bool = false,
+    /// The line where the game holds the script, counting from 0, which the text tints.
+    held_line: ?u32 = null,
 
     /// Opens the source file at `path`.
     pub fn open(gpa: Allocator, io: Io, path: []const u8, profile: *const game.Profile, language: ?text_editor.Language) !*Document {
@@ -120,6 +126,12 @@ pub const Document = struct {
         return document.good.outline;
     }
 
+    /// The build of the text as last checked, with the map of its script's statements; null while
+    /// the text has problems.
+    pub fn mission(document: *const Document) ?game.Mission {
+        return document.check.mission;
+    }
+
     /// Checks the text again once it has rested for `check_delay_ms` since its last change. True
     /// when it checked.
     pub fn update(document: *Document, now_ms: u64) bool {
@@ -155,7 +167,7 @@ pub const Document = struct {
             check.problems = check.outline.errors;
         } else {
             switch (try document.profile.build(arena, text)) {
-                .mission => check.problems = &.{},
+                .mission => |made| check.mission = made,
                 .problems => |found| check.problems = found,
             }
         }
@@ -173,14 +185,24 @@ pub const Document = struct {
         }
         document.check.deinit();
         document.check = check;
-        document.markProblems();
+        document.mark();
     }
 
-    /// Puts the problems on the text: the line tinted red, and a squiggle under each one's word.
-    fn markProblems(document: *Document) void {
+    /// Tints the line where the game holds the script, or none.
+    pub fn setHeldLine(document: *Document, line: ?u32) void {
+        if (document.held_line == line) return;
+        document.held_line = line;
+        document.mark();
+    }
+
+    /// Puts the problems on the text, each line tinted red and a squiggle under each one's word,
+    /// and tints the line where the game holds the script.
+    fn mark(document: *Document) void {
         const editor = document.editor;
         editor.clearSquiggles();
         editor.clearMarkers();
+        // The text's part of the held line; the gutter draws its own (`views/script.zig`).
+        if (document.held_line) |line| editor.addMarker(line, 0, theme.held_line, "");
         for (document.check.problems) |problem| {
             editor.addMarker(problem.at.line, 0, theme.error_line, "");
             const at: text_editor.Pos = .{ .line = problem.at.line, .index = problem.at.column };
@@ -213,7 +235,7 @@ pub const Document = struct {
         const arena = arena_state.allocator();
         const text = try arena.dupe(u8, document.editor.text());
         const image = switch (try document.profile.build(arena, text)) {
-            .mission => |made| made,
+            .mission => |made| made.file,
             .problems => return .{ .problems = document.check.problems },
         };
         const stem = document.file[0 .. document.file.len - document.profile.source_extension.len];
@@ -234,8 +256,13 @@ pub const Document = struct {
     }
 
     pub fn toggleBreakpoint(document: *Document, line: usize) void {
+        document.setBreakpoint(line, !document.hasBreakpoint(line));
+    }
+
+    pub fn setBreakpoint(document: *Document, line: usize, on: bool) void {
+        if (line >= document.editor.lineCount()) return;
         var flags: LineFlags = @bitCast(document.editor.lineData(line));
-        flags.breakpoint = !flags.breakpoint;
+        flags.breakpoint = on;
         document.editor.setLineData(line, @bitCast(flags));
     }
 

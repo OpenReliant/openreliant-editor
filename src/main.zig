@@ -5,7 +5,10 @@ const std = @import("std");
 const c = @import("c");
 
 pub const app = @import("app.zig");
+pub const breakpoints = @import("debug/breakpoints.zig");
 pub const commands = @import("commands.zig");
+pub const connection = @import("link/connection.zig");
+pub const session = @import("debug/session.zig");
 pub const game = @import("game.zig");
 pub const ini = @import("ini.zig");
 pub const keys = @import("keys.zig");
@@ -43,7 +46,7 @@ const Options = struct {
     check_missions: bool = false,
     print_version: bool = false,
 
-    const Show = enum { start, settings, palette, keys, problems };
+    const Show = enum { start, settings, palette, keys, link, problems };
 
     const usage =
         \\Usage: openreliant-editor [<mod folder or mission file>] [options]
@@ -54,7 +57,7 @@ const Options = struct {
         \\  --screenshot <file>    draw without a window and save a frame as a PNG file
         \\  --frames <count>       the frames drawn before the picture; 10 by default
         \\  --size <width>x<height>  the window's size; 1440x900 by default
-        \\  --show <screen>        start, settings, keys, palette or problems
+        \\  --show <screen>        start, settings, keys, link, palette or problems
         \\  --check-missions       open each of the game's missions as source, build it again,
         \\                         and check it's the same mission
         \\
@@ -149,9 +152,13 @@ pub fn main(init: std.process.Init) !u8 {
     if (options.line) |line| editor.goTo(line -| 1, 0);
     if (options.show) |shown| switch (shown) {
         .start => editor.screen = .start,
-        .settings, .keys => {
+        .settings, .keys, .link => {
             editor.screen = .settings;
-            editor.settings_page = if (shown == .keys) .keys else .game;
+            editor.settings_page = switch (shown) {
+                .keys => .keys,
+                .link => .editor_link,
+                else => .game,
+            };
         },
         .palette => editor.palette.show(.commands),
         .problems => editor.showPanel(.problems),
@@ -228,7 +235,7 @@ fn checkMission(arena: std.mem.Allocator, io: std.Io, profile: *const game.Profi
             return false;
         },
         .mission => |again| {
-            if (try profile.difference(arena, image, again)) |differs| {
+            if (try profile.difference(arena, image, again.file)) |differs| {
                 try out.print("differs: {s}\n", .{differs});
                 return false;
             }

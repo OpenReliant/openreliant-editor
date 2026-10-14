@@ -223,6 +223,11 @@ pub const Window = struct {
         _ = c.SDL_SetWindowFullscreen(window.handle, !full);
     }
 
+    /// Brings the window in front of the others, as the game holds the script.
+    pub fn raise(window: *Window) void {
+        _ = c.SDL_RaiseWindow(window.handle);
+    }
+
     pub fn setTitle(window: *Window, title: [*:0]const u8) void {
         _ = c.SDL_SetWindowTitle(window.handle, title);
     }

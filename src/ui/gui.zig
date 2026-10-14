@@ -232,6 +232,11 @@ pub fn dot(list: *c.ImDrawList, center: Vec2, radius: f32, color: Color) void {
     c.ImDrawList_AddCircleFilled(list, center, px(radius), color, 0);
 }
 
+/// A circle's line `thickness` wide, `radius` from its centre to the middle of the line.
+pub fn ring(list: *c.ImDrawList, center: Vec2, radius: f32, thickness: f32, color: Color) void {
+    c.ImDrawList_AddCircleEx(list, center, px(radius), color, 0, px(thickness));
+}
+
 /// Whether the last item is under the pointer, shown as a hand for a clickable one.
 pub fn hovered() bool {
     return c.ImGui_IsItemHovered(0);

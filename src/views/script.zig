@@ -98,7 +98,8 @@ fn tabs(app: *App, document: *Document) void {
     gui.setCursor(.{ .x = at.x, .y = at.y + height });
 }
 
-/// The line under the tabs: the file, the record the cursor is in, and its statement.
+/// The line under the tabs: the file, the record the cursor is in, and its statement, with the
+/// statement's offset in the script at the end, from the build's map.
 fn breadcrumbs(app: *App, document: *Document) void {
     _ = app;
     const at = gui.cursor();
@@ -130,12 +131,18 @@ fn breadcrumbs(app: *App, document: *Document) void {
             gui.popFont();
         }
     }
+    if (document.mission()) |mission| if (mission.statementOn(@intCast(cursor.line))) |statement| {
+        gui.mono(.regular, fonts.size.small);
+        const offset = gui.print("script offset {d}", .{statement.offset});
+        gui.drawText(list, .{ .x = at.x + width - px(12) - gui.textSize(offset).x, .y = gui.textTop(middle) }, theme.text_faint, offset);
+        gui.popFont();
+    };
     c.ImGui_Dummy(.{ .x = width, .y = height });
 }
 
-/// Which statement of its record's code the cursor's line is, and how many there are: the lines
-/// of the body that hold code.
-fn statementOf(document: *Document, record: game.Record, line: usize) ?[2]usize {
+/// Which statement of its record's code `line` is, and how many there are: the lines of the body
+/// that hold code.
+pub fn statementOf(document: *Document, record: game.Record, line: usize) ?[2]usize {
     if (record.section != .triggers and record.section != .parts) return null;
     var count: usize = 0;
     var current: ?usize = null;
@@ -411,8 +418,9 @@ fn listing(app: *App, document: *Document) void {
     gui.popFont();
 }
 
-/// Draws a line's number, with its breakpoint or its problem in the room before it, which a click
-/// sets or clears a breakpoint in.
+/// Draws a line's number, with the room before it marking where the game holds the script, a
+/// breakpoint or a problem, which a click sets or clears a breakpoint in. A breakpoint the game
+/// holds the script at is a dot, and one it doesn't yet, as no build of the mission plays, a ring.
 fn drawLineNumber(app: *App, number: *const c.OrTextLineNumber) void {
     const document = app.document orelse return;
     const list: *c.ImDrawList = @ptrCast(@alignCast(number.draw_list));
@@ -424,11 +432,17 @@ fn drawLineNumber(app: *App, number: *const c.OrTextLineNumber) void {
     const marks_max = gui.vec2(number.x - glyph * 0.6, number.y + number.height);
     const center = gui.vec2((marks_min.x + marks_max.x) / 2, middle);
     const breakpoint = document.hasBreakpoint(line);
+    const held = if (document.held_line) |held_line| held_line == line else false;
     var problem = false;
     for (document.problems()) |found| problem = problem or found.at.line == line;
     const hovered = c.ImGui_IsMouseHoveringRect(marks_min, marks_max) and c.ImGui_IsWindowHovered(0);
-    if (breakpoint) {
-        gui.dot(list, center, 5, theme.breakpoint);
+    if (held) {
+        // The held line's tint, from the panel's edge to the text, which the text editor tints.
+        const text_left = document.editor.screenPos(.{ .line = line, .index = 0 }).x;
+        gui.rect(list, .{ .x = c.ImGui_GetWindowPos().x, .y = number.y }, .{ .x = text_left, .y = number.y + number.height }, theme.held_line, 0);
+        drawHeldMarker(list, center, breakpoint);
+    } else if (breakpoint) {
+        if (app.session.mapped()) gui.dot(list, center, 5, theme.breakpoint) else gui.ring(list, center, 4.25, 1.5, theme.breakpoint);
     } else if (problem) {
         widgets.drawIcon(list, .{ .x = center.x - px(6), .y = middle }, .circle_alert, fonts.size.icon_tiny, theme.error_icon);
     } else if (hovered) {
@@ -436,12 +450,24 @@ fn drawLineNumber(app: *App, number: *const c.OrTextLineNumber) void {
     }
     if (hovered) {
         c.ImGui_SetMouseCursor(c.ImGuiMouseCursor_Hand);
-        if (c.ImGui_IsMouseClicked(c.ImGuiMouseButton_Left)) document.toggleBreakpoint(line);
+        if (c.ImGui_IsMouseClicked(c.ImGuiMouseButton_Left)) app.toggleBreakpoint(line);
     }
     const text = gui.print("{d}", .{line + 1});
-    const color = if (problem) theme.error_count else if (line == number.cursor_line) theme.text_menu else theme.text_faint;
+    const color = if (held) theme.held_text else if (problem) theme.error_count else if (line == number.cursor_line) theme.text_menu else theme.text_faint;
     const width = gui.textSize(text).x;
     gui.drawText(list, .{ .x = number.x + number.width - width, .y = gui.textTop(number.y + number.height / 2) }, color, text);
+}
+
+/// The mark of the line the game holds the script at, centred on `center`: the design's orange
+/// arrow, 14 by 12 pixels, with a dark dot in it where a breakpoint holds there.
+fn drawHeldMarker(list: *c.ImDrawList, center: gui.Vec2, breakpoint: bool) void {
+    const left = center.x - px(7);
+    const top = center.y - px(6);
+    const outline = [_]gui.Vec2{ .{ .x = 1, .y = 1 }, .{ .x = 9, .y = 1 }, .{ .x = 13, .y = 6 }, .{ .x = 9, .y = 11 }, .{ .x = 1, .y = 11 } };
+    var points: [outline.len]gui.Vec2 = undefined;
+    for (&points, outline) |*point, from| point.* = .{ .x = left + px(from.x), .y = top + px(from.y) };
+    c.ImDrawList_AddConvexPolyFilled(list, &points, points.len, theme.accent);
+    if (breakpoint) gui.dot(list, .{ .x = left + px(5.5), .y = top + px(6) }, 2.5, theme.breakpoint_inner);
 }
 
 /// A line's decoration: a problem's message at the end of its line.

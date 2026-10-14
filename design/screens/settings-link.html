@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Editor link settings</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+@font-face{font-family:"Newtown";src:url("../fonts/Newtown.ttf") format("truetype");font-display:swap}
+*{box-sizing:border-box}
+body{margin:0;background:#07080c}
+a{color:#f6a259}a:hover{color:#ffc58f}
+.i{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.i14{width:14px;height:14px}
+.i12{width:12px;height:12px}
+.mono{font-family:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.menu{background:none;border:0;color:#c9cfdb;padding:4px 9px;border-radius:4px;font:inherit;font-size:12.5px;cursor:pointer}
+.menu:hover{background:#1a1f2b;color:#ffffff}
+.tb{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:4px;border:1px solid #262d3d;background:#161a24;color:#dfe3ea;font:inherit;font-size:12.5px;cursor:pointer;white-space:nowrap;text-decoration:none}
+.tb:hover{background:#1d2230;border-color:#323a4e;color:#ffffff}
+.key{display:inline-flex;align-items:center;height:20px;padding:0 6px;border:1px solid #2a3142;border-bottom-width:2px;border-radius:4px;background:#0c0f15;color:#dfe3ea;font:500 11.5px/1 "JetBrains Mono",ui-monospace,monospace;white-space:nowrap}
+.panel{background:#10131b;display:flex;flex-direction:column;min-width:0;border:1px solid #1a1f2b;border-radius:3px;overflow:hidden}
+.nav{display:flex;align-items:center;gap:9px;width:100%;height:30px;padding:0 12px;border:0;border-radius:4px;background:none;color:#c9cfdb;font:inherit;font-size:13px;text-align:left;cursor:pointer}
+.nav:hover{background:#171b26}
+.nav-on,.nav-on:hover{background:#262d3d;color:#ffffff}
+.sect{font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#8a93a6}
+.kr{display:grid;grid-template-columns:minmax(150px,1.4fr) minmax(130px,1fr) minmax(130px,1fr) 40px;align-items:center;min-height:32px;padding:0 14px;border-bottom:1px solid #161b26;font-size:12.5px;color:#d4d8e1}
+.kh{min-height:30px;background:#0f1219;color:#8a93a6;border-bottom:1px solid #1f2533;font-weight:500;position:sticky;top:0}
+.kg{padding:14px 14px 6px;border-bottom:1px solid #1f2533}
+.dot{width:7px;height:7px;display:inline-block;flex:none;border-radius:50%;margin-right:8px}
+.diff{background:#f08a2c}
+.act{display:flex;align-items:center;min-width:0}
+.kc-off .key{color:#8a93a6;background:#0e1118;border-color:#232938}
+.kc-off{color:#8a93a6}
+.kc-on{color:#f3f4f7}
+.edit{width:26px;height:24px;display:inline-flex;align-items:center;justify-content:center;border:1px solid transparent;border-radius:3px;background:none;color:#8a93a6;cursor:pointer}
+.edit:hover{border-color:#262d3d;color:#e8eaf0}
+.row{display:grid;grid-template-columns:minmax(150px,220px) minmax(0,1fr);align-items:center;gap:6px 16px;min-height:52px;padding:10px 14px;border-bottom:1px solid #161b26;font-size:12.5px}
+.lab{display:flex;flex-direction:column;gap:2px}
+.lab small{color:#8a93a6;font-size:12px}
+.sw{position:relative;display:inline-block;width:30px;height:16px;border-radius:8px;background:#262d3d;vertical-align:middle}
+.sw::after{content:"";position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:#8a93a6}
+.sw-on{background:#f08a2c}.sw-on::after{left:16px;background:#170b02}
+.seg{display:inline-flex;gap:2px;padding:2px;border:1px solid #262d3d;border-radius:5px;background:#11141c}
+.seg button{height:24px;padding:0 12px;border:0;border-radius:3px;background:none;color:#9aa3b5;font:inherit;font-size:12.5px;cursor:pointer}
+.seg .on{background:#262d3d;color:#ffffff}
+.fld{display:inline-flex;align-items:center;width:110px;height:28px;padding:0 9px;border:1px solid #262d3d;border-radius:4px;background:#161a24;color:#e8eaf0;font:500 12.5px "JetBrains Mono",ui-monospace,monospace}
+.off{opacity:.45}
+.plan{display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:10px;background:#1f2533;color:#9aa3b5;font-size:11px;font-weight:600}
+</style>
+</head>
+<body>
+<div style="min-height: 100vh; display: flex; flex-direction: column; background: #07080c; color: #e8eaf0; font-family: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 13px; line-height: 1.45">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; min-height: 34px; padding: 3px 10px; background: #0c0f15; border-bottom: 1px solid #1a1f2b">
+<div style="display: flex; align-items: baseline; gap: 8px; padding-right: 4px">
+<span style="font-family: Newtown, 'IBM Plex Sans', sans-serif; font-size: 16px; letter-spacing: 0.02em; color: #e8eaf0">Open<span style="color: #f08a2c">Reliant</span></span>
+<span style="font-size: 10.5px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: #8a93a6">Editor</span>
+</div>
+<nav aria-label="Menus" style="display: flex; flex-wrap: wrap; gap: 2px">
+<button class="menu" type="button">File</button>
+<button class="menu" type="button">Edit</button>
+<button class="menu" type="button">View</button>
+<button class="menu" type="button">Window</button>
+<button class="menu" type="button">Help</button>
+</nav>
+<span style="margin-left: auto; color: #8a93a6; font-size: 12px">Settings</span>
+</header>
+
+<div style="flex: 1 1 auto; display: flex; flex-wrap: wrap; gap: 3px; padding: 3px; min-height: 0">
+
+<section class="panel" aria-label="Settings" style="flex: 1 1 220px">
+<div style="padding: 14px 12px 8px; font-family: Newtown, 'IBM Plex Sans', sans-serif; font-size: 16px; letter-spacing: 0.02em">Settings</div>
+<nav aria-label="Settings pages" style="display: flex; flex-direction: column; gap: 2px; padding: 4px 8px">
+<button class="nav" type="button">General</button>
+<button class="nav" type="button">Appearance</button>
+<button class="nav" type="button">Keys</button>
+<button class="nav" type="button">Game</button>
+<button class="nav nav-on" type="button" aria-current="page">Editor link</button>
+</nav>
+</section>
+
+<section class="panel" aria-label="Editor link" style="flex: 999 1 640px; max-height: calc(100vh - 64px)">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid #1a1f2b">
+<div style="display: flex; flex-direction: column; gap: 1px; margin-right: 6px">
+<span style="font-size: 15px; font-weight: 600">Editor link</span>
+<span style="color: #8a93a6; font-size: 12px">Debugging · live changes</span>
+</div>
+<div style="margin-left: auto; display: flex; align-items: center; gap: 8px">
+<span style="display: inline-flex; align-items: center; gap: 7px; height: 26px; padding: 0 11px; border: 1px solid #1f3b37; border-radius: 13px; background: #0f2221; color: #9ff0e3; font-size: 12px"><span aria-hidden="true" style="width: 7px; height: 7px; border-radius: 50%; background: #3ccfb4"></span>StarLancer<span style="color: #6fb8ac">mission 90</span></span>
+<button class="tb" type="button">Unlink</button>
+</div>
+</div>
+<div style="overflow: auto">
+<div class="row">
+<div class="lab">Link on Play<small>Play adds <span class="mono">--editor-link</span></small></div>
+<div><span class="sw sw-on" role="switch" aria-checked="true" aria-label="Link on Play"></span></div>
+</div>
+<div class="row">
+<div class="lab">Port<small><span class="mono">--editor-link-port</span></small></div>
+<div><span class="fld">22539</span></div>
+</div>
+<div class="row">
+<div class="lab">State polling<small>Variables, Watch · while running</small></div>
+<div><span class="seg" role="radiogroup" aria-label="State polling"><button type="button">Off</button><button type="button">1 Hz</button><button type="button" class="on">4 Hz</button></span></div>
+</div>
+<div class="row">
+<div class="lab">Breakpoints<small>Per source file</small></div>
+<div style="display: flex; align-items: center; gap: 10px; color: #c9cfdb">3 files · 7 breakpoints <button class="tb" type="button" style="margin-left: auto">Remove all</button></div>
+</div>
+<div class="row off">
+<div class="lab">Live changes<small>Hot-swap each build</small></div>
+<div style="display: flex; align-items: center; gap: 10px"><span class="sw" role="switch" aria-checked="false" aria-label="Live changes"></span><span class="plan">Planned · #22</span></div>
+</div>
+</div>
+</section>
+
+<section class="panel" aria-label="Notes on the link" style="flex: 1 1 300px">
+<div style="display: flex; flex-direction: column; gap: 14px; padding: 14px 12px; overflow: auto">
+<div class="sect">The game</div>
+<dl style="display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 8px 10px; margin: 0; font-size: 12.5px">
+<dt style="color: #8a93a6">Linked</dt><dd style="margin: 0">StarLancer · OpenReliant 0.15.0</dd>
+<dt style="color: #8a93a6">Address</dt><dd class="mono" style="margin: 0">127.0.0.1:22539</dd>
+<dt style="color: #8a93a6">Plays</dt><dd style="margin: 0">mission 90 · this build</dd>
+<dt style="color: #8a93a6">Clients</dt><dd style="margin: 0">1 at a time</dd>
+</dl>
+<div class="sect" style="margin-top: 6px">While held</div>
+<dl style="display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 8px 10px; margin: 0; font-size: 12.5px">
+<dt style="color: #8a93a6">Script</dt><dd style="margin: 0">Threads, timers, clock stop</dd>
+<dt style="color: #8a93a6">Ships</dt><dd style="margin: 0">Fly on · last orders</dd>
+<dt style="color: #8a93a6">Pause</dt><dd style="margin: 0">Whole mission stops</dd>
+<dt style="color: #8a93a6">Start parts</dt><dd style="margin: 0">Loading screen holds</dd>
+</dl>
+<div style="display: flex; flex-direction: column; gap: 6px; padding: 10px; border: 1px solid #1f2533; border-radius: 5px; background: #0e1118; font-size: 12px; color: #9aa3b5">
+<span class="sect">Link by hand</span>
+<span class="mono" style="color: #c9cfdb">openreliant --editor-link</span>
+<span>Then Game · Link to game</span>
+</div>
+</div>
+</section>
+</div>
+
+<footer style="display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; min-height: 24px; padding: 2px 10px; background: #0c0f15; border-top: 1px solid #1a1f2b; color: #9aa3b5; font-size: 11.5px">
+<span>Editor link · port 22539</span>
+<span>Linked · StarLancer</span>
+<span style="margin-left: auto">Live changes: planned</span>
+</footer>
+
+</div>
+</body>
+</html>

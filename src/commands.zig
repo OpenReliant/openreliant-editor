@@ -60,7 +60,7 @@ pub const Command = enum {
     toggle_breakpoint,
     clear_breakpoints,
     pause,
-    let_go,
+    unlink,
     // Game
     play,
     play_from_part,
@@ -196,13 +196,16 @@ pub const plans = struct {
     pub const scene: Plan = .{ .issue = 2 };
     pub const blocks: Plan = .{ .issue = 3 };
     pub const mod_mode: Plan = .{ .issue = 4 };
-    pub const debugger: Plan = .{ .issue = 5 };
+    /// Conditions, log points, Watch, the values inline, the Debugging screen and offsets.
+    pub const watches: Plan = .{ .issue = 19 };
+    pub const timeline: Plan = .{ .issue = 20 };
+    pub const live_changes: Plan = .{ .issue = 22 };
     pub const guided: Plan = .{ .issue = 6 };
     pub const templates: Plan = .{ .issue = 7 };
     pub const records: Plan = .{ .issue = 8 };
     pub const hogs: Plan = .{ .issue = 9 };
     pub const settings: Plan = .{ .issue = 10 };
-    pub const live_scene: Plan = .{ .issue = 1059, .repository = .openreliant };
+    pub const live_scene: Plan = .{ .issue = 21 };
     pub const play_from_part: Plan = .{ .issue = 577, .repository = .openreliant };
     pub const chosen_mods: Plan = .{ .issue = 1202, .repository = .openreliant };
     pub const reload_scripts: Plan = .{ .issue = 1201, .repository = .openreliant };
@@ -251,20 +254,20 @@ pub fn info(command: Command) Info {
         .show_source => .{ .label = "Mission source", .icon = .file_code },
         .show_listing => .{ .label = "Script listing", .icon = .list },
 
-        .@"continue" => .{ .label = "Continue", .icon = .step_forward, .when = .held, .keys = defaults(&.{"F5"}, &.{"Ctrl+Cmd+Y"}), .key_group = .debugging, .planned = plans.debugger },
-        .step_over => .{ .label = "Step over", .icon = .redo_dot, .when = .held, .keys = defaults(&.{"F10"}, &.{"F6"}), .key_group = .debugging, .planned = plans.debugger },
-        .step_into => .{ .label = "Step into", .icon = .arrow_down_to_dot, .when = .held, .keys = defaults(&.{"F11"}, &.{"F7"}), .key_group = .debugging, .planned = plans.debugger },
-        .run_to_cursor => .{ .label = "Run to cursor", .icon = .arrow_right_to_line, .when = .held, .keys = defaults(&.{"Ctrl+F10"}, &.{"Ctrl+Cmd+C"}), .key_group = .debugging, .planned = plans.debugger },
+        .@"continue" => .{ .label = "Continue", .icon = .step_forward, .when = .held, .keys = defaults(&.{"F5"}, &.{"Ctrl+Cmd+Y"}), .key_group = .debugging },
+        .step_over => .{ .label = "Step over", .icon = .redo_dot, .when = .held, .keys = defaults(&.{"F10"}, &.{"F6"}), .key_group = .debugging },
+        .step_into => .{ .label = "Step into", .icon = .arrow_down_to_dot, .when = .held, .keys = defaults(&.{"F11"}, &.{"F7"}), .key_group = .debugging },
+        .run_to_cursor => .{ .label = "Run to cursor", .icon = .arrow_right_to_line, .when = .held, .keys = defaults(&.{"Ctrl+F10"}, &.{"Ctrl+Cmd+C"}), .key_group = .debugging },
         .toggle_breakpoint => .{ .label = "Breakpoint on or off", .icon = .circle_dot, .keys = defaults(&.{"F9"}, &.{"Cmd+\\"}), .key_group = .debugging },
         .clear_breakpoints => .{ .label = "Remove all breakpoints", .icon = .x },
-        .pause => .{ .label = "Pause mission", .icon = .pause, .keys = defaults(&.{"F6"}, &.{"F8"}), .key_group = .debugging, .planned = plans.debugger },
-        .let_go => .{ .label = "Let the script go", .icon = .square, .when = .held, .keys = defaults(&.{"Shift+F5"}, &.{"Cmd+."}), .key_group = .debugging, .planned = plans.debugger },
+        .pause => .{ .label = "Pause mission", .icon = .pause, .keys = defaults(&.{"F6"}, &.{"F8"}), .key_group = .debugging },
+        .unlink => .{ .label = "Unlink", .icon = .square, .when = .held, .keys = defaults(&.{"Shift+F5"}, &.{"Cmd+."}), .key_group = .debugging },
 
         .play => .{ .label = "Play in game", .icon = .play, .when = .not_held, .keys = defaults(&.{"F5"}, &.{"Cmd+R"}), .key_group = .build_and_play },
         .play_from_part => .{ .label = "Play from part…", .icon = .play, .keys = defaults(&.{"Ctrl+F5"}, &.{"Ctrl+Cmd+R"}), .key_group = .build_and_play },
         .play_mod_only => .{ .label = "Play with this mod only", .icon = .play, .planned = plans.chosen_mods },
         .reload_scripts => .{ .label = "Reload scripts", .icon = .refresh_cw, .keys = defaults(&.{"Ctrl+R"}, &.{"Cmd+Shift+R"}), .key_group = .build_and_play, .planned = plans.reload_scripts },
-        .link => .{ .label = "Link to the game", .icon = .cable, .planned = plans.debugger },
+        .link => .{ .label = "Link to game", .icon = .cable },
         .game_settings => .{ .label = "Game settings", .icon = .sliders_horizontal },
 
         .show_mission_panel => .{ .label = "Mission", .icon = .flag, .group = "Panel" },
@@ -308,7 +311,7 @@ const menu_entries: std.EnumArray(Menu, []const Entry) = .init(.{
     .edit = &.{ cmd(.undo), cmd(.redo), .separator, cmd(.cut), cmd(.copy), cmd(.paste), cmd(.select_all), .separator, cmd(.find), cmd(.find_next), cmd(.replace), .separator, cmd(.go_to_line), cmd(.comment_line) },
     .view = &.{ cmd(.palette), cmd(.go_to), .separator, cmd(.view_1), cmd(.view_2), cmd(.view_3), cmd(.view_4), .separator, cmd(.switch_mode), .separator, cmd(.layout_full), cmd(.layout_guided), .separator, cmd(.full_screen) },
     .mission = &.{ cmd(.build), .separator, cmd(.add_record), .separator, cmd(.show_source), cmd(.show_listing) },
-    .debug = &.{ cmd(.@"continue"), cmd(.step_over), cmd(.step_into), cmd(.run_to_cursor), .separator, cmd(.toggle_breakpoint), cmd(.clear_breakpoints), .separator, cmd(.pause), cmd(.let_go) },
+    .debug = &.{ cmd(.@"continue"), cmd(.step_over), cmd(.step_into), cmd(.run_to_cursor), .separator, cmd(.toggle_breakpoint), cmd(.clear_breakpoints), .separator, cmd(.pause), cmd(.unlink) },
     .game = &.{ cmd(.play), cmd(.play_from_part), cmd(.play_mod_only), .separator, cmd(.reload_scripts), .separator, cmd(.link), cmd(.game_settings) },
     .window = &.{ cmd(.show_mission_panel), cmd(.show_find_panel), .separator, cmd(.show_problems), cmd(.show_output), cmd(.show_threads), cmd(.show_breakpoints), .separator, cmd(.show_variables), cmd(.show_watch), .separator, cmd(.show_inspector), cmd(.show_reference), cmd(.show_live_scene), .separator, cmd(.reset_layout) },
     .help = &.{ cmd(.help_missions), cmd(.help_reference), cmd(.help_mods), cmd(.help_modding), cmd(.help_scripting), .separator, cmd(.help_keys), .separator, cmd(.about), .version },

@@ -162,7 +162,7 @@ pub fn draw(app: *App) void {
         }
     }
     if (offsets) {
-        widgets.caption(gui.print("Script offsets · planned {f}", .{commands.plans.debugger}), theme.text_dim, fonts.size.small, .regular);
+        widgets.caption(gui.print("Script offsets · planned {f}", .{commands.plans.watches}), theme.text_dim, fonts.size.small, .regular);
     } else if (count == 0) {
         gui.setCursor(gui.add(gui.cursor(), .{ .x = px(8), .y = px(6) }));
         widgets.caption(if (kind == .line) "Type a line number" else "Nothing matches", theme.text_dim, fonts.size.small, .regular);
@@ -275,7 +275,7 @@ fn playForm(app: *App) void {
     gui.space(10);
     if (widgets.checkbox("skip launch", "Skip launch", state.skip_launch, null)) state.skip_launch = !state.skip_launch;
     _ = widgets.checkbox("earlier parts", "Run earlier parts first, for their variables", false, .{ .reason = gui.print("Planned · {f}", .{commands.plans.play_from_part}) });
-    _ = widgets.checkbox("break first", "Break at its first statement", false, .{ .reason = gui.print("Planned · {f}", .{commands.plans.debugger}) });
+    _ = widgets.checkbox("break first", "Break at its first statement", false, .{ .reason = gui.print("Planned · {f}", .{commands.plans.watches}) });
     gui.space(12);
     widgets.sectionHeading("Watch");
     gui.space(6);
