@@ -5,8 +5,8 @@
     .minimum_zig_version = "0.17.0",
     .dependencies = .{
         .openreliant = .{
-            .url = "git+https://github.com/OpenReliant/openreliant.git#70b3beab1484b3eb511dd64aaf959d3a8b5f5c15",
-            .hash = "openreliant-0.14.0-0BXqcnShEAG_H5YxFly2WGyqTSBGL6SZFbbnz4JPkD9b",
+            .url = "git+https://github.com/OpenReliant/openreliant.git?ref=v0.15.0#51ba29a81322c86f1ac8e76e1d35dc8e807059c5",
+            .hash = "openreliant-0.15.0-0BXqcnShEAGttYDysolNXC7uXfFBQz8Us8eigyKRuVzP",
         },
         .sdl = .{
             .url = "git+https://github.com/castholm/SDL.git?ref=v0.5.4+3.4.16#b72b3671502a70e109350ecac90afdc480dcfcc6",
