@@ -1,6 +1,6 @@
 # The editor's workflows. `make help` lists them.
 
-.PHONY: help build run test check fmt check-files hooks pictures
+.PHONY: help build run test check fmt check-files hooks pictures icon
 
 help:
 	@echo "make build        build the editor into zig-out/bin"
@@ -10,6 +10,7 @@ help:
 	@echo "make fmt          format the Zig code"
 	@echo "make hooks        install the pre-commit hook that keeps the game's files out"
 	@echo "make pictures     take the design's pictures again (design/pictures.sh)"
+	@echo "make icon         make the icon's PNGs, .ico and .icns from its SVG (scripts/icon.sh)"
 
 build:
 	zig build --release=safe
@@ -36,3 +37,6 @@ hooks:
 
 pictures:
 	design/pictures.sh
+
+icon:
+	scripts/icon.sh

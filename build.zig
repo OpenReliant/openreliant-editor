@@ -71,14 +71,14 @@ pub fn build(b: *std.Build) void {
     addFonts(b, editor, openreliant);
     // Luau's licence goes with the program, whose mission source parser it is.
     b.getInstallStep().dependOn(&b.addInstallFile(openreliant.path("deps/luau/LICENSE.txt"), "LICENSE-luau.txt").step);
-    // OpenReliant's own icon, which the window shows on macOS, also in the Dock, and on Linux
+    // The editor's icon, which the window shows on macOS, also in the Dock, and on Linux
     // (`src/platform/icon.zig`). On Windows, the executable carries it.
-    for ([_][]const u8{ "openreliant-256.png", "openreliant-512.png" }) |icon| {
-        editor.addAnonymousImport(icon, .{ .root_source_file = openreliant.path(b.fmt("assets/icon/{s}", .{icon})) });
+    for ([_][]const u8{ "openreliant-editor-256.png", "openreliant-editor-512.png" }) |icon| {
+        editor.addAnonymousImport(icon, .{ .root_source_file = b.path(b.fmt("assets/icon/{s}", .{icon})) });
     }
 
     const exe = b.addExecutable(.{ .name = "openreliant-editor", .root_module = editor });
-    if (target.result.os.tag == .windows) addWindowsResources(b, exe, openreliant, target, optimize);
+    if (target.result.os.tag == .windows) addWindowsResources(b, exe, target, optimize);
     b.installArtifact(exe);
 
     const run = b.addRunArtifact(exe);
@@ -116,15 +116,15 @@ fn describe(b: *std.Build) []const u8 {
     };
 }
 
-/// Gives the Windows executable OpenReliant's icon, the editor's name and version for the file's
-/// properties and the Task Manager, and its manifest (`src/platform/windows.manifest`). The rc
-/// package compiles them without the system's headers, so every system builds the same bytes. Its
-/// compiler is built in Debug, which compiles fastest, as it reads only these few files.
-fn addWindowsResources(b: *std.Build, exe: *std.Build.Step.Compile, openreliant: *std.Build.Dependency, target: std.Build.ResolvedTarget, optimize: std.lang.Optimize) void {
+/// Gives the Windows executable the editor's icon (`assets/icon`), its name and version for the
+/// file's properties and the Task Manager, and its manifest (`src/platform/windows.manifest`). The
+/// rc package compiles them without the system's headers, so every system builds the same bytes.
+/// Its compiler is built in Debug, which compiles fastest, as it reads only these few files.
+fn addWindowsResources(b: *std.Build, exe: *std.Build.Step.Compile, target: std.Build.ResolvedTarget, optimize: std.lang.Optimize) void {
     const version = @import("build.zig.zon").version;
     const numbers = std.SemanticVersion.parse(version) catch @panic("build.zig.zon's version isn't a semantic version");
     const script = b.addWriteFiles().add("editor.rc", b.fmt(
-        \\1 ICON "openreliant.ico"
+        \\1 ICON "openreliant-editor.ico"
         \\
         \\1 VERSIONINFO
         \\FILEVERSION {0d},{1d},{2d},0
@@ -153,7 +153,7 @@ fn addWindowsResources(b: *std.Build, exe: *std.Build.Step.Compile, openreliant:
         .manifest = .{ .file = b.path("src/platform/windows.manifest"), .for_dll = false },
         .target = target,
         .optimize = optimize,
-        .rc_options = .{ .auto_includes = .none, .include_paths = &.{openreliant.path("assets/icon")} },
+        .rc_options = .{ .auto_includes = .none, .include_paths = &.{b.path("assets/icon")} },
     });
     exe.root_module.addObjectFile(resources.getObjectFile());
 }

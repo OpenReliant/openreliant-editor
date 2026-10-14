@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- OpenReliant Editor's icon: OpenReliant's, the letters OR in Newtown, by Roger White, from
+       Roger's Fonts, in the website's off-white and orange, with EDITOR under them in IBM Plex Sans
+       SemiBold, spaced as the editor's menu bar spaces it, on the website's dark sky. -->
+  <defs>
+    <!-- The website's sky: a warm glow from the top right and a blue one from the bottom left. -->
+    <radialGradient id="warm" gradientUnits="userSpaceOnUse" cx="0" cy="0" r="1"
+                    gradientTransform="translate(819 -102) scale(2397 1198)">
+      <stop offset="0" stop-color="#3a1d0c"/>
+      <stop offset="0.55" stop-color="#3a1d0c" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="cool" gradientUnits="userSpaceOnUse" cx="0" cy="0" r="1"
+                    gradientTransform="translate(-102 1126) scale(1593)">
+      <stop offset="0" stop-color="#101a3a"/>
+      <stop offset="0.5" stop-color="#101a3a" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="#07080c"/>
+  <rect width="1024" height="1024" fill="url(#cool)"/>
+  <rect width="1024" height="1024" fill="url(#warm)"/>
+  <g>
+    <circle cx="123" cy="174" r="3.2" fill="#fff" fill-opacity="0.55"/>
+    <circle cx="737" cy="102" r="2.8" fill="#fff" fill-opacity="0.45"/>
+    <circle cx="922" cy="205" r="2.4" fill="#fff" fill-opacity="0.4"/>
+    <circle cx="307" cy="92" r="2.2" fill="#fff" fill-opacity="0.35"/>
+    <circle cx="256" cy="840" r="3.6" fill="#fff" fill-opacity="0.45"/>
+    <circle cx="573" cy="901" r="2.8" fill="#fff" fill-opacity="0.3"/>
+    <circle cx="952" cy="799" r="3.0" fill="#fff" fill-opacity="0.4"/>
+    <circle cx="61" cy="563" r="2.2" fill="#fff" fill-opacity="0.3"/>
+  </g>
+  <!-- OR, Newtown's outlines. -->
+  <g transform="translate(159.6 579.6) scale(0.4607 -0.4607)">
+    <path fill="#e8eaf0" d="M747 307Q747 373 741 427Q735 477 724 519Q688 638 596 688Q515 733 359 733Q203 733 115 638Q27 544 27 361Q27 174 115 80Q204 -15 386 -15Q480 -15 547 9Q615 33 658 79Q747 174 747 307ZM582 358Q582 248 541 183Q490 108 430 108Q368 108 338 114L288 128Q257 140 236 167Q218 195 210 226Q191 293 191 384Q191 471 233 534Q284 609 386 609Q493 609 542 533Q582 472 582 358Z"/>
+    <path fill="#f08a2c" transform="translate(773 0)" d="M730 0 553 301Q629 321 662 372Q697 424 697 498Q697 572 666 627Q631 689 568 704Q549 709 544 710Q541 711 531 711L510 714L482 719H445H74V0H225V281H402L561 0ZM545 500Q545 457 519 432Q492 408 410 408H225V590H410Q493 590 521 566Q545 545 545 500Z"/>
+  </g>
+  <!-- EDITOR, IBM Plex Sans SemiBold's outlines, 0.14 em apart. -->
+  <g fill="#8a93a6" transform="translate(158.8 775.6) scale(0.1605 -0.1605)">
+    <path transform="translate(0 0)" d="M82 0L82 698L542 698L542 581L214 581L214 412L504 412L504 295L214 295L214 117L542 117L542 0L82 0Z"/>
+    <path transform="translate(740 0)" d="M82 698L336 698Q404 698 459.5 676Q515 654 554.5 610.5Q594 567 615.5 501.5Q637 436 637 349Q637 262 615.5 196.5Q594 131 554.5 87.5Q515 44 459.5 22Q404 0 336 0L82 0L82 698ZM336 117Q410 117 453.5 160.5Q497 204 497 294L497 404Q497 494 453.5 537.5Q410 581 336 581L214 581L214 117L336 117Z"/>
+    <path transform="translate(1569 0)" d="M53 0L53 106L145 106L145 592L53 592L53 698L370 698L370 592L277 592L277 106L370 106L370 0L53 0Z"/>
+    <path transform="translate(2132 0)" d="M356 581L356 0L224 0L224 581L26 581L26 698L554 698L554 581L356 581Z"/>
+    <path transform="translate(2852 0)" d="M356 -12Q287 -12 231 11Q175 34 135.5 80Q96 126 74 193Q52 260 52 349Q52 437 74 504.5Q96 572 135.5 618Q175 664 231 687Q287 710 356 710Q425 710 481 687Q537 664 577 618Q617 572 638.5 504.5Q660 437 660 349Q660 260 638.5 193Q617 126 577 80Q537 34 481 11Q425 -12 356 -12ZM356 105Q431 105 475.5 155Q520 205 520 295L520 403Q520 493 475.5 543Q431 593 356 593Q281 593 236.5 543Q192 493 192 403L192 295Q192 205 236.5 155Q281 105 356 105Z"/>
+    <path transform="translate(3704 0)" d="M214 0L82 0L82 698L397 698Q445 698 483 683Q521 668 547.5 639.5Q574 611 588.5 571Q603 531 603 482Q603 410 570.5 358Q538 306 473 284L616 0L469 0L339 269L214 269L214 0ZM384 380Q422 380 444 400.5Q466 421 466 459L466 505Q466 543 444 563Q422 583 384 583L214 583L214 380L384 380Z"/>
+  </g>
+</svg>

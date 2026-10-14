@@ -4,8 +4,8 @@
 # Fails when a file from the game, or one that looks like it, is in the repository or about to
 # enter it: the files git tracks, or with --staged those the next commit holds, as the pre-commit
 # hook checks them. A file fails when it has the extension of one of the game's file types, holds
-# binary data but for the design's pictures and fonts, or is over 2 MiB. It also fails on a line of
-# text with an em or en dash (U+2014, U+2013), which the project's text does without
+# binary data but for the icon and the design's pictures and fonts, or is over 2 MiB. It also fails
+# on a line of text with an em or en dash (U+2014, U+2013), which the project's text does without
 # (CONTRIBUTING.md), in any text file but a licence.
 set -euo pipefail
 export LC_ALL=C
@@ -17,9 +17,9 @@ case $mode in
 esac
 cd "$(git rev-parse --show-toplevel)"
 
-# The binary files the repository holds: the design's pictures, and Newtown, which the design pages
-# show the editor's name in (design/fonts/README.md).
-allowed_binary='^design/(images/[^/]+\.png|fonts/Newtown\.ttf)$'
+# The binary files the repository holds: the editor's icon (assets/icon/README.md), the design's
+# pictures, and Newtown, which the design pages show the editor's name in (design/fonts/README.md).
+allowed_binary='^(assets/icon/openreliant-editor(-[0-9]+\.png|\.ico|\.icns)|design/(images/[^/]+\.png|fonts/Newtown\.ttf))$'
 game_types='hog|dte|shp|fm8|spr|fat|fnt|frc|tga|bik|icd|exe|dll|m3d|asi|cab|bin|dat|iso|cue|wav|mp3|ogg'
 max_size=$((2 * 1024 * 1024))
 licences='(^|/)LICENSE[^/]*$'
