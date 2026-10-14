@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.0](https://github.com/OpenReliant/openreliant-editor/compare/v0.0.1...v0.1.0) (2026-10-14)
+
+
+### Features
+
+* the debugger links to the game, holds the script and steps it ([#23](https://github.com/OpenReliant/openreliant-editor/issues/23)) ([a467fb6](https://github.com/OpenReliant/openreliant-editor/commit/a467fb62410478960cff762718c7e6a79048b4a9)), closes [#5](https://github.com/OpenReliant/openreliant-editor/issues/5)
+
+
+### Documentation
+
+* where to get the editor and what it needs ([#16](https://github.com/OpenReliant/openreliant-editor/issues/16)) ([523d384](https://github.com/OpenReliant/openreliant-editor/commit/523d384fba7b95b4e7f025b76d7b25830635b415))
+
 ## 0.0.1 (2026-10-14)
 
 
