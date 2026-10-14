@@ -1,7 +1,7 @@
 /* What the editor asks of Dear ImGui's internal API, which Dear Bindings' public C API leaves out:
- * the dock builder that lays out the panels, the current font's ascent, and the place of a docked
- * window's tab. The internal C bindings aren't translated, since translate-c can't read their
- * structs with bitfields. */
+ * the dock builder that lays out the panels, the current font's ascent, and the places of a docked
+ * window's tab and dock node. The internal C bindings aren't translated, since translate-c can't
+ * read their structs with bitfields. */
 #pragma once
 
 #include <stdbool.h>
@@ -30,6 +30,10 @@ float or_imgui_font_ascent(void);
 /* The tab of the current window, where a dock node shows it: its rectangle, the draw list its tab
  * bar is drawn in, and whether it's the tab in front. False for a window that shows no tab. */
 bool or_imgui_window_tab(float rect[4], void **draw_list, bool *selected);
+
+/* The rectangle of the dock node the current window is in, its tab bar included. False for a
+ * window that isn't docked, or that its node doesn't show. */
+bool or_imgui_window_dock_node(float rect[4]);
 
 #ifdef __cplusplus
 }

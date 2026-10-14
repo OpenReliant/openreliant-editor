@@ -59,17 +59,34 @@ pub const Panel = enum {
     reference,
     live_scene,
 
-    /// The window's title, with an ID that stays the same as the label changes. A panel whose
-    /// tab shows a count has room for it after its name.
+    /// The window's title, with an ID that stays the same as the label changes. ImGui makes a
+    /// panel's tab as wide as its title, and the editor draws the tab over it, so the title holds
+    /// the label with the tab's room in spaces, which are 2.95 pixels in the interface's font: 12
+    /// pixels of padding on each side, 21 for an icon before the label, and 25 for a count's pill
+    /// after it.
     pub fn title(panel: Panel) [:0]const u8 {
         return switch (panel) {
             inline else => |known| comptime blk: {
-                const room = switch (known) {
-                    .problems, .breakpoints => "      ",
-                    else => "",
+                const padding = spaces(4);
+                const icon_room = if (known.icon() != null) spaces(7) else spaces(0);
+                const pill_room = switch (known) {
+                    .problems, .breakpoints => spaces(8),
+                    else => spaces(0),
                 };
-                break :blk labelOf(known) ++ room ++ "###" ++ @tagName(known);
+                break :blk padding ++ icon_room ++ labelOf(known) ++ pill_room ++ padding ++ "###" ++ @tagName(known);
             },
+        };
+    }
+
+    fn spaces(comptime count: usize) [count]u8 {
+        return @splat(' ');
+    }
+
+    /// The icon before a panel's name on its tab, where the design gives one.
+    pub fn icon(panel: Panel) ?ui.icons.Icon {
+        return switch (panel) {
+            .mission => .flag,
+            else => null,
         };
     }
 

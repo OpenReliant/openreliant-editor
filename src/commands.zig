@@ -294,6 +294,8 @@ pub fn info(command: Command) Info {
 pub const Entry = union(enum) {
     command: Command,
     separator,
+    /// The editor's version, greyed out.
+    version,
 };
 
 pub fn entries(menu: Menu) []const Entry {
@@ -309,7 +311,7 @@ const menu_entries: std.EnumArray(Menu, []const Entry) = .init(.{
     .debug = &.{ cmd(.@"continue"), cmd(.step_over), cmd(.step_into), cmd(.run_to_cursor), .separator, cmd(.toggle_breakpoint), cmd(.clear_breakpoints), .separator, cmd(.pause), cmd(.let_go) },
     .game = &.{ cmd(.play), cmd(.play_from_part), cmd(.play_mod_only), .separator, cmd(.reload_scripts), .separator, cmd(.link), cmd(.game_settings) },
     .window = &.{ cmd(.show_mission_panel), cmd(.show_find_panel), .separator, cmd(.show_problems), cmd(.show_output), cmd(.show_threads), cmd(.show_breakpoints), .separator, cmd(.show_variables), cmd(.show_watch), .separator, cmd(.show_inspector), cmd(.show_reference), cmd(.show_live_scene), .separator, cmd(.reset_layout) },
-    .help = &.{ cmd(.help_missions), cmd(.help_reference), cmd(.help_mods), cmd(.help_modding), cmd(.help_scripting), .separator, cmd(.help_keys), .separator, cmd(.about) },
+    .help = &.{ cmd(.help_missions), cmd(.help_reference), cmd(.help_mods), cmd(.help_modding), cmd(.help_scripting), .separator, cmd(.help_keys), .separator, cmd(.about), .version },
 });
 
 fn cmd(command: Command) Entry {
@@ -321,7 +323,7 @@ pub fn menuOf(command: Command) ?Menu {
     for (std.enums.values(Menu)) |menu| {
         for (entries(menu)) |entry| switch (entry) {
             .command => |listed| if (listed == command) return menu,
-            .separator => {},
+            .separator, .version => {},
         };
     }
     return null;
@@ -334,7 +336,7 @@ test "each action is in exactly one menu" {
         for (std.enums.values(Menu)) |menu| {
             for (entries(menu)) |entry| switch (entry) {
                 .command => |listed| count += @intFromBool(listed == command),
-                .separator => {},
+                .separator, .version => {},
             };
         }
         if (count != 1) {

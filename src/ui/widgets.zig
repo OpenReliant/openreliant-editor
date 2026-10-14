@@ -334,6 +334,74 @@ pub fn toolbarDivider() void {
     gui.rect(gui.drawList(), .{ .x = x, .y = at.y }, .{ .x = x + px(1), .y = at.y + height }, theme.border, 0);
 }
 
+/// The height of the design's tab bar over a panel, `.tabbar`, its line at the bottom included.
+pub const tab_bar_height = 30;
+
+/// The design's panel tab, `.tab`: its padding of 12 on each side, and its parts 7 apart.
+pub const PanelTab = struct {
+    label: []const u8,
+    icon: ?Icon = null,
+    /// The icon's colour where it isn't the label's, such as the source file's orange.
+    icon_color: ?Color = null,
+    /// A dimmer part after the label, such as the listing's file.
+    detail: ?[]const u8 = null,
+    /// A dot after the label, for changes not saved.
+    dot: bool = false,
+    /// A count's pill after the label.
+    pill: ?Pill = null,
+    /// The tab in front.
+    on: bool = false,
+
+    const padding = 12;
+    const gap = 7;
+    const dot_size = 7;
+
+    /// Its width, with its line at the right.
+    pub fn width(tab: PanelTab) f32 {
+        gui.sans(.regular, fonts.size.ui);
+        defer gui.popFont();
+        var total = px(padding) * 2 + gui.spacedWidth(tab.label, 0) + px(1);
+        if (tab.icon != null) total += px(fonts.size.icon_small) + px(gap);
+        if (tab.detail) |detail| total += px(gap) + gui.spacedWidth(detail, 0);
+        if (tab.dot) total += px(gap) + px(dot_size);
+        if (tab.pill) |shown| total += px(gap) + pillWidth(shown.text);
+        return total;
+    }
+
+    /// Draws it from `min` to `max`, the tab bar's line under it left out: in front, the panel's
+    /// colour with an orange line over it, and a line at its right.
+    pub fn draw(tab: PanelTab, list: *c.ImDrawList, min: Vec2, max: Vec2, hovered: bool) void {
+        const right = max.x - px(1);
+        if (tab.on) {
+            gui.rect(list, min, .{ .x = right, .y = max.y }, theme.panel, 0);
+            gui.rect(list, min, .{ .x = right, .y = min.y + px(2) }, theme.accent, 0);
+        }
+        gui.rect(list, .{ .x = right, .y = min.y }, max, theme.tab_divider, 0);
+        const foreground = if (tab.on) theme.text_strong else if (hovered) theme.text else theme.text_muted;
+        const middle = (min.y + max.y) / 2;
+        var x = min.x + px(padding);
+        if (tab.icon) |icon| {
+            drawIcon(list, .{ .x = x, .y = middle }, icon, fonts.size.icon_small, tab.icon_color orelse foreground);
+            x += px(fonts.size.icon_small) + px(gap);
+        }
+        gui.sans(.regular, fonts.size.ui);
+        defer gui.popFont();
+        gui.drawText(list, .{ .x = x, .y = gui.textTop(middle) }, foreground, tab.label);
+        x += gui.spacedWidth(tab.label, 0);
+        if (tab.detail) |detail| {
+            x += px(gap);
+            gui.drawText(list, .{ .x = x, .y = gui.textTop(middle) }, theme.text_faint, detail);
+            x += gui.spacedWidth(detail, 0);
+        }
+        if (tab.dot) {
+            x += px(gap);
+            gui.dot(list, .{ .x = x + px(dot_size) / 2, .y = middle }, dot_size / 2, theme.text_menu);
+            x += px(dot_size);
+        }
+        if (tab.pill) |shown| drawPill(list, .{ .x = x + px(gap), .y = middle }, shown);
+    }
+};
+
 pub const ViewTab = struct {
     label: []const u8,
     icon: Icon,
@@ -375,7 +443,7 @@ pub fn viewTabs(id: []const u8, tabs: []const ViewTab, current: usize) ?usize {
             foreground = theme.text_off;
         } else if (on) {
             gui.rect(list, min, max, theme.border, 4);
-            gui.rect(list, .{ .x = min.x, .y = max.y - px(2) }, max, theme.accent, 0);
+            gui.insetUnderline(list, min, max, 4, 2, theme.accent);
             foreground = theme.white;
         } else if (hovered) {
             gui.rect(list, min, max, theme.row_hover, 4);

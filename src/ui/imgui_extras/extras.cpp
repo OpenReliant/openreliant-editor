@@ -43,4 +43,15 @@ bool or_imgui_window_tab(float rect[4], void **draw_list, bool *selected) {
     return true;
 }
 
+bool or_imgui_window_dock_node(float rect[4]) {
+    ImGuiWindow *window = ImGui::GetCurrentWindow();
+    ImGuiDockNode *node = window->DockNode;
+    if (!window->DockIsActive || !node || node->VisibleWindow != window) return false;
+    rect[0] = node->Pos.x;
+    rect[1] = node->Pos.y;
+    rect[2] = node->Pos.x + node->Size.x;
+    rect[3] = node->Pos.y + node->Size.y;
+    return true;
+}
+
 } // extern "C"

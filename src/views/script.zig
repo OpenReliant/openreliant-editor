@@ -72,45 +72,27 @@ pub fn draw(app: *App) void {
     }
 }
 
-/// The panel's own tabs: the source file, and its script listing.
+/// The panel's own tab bar, as the docked panels' (`widgets.PanelTab`): the source file, and its
+/// script listing.
 fn tabs(app: *App, document: *Document) void {
     const at = gui.cursor();
     const width = gui.available().x;
-    const height = px(30);
+    const height = px(widgets.tab_bar_height);
     const list = gui.drawList();
     gui.rect(list, at, .{ .x = at.x + width, .y = at.y + height }, theme.bar, 0);
     gui.rect(list, .{ .x = at.x, .y = at.y + height - px(1) }, .{ .x = at.x + width, .y = at.y + height }, theme.tab_divider, 0);
-    gui.sans(.regular, fonts.size.ui);
-    defer gui.popFont();
     var x = at.x;
-    const middle = at.y + height / 2;
-    const listing_detail = if (document.built) |built| built.file else "not built";
-    inline for (.{ app_mod.SourceTab.source, app_mod.SourceTab.listing }) |tab| {
-        const on = app.source_tab == tab;
-        const label = if (tab == .source) document.file else "Script listing";
-        var tab_width = px(12) * 2 + px(14) + px(7) + gui.textSize(label).x;
-        if (tab == .source and document.dirty()) tab_width += px(7) + px(7);
-        if (tab == .listing) tab_width += px(7) + gui.textSize(listing_detail).x;
+    for (std.enums.values(app_mod.SourceTab)) |which| {
+        const on = app.source_tab == which;
+        const shown: widgets.PanelTab = switch (which) {
+            .source => .{ .label = document.file, .icon = .file_code, .icon_color = theme.accent, .dot = document.dirty(), .on = on },
+            .listing => .{ .label = "Script listing", .icon = .list, .detail = if (document.built) |built| built.file else "not built", .on = on },
+        };
+        const tab_width = shown.width();
         gui.setCursor(.{ .x = x, .y = at.y });
-        if (c.ImGui_InvisibleButton(@tagName(tab), .{ .x = tab_width, .y = height }, 0)) app.source_tab = tab;
-        const hovered = gui.hovered();
-        if (on) {
-            gui.rect(list, .{ .x = x, .y = at.y }, .{ .x = x + tab_width, .y = at.y + height }, theme.panel, 0);
-            gui.rect(list, .{ .x = x, .y = at.y }, .{ .x = x + tab_width, .y = at.y + px(2) }, theme.accent, 0);
-        }
-        gui.rect(list, .{ .x = x + tab_width - px(1), .y = at.y }, .{ .x = x + tab_width, .y = at.y + height }, theme.tab_divider, 0);
-        const foreground = if (on) theme.text_strong else if (hovered) theme.text else theme.text_muted;
-        var inner = x + px(12);
-        const icon: Icon = if (tab == .source) .file_code else .list;
-        widgets.drawIcon(list, .{ .x = inner, .y = middle }, icon, fonts.size.icon_small, if (tab == .source) theme.accent else foreground);
-        inner += px(14) + px(7);
-        gui.drawText(list, .{ .x = inner, .y = gui.textTop(middle) }, foreground, label);
-        inner += gui.textSize(label).x + px(7);
-        if (tab == .source and document.dirty()) {
-            gui.dot(list, .{ .x = inner + px(3.5), .y = middle }, 3.5, theme.text_menu);
-            gui.tooltip("Changed since saved");
-        }
-        if (tab == .listing) gui.drawText(list, .{ .x = inner, .y = gui.textTop(middle) }, theme.text_faint, listing_detail);
+        if (c.ImGui_InvisibleButton(@tagName(which), .{ .x = tab_width, .y = height - px(1) }, 0)) app.source_tab = which;
+        shown.draw(list, .{ .x = x, .y = at.y }, .{ .x = x + tab_width, .y = at.y + height - px(1) }, gui.hovered());
+        if (shown.dot) gui.tooltip("Changed since saved");
         x += tab_width;
     }
     gui.setCursor(.{ .x = at.x, .y = at.y + height });

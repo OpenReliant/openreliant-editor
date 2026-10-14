@@ -20,9 +20,6 @@ const theme = ui.theme;
 const widgets = ui.widgets;
 const px = gui.px;
 
-/// The design's tab bar height.
-pub const tab_bar_height = 30;
-
 pub fn draw(app: *App) void {
     for (std.enums.values(Panel)) |panel| {
         if (!app.open_panels.get(panel)) continue;
@@ -30,6 +27,8 @@ pub fn draw(app: *App) void {
             c.ImGui_End();
             continue;
         }
+        defer c.ImGui_End();
+        defer frame(panel);
         switch (panel) {
             .mission => outline(app),
             .find => find(app),
@@ -44,62 +43,98 @@ pub fn draw(app: *App) void {
             .reference => reference(app),
             .live_scene => liveScene(),
         }
-        c.ImGui_End();
     }
 }
 
-/// Begins `panel`'s window, its tab drawn as the design's: 30 pixels high, an orange line over
-/// the one in front. False when the window is hidden behind another tab.
+/// Pushes the style ImGui lays out and draws a dock node's tab bar in: the design's 30 pixels
+/// high, and the tabs side by side from the bar's left end, as wide as their titles
+/// (`Panel.title`). ImGui's labels are hidden under the tabs the editor draws (`tab`).
+/// `popTabBarStyle` takes it off.
+pub fn pushTabBarStyle() void {
+    gui.sans(.regular, fonts.size.ui);
+    gui.pushVar2(c.ImGuiStyleVar_FramePadding, .{ .x = 0, .y = (px(widgets.tab_bar_height) - c.ImGui_GetFontSize()) / 2 });
+    gui.pushVar2(c.ImGuiStyleVar_ItemInnerSpacing, .{ .x = 0, .y = c.ImGui_GetStyle().*.ItemInnerSpacing.y });
+    gui.pushVar(c.ImGuiStyleVar_WindowBorderSize, 0);
+    gui.pushColor(c.ImGuiCol_Text, theme.fade(theme.text, 0));
+}
+
+pub fn popTabBarStyle() void {
+    gui.popColor(1);
+    gui.popVar(3);
+    gui.popFont();
+}
+
+/// Begins `panel`'s window, and draws its tab. False when the window is hidden behind another tab.
+/// A panel closes from the Window menu: its tab has no close button, as in the design.
 fn begin(app: *App, panel: Panel) bool {
-    var open = app.open_panels.get(panel);
     if (panel == .source) {
         // The source panel draws its own tabs, for the open files.
         const class: c.ImGuiWindowClass = .{ .DockNodeFlagsOverrideSet = c.OR_DOCK_NODE_NO_TAB_BAR, .ParentViewportId = 0xffff_ffff, .DockingAllowUnclassed = true };
         c.ImGui_SetNextWindowClass(&class);
     }
-    gui.sans(.regular, fonts.size.ui);
-    gui.pushVar2(c.ImGuiStyleVar_FramePadding, .{ .x = px(12), .y = (px(tab_bar_height) - c.ImGui_GetFontSize()) / 2 });
+    pushTabBarStyle();
     gui.pushVar2(c.ImGuiStyleVar_WindowPadding, .{ .x = 0, .y = 0 });
-    gui.pushVar2(c.ImGuiStyleVar_ItemInnerSpacing, .{ .x = px(7), .y = px(4) });
-    gui.pushColor(c.ImGuiCol_Text, theme.text_muted);
     const flags: c.ImGuiWindowFlags = if (panel == .source) c.ImGuiWindowFlags_NoScrollbar | c.ImGuiWindowFlags_NoScrollWithMouse else 0;
-    const visible = c.ImGui_Begin(panel.title(), if (panel == .source) null else &open, flags);
-    gui.popFont();
-    gui.popColor(1);
-    gui.popVar(3);
-    app.open_panels.set(panel, open or panel == .source);
+    const visible = c.ImGui_Begin(panel.title(), null, flags);
+    gui.popVar(1);
+    popTabBarStyle();
     tab(app, panel);
     return visible;
 }
 
-/// What the design adds to a panel's tab: its name in white while it's in front, a line at its
-/// right, and a count's pill after the name.
+/// Draws `panel`'s tab over ImGui's, where its dock node shows one, as the design's
+/// (`widgets.PanelTab`).
 fn tab(app: *App, panel: Panel) void {
     var rect: [4]f32 = undefined;
     var draw_list: ?*anyopaque = null;
     var selected = false;
     if (!c.or_imgui_window_tab(&rect, &draw_list, &selected)) return;
     const list: *c.ImDrawList = @ptrCast(@alignCast(draw_list.?));
-    gui.rect(list, .{ .x = rect[2] - px(1), .y = rect[1] }, .{ .x = rect[2], .y = rect[3] }, theme.tab_divider, 0);
-    if (selected) {
-        gui.sans(.regular, fonts.size.ui);
-        gui.drawText(list, .{ .x = rect[0] + px(12), .y = gui.textTop((rect[1] + rect[3]) / 2) }, theme.text_strong, panel.label());
-        gui.popFont();
-    }
-    const count: ?widgets.Pill = switch (panel) {
-        .problems => if (app.document) |document| blk: {
+    // The tab bar's line goes under the tabs (`frame`).
+    const min = gui.vec2(rect[0], rect[1]);
+    const max = gui.vec2(rect[2], rect[3] - px(1));
+    const shown: widgets.PanelTab = .{ .label = panel.label(), .icon = panel.icon(), .pill = tabCount(app, panel), .on = selected };
+    shown.draw(list, min, max, c.ImGui_IsMouseHoveringRectEx(min, max, false));
+}
+
+/// The count a panel's tab shows after its name.
+fn tabCount(app: *App, panel: Panel) ?widgets.Pill {
+    const document = app.document orelse return null;
+    return switch (panel) {
+        .problems => blk: {
             const found = document.problems().len;
             break :blk .{ .text = gui.print("{d}", .{found}), .style = if (found > 0) .err else .normal };
-        } else null,
-        .breakpoints => if (app.document) |document| blk: {
+        },
+        .breakpoints => blk: {
             var buffer: [@import("mission/document.zig").max_breakpoints]usize = undefined;
             break :blk .{ .text = gui.print("{d}", .{document.breakpoints(&buffer).len}) };
-        } else null,
+        },
         else => null,
     };
-    // The pill goes at the tab's end, in the room the title's spaces leave.
-    const pill = count orelse return;
-    widgets.drawPill(list, .{ .x = rect[2] - px(12) - widgets.pillWidth(pill.text), .y = (rect[1] + rect[3]) / 2 }, pill);
+}
+
+/// Draws the design's line around a panel, over the panel in front of its dock node: 1 pixel
+/// outside the node, with corners of 3 and the ground past them, and under ImGui's tab bar, the
+/// bar's line.
+fn frame(panel: Panel) void {
+    var node: [4]f32 = undefined;
+    if (!c.or_imgui_window_dock_node(&node)) return;
+    const line = px(theme.panel_line);
+    const min = gui.vec2(node[0] - line, node[1] - line);
+    const max = gui.vec2(node[2] + line, node[3] + line);
+    const list = gui.drawList();
+    c.ImDrawList_PushClipRect(list, min, max, false);
+    defer c.ImDrawList_PopClipRect(list);
+    // The source panel draws its own tab bar, with its line.
+    if (panel != .source) {
+        const bar_bottom = node[1] + px(widgets.tab_bar_height);
+        gui.rect(list, .{ .x = node[0], .y = bar_bottom - px(1) }, .{ .x = node[2], .y = bar_bottom }, theme.tab_divider, 0);
+    }
+    // A stroke as wide as two corners, whose inner edge is the line's outer edge, puts the ground
+    // past the corners.
+    const radius = px(theme.panel_rounding);
+    c.ImDrawList_AddRectEx(list, .{ .x = min.x - radius, .y = min.y - radius }, .{ .x = max.x + radius, .y = max.y + radius }, theme.ground, radius * 2, radius * 2, c.ImDrawFlags_RoundCornersAll);
+    gui.outline(list, min, max, theme.divider, theme.panel_rounding);
 }
 
 /// The space the content starts at: the panel's inside, with the design's padding.

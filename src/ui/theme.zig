@@ -156,6 +156,13 @@ pub const groups = [_]Color{
     rgb(0x5aa9ff), rgb(0xc9cfdb), rgb(0xff7a6b), rgb(0x8fd18a), rgb(0xc4a7ff), rgb(0xe7c06b), rgb(0x63d1c0), rgb(0xf4b27a),
 };
 
+/// The design's panels: 3 pixels apart and 3 pixels inside the area they fill, each in a line of 1
+/// pixel with corners of 3. The editor draws the line around each dock node, so the nodes are the
+/// panels' insides.
+pub const panel_gap: f32 = 3;
+pub const panel_line: f32 = 1;
+pub const panel_rounding: f32 = 3;
+
 /// Sets ImGui's style from the colours, with sizes scaled by `scale`.
 pub fn apply(scale: f32) void {
     const style = c.ImGui_GetStyle();
@@ -176,16 +183,15 @@ pub fn apply(scale: f32) void {
     style.*.ScrollbarRounding = 3;
     style.*.GrabMinSize = 10;
     style.*.GrabRounding = 3;
+    // The editor draws the panels' tabs over ImGui's (`panels.tab`), which show nothing of their
+    // own.
     style.*.TabRounding = 0;
     style.*.TabBorderSize = 0;
-    style.*.TabBarBorderSize = 1;
-    style.*.TabBarOverlineSize = 2;
-    // A tab's close button shows on the tab in front while the pointer is on it, and never on the
-    // others.
-    style.*.TabCloseButtonMinWidthSelected = 0;
-    style.*.TabCloseButtonMinWidthUnselected = std.math.floatMax(f32);
+    style.*.TabBarBorderSize = 0;
+    style.*.TabBarOverlineSize = 0;
     style.*.SeparatorTextBorderSize = 1;
-    style.*.DockingSeparatorSize = 3;
+    // Between two dock nodes, the panels' lines and the gap between them.
+    style.*.DockingSeparatorSize = panel_gap + panel_line * 2;
     style.*.WindowMenuButtonPosition = c.ImGuiDir_None;
     c.ImGuiStyle_ScaleAllSizes(style, scale);
     style.*.FontScaleDpi = scale;
@@ -230,13 +236,7 @@ pub fn apply(scale: f32) void {
     set(colors, c.ImGuiCol_ResizeGripHovered, border_strong);
     set(colors, c.ImGuiCol_ResizeGripActive, accent);
     set(colors, c.ImGuiCol_InputTextCursor, text);
-    set(colors, c.ImGuiCol_Tab, bar);
-    set(colors, c.ImGuiCol_TabHovered, panel);
-    set(colors, c.ImGuiCol_TabSelected, panel);
-    set(colors, c.ImGuiCol_TabSelectedOverline, accent);
-    set(colors, c.ImGuiCol_TabDimmed, bar);
-    set(colors, c.ImGuiCol_TabDimmedSelected, panel);
-    set(colors, c.ImGuiCol_TabDimmedSelectedOverline, accent);
+    for ([_]c.ImGuiCol{ c.ImGuiCol_Tab, c.ImGuiCol_TabHovered, c.ImGuiCol_TabSelected, c.ImGuiCol_TabDimmed, c.ImGuiCol_TabDimmedSelected }) |tab| set(colors, tab, bar);
     set(colors, c.ImGuiCol_DockingPreview, fade(accent, 0.35));
     set(colors, c.ImGuiCol_DockingEmptyBg, ground);
     set(colors, c.ImGuiCol_TableHeaderBg, table_head);

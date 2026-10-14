@@ -13,6 +13,7 @@ const Command = commands.Command;
 const keys = @import("keys.zig");
 const panels = @import("panels.zig");
 const ui = @import("ui.zig");
+const version = @import("version.zig");
 const fonts = ui.fonts;
 const gui = ui.gui;
 const theme = ui.theme;
@@ -34,28 +35,34 @@ const toolbar_height = toolbar_padding * 2 + toolbar_row + 1;
 
 const status_bar_height = 24;
 
+/// The dock space's ID, which names the layout's version: a layout saved with other panels or other
+/// sizes gives way to the full layout once.
+const dock_id = "dock 2";
+
 pub fn draw(app: *App) void {
     beginScreen("workspace", .full, theme.bar);
     app.shortcuts();
     menuBar(app, .full);
     toolbar(app);
-    const dockspace = c.ImGui_GetID("dock");
+    const dockspace = c.ImGui_GetID(dock_id);
+    // The panels fill the area above the status bar, 3 pixels in from its edges. The dock nodes are
+    // the panels' insides, within their lines.
+    const inset = px(theme.panel_gap + theme.panel_line);
     const space = gui.available();
-    const dock_size = gui.vec2(space.x, space.y - px(status_bar_height));
+    gui.setCursor(gui.add(gui.cursor(), .{ .x = inset, .y = inset }));
+    const dock_size = gui.vec2(space.x - inset * 2, space.y - px(status_bar_height) - inset * 2);
     if (app.layout_due or !c.or_dock_builder_has_node(dockspace)) {
         fullLayout(dockspace, dock_size);
         app.layout_due = false;
         app.front_tabs_due = true;
     }
-    // The dock space draws the panels' tab bars, in the design's font and height.
-    gui.sans(.regular, fonts.size.ui);
-    gui.pushVar2(c.ImGuiStyleVar_FramePadding, .{ .x = px(12), .y = (px(panels.tab_bar_height) - c.ImGui_GetFontSize()) / 2 });
-    gui.pushVar2(c.ImGuiStyleVar_ItemInnerSpacing, .{ .x = px(7), .y = px(4) });
-    gui.pushColor(c.ImGuiCol_Text, theme.text_muted);
+    // The dock space draws the panels' tab bars, and the gaps between the panels in the border's
+    // colour, which shows the ground there.
+    panels.pushTabBarStyle();
+    gui.pushColor(c.ImGuiCol_Border, theme.ground);
     _ = c.ImGui_DockSpaceEx(dockspace, dock_size, c.OR_DOCK_NODE_NO_WINDOW_MENU_BUTTON | c.OR_DOCK_NODE_NO_CLOSE_BUTTON, null);
     gui.popColor(1);
-    gui.popVar(2);
-    gui.popFont();
+    panels.popTabBarStyle();
     statusBar(app);
     c.ImGui_End();
 
@@ -196,11 +203,12 @@ fn menuEntries(app: *App, menu: commands.Menu) void {
     defer gui.popVar(2);
     for (commands.entries(menu)) |entry| switch (entry) {
         .separator => c.ImGui_Separator(),
+        .version => _ = c.ImGui_MenuItemEx(gui.print("{s}  Version {s}", .{ no_icon, version.string }), null, false, false),
         .command => |command| {
             if (command == .view_4 and app.mode == .mission) continue;
             const known = commands.info(command);
             const off = app.unavailable(command);
-            const icon = if (known.icon) |which| which.text() else "   ";
+            const icon = if (known.icon) |which| which.text() else no_icon;
             const text = gui.print("{s}  {s}", .{ icon, app.label(command) });
             const key = app.keyText(command);
             const checked = isChecked(app, command);
@@ -209,6 +217,9 @@ fn menuEntries(app: *App, menu: commands.Menu) void {
         },
     };
 }
+
+/// What stands in a menu item's icon column for an item without an icon.
+const no_icon = "   ";
 
 /// Whether a menu item shows a check: the view shown, the panels open.
 fn isChecked(app: *const App, command: Command) bool {
@@ -527,25 +538,45 @@ fn keyHints(app: *App) []const u8 {
 }
 
 /// The full layout: the outline on the left, the source in the middle with the debugging panels
-/// under it, and the inspector on the right, as the design shows them.
+/// under it, and the inspector on the right, as the design shows them: the outline 250 pixels wide,
+/// the inspector 310, the debugging panels 250 high and the variables 300 wide, their lines
+/// included. The source is the dock space's central node, which takes what the window gains.
 pub fn fullLayout(dockspace: c.ImGuiID, size: gui.Vec2) void {
     c.or_dock_builder_reset(dockspace, size.x, size.y);
     var left: c.ImGuiID = 0;
     var rest: c.ImGuiID = 0;
-    _ = c.or_dock_builder_split(dockspace, c.ImGuiDir_Left, px(250) / size.x, &left, &rest);
+    _ = c.or_dock_builder_split(dockspace, c.ImGuiDir_Left, share(250, size.x), &left, &rest);
+    const rest_width = size.x - between() - inside(250);
     var right: c.ImGuiID = 0;
     var middle: c.ImGuiID = 0;
-    _ = c.or_dock_builder_split(rest, c.ImGuiDir_Right, px(310) / (size.x - px(250)), &right, &middle);
+    _ = c.or_dock_builder_split(rest, c.ImGuiDir_Right, share(310, rest_width), &right, &middle);
+    const middle_width = rest_width - between() - inside(310);
     var bottom: c.ImGuiID = 0;
     var source: c.ImGuiID = 0;
-    _ = c.or_dock_builder_split(middle, c.ImGuiDir_Down, px(250) / size.y, &bottom, &source);
+    _ = c.or_dock_builder_split(middle, c.ImGuiDir_Down, share(250, size.y), &bottom, &source);
     var bottom_right: c.ImGuiID = 0;
     var bottom_left: c.ImGuiID = 0;
-    _ = c.or_dock_builder_split(bottom, c.ImGuiDir_Right, 0.42, &bottom_right, &bottom_left);
+    _ = c.or_dock_builder_split(bottom, c.ImGuiDir_Right, share(300, middle_width), &bottom_right, &bottom_left);
     for ([_]Panel{ .mission, .find }) |panel| c.or_dock_builder_dock_window(panel.title(), left);
     c.or_dock_builder_dock_window(Panel.source.title(), source);
     for ([_]Panel{ .threads, .breakpoints, .output, .problems }) |panel| c.or_dock_builder_dock_window(panel.title(), bottom_left);
     for ([_]Panel{ .variables, .watch }) |panel| c.or_dock_builder_dock_window(panel.title(), bottom_right);
     for ([_]Panel{ .inspector, .reference, .live_scene }) |panel| c.or_dock_builder_dock_window(panel.title(), right);
     c.or_dock_builder_finish(dockspace);
+}
+
+/// The room between two dock nodes: the panels' lines and the gap between them.
+fn between() f32 {
+    return px(theme.panel_gap + theme.panel_line * 2);
+}
+
+/// The inside of a panel `length` design pixels long, its lines left out: its dock node's length.
+fn inside(length: f32) f32 {
+    return px(length - theme.panel_line * 2);
+}
+
+/// The share of a dock node `total` long that a split gives the child at its side, for a panel
+/// `length` design pixels long there: the dock builder splits what the room between them leaves.
+fn share(length: f32, total: f32) f32 {
+    return inside(length) / (total - between());
 }
