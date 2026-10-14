@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Share a mod</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+@font-face{font-family:"Newtown";src:url("../fonts/Newtown.ttf") format("truetype");font-display:swap}
+*{box-sizing:border-box}
+body{margin:0;background:#07080c}
+a{color:#f6a259}a:hover{color:#ffc58f}
+.i{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.i14{width:14px;height:14px}
+.i12{width:12px;height:12px}
+.mono{font-family:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.menu{background:none;border:0;color:#c9cfdb;padding:4px 9px;border-radius:4px;font:inherit;font-size:12.5px;cursor:pointer}
+.menu:hover{background:#1a1f2b;color:#ffffff}
+.tb{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:4px;border:1px solid #262d3d;background:#161a24;color:#dfe3ea;font:inherit;font-size:12.5px;cursor:pointer;white-space:nowrap;text-decoration:none}
+.tb:hover{background:#1d2230;border-color:#323a4e;color:#ffffff}
+.tbi{width:30px;padding:0;justify-content:center}
+.mpick{display:inline-flex;align-items:center;gap:7px;height:30px;padding:0 10px;border:1px solid #262d3d;border-radius:5px;background:#11141c;color:#f3f4f7;font:inherit;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.mpick:hover{border-color:#36405a}
+.views{display:flex;gap:2px;padding:2px;border:1px solid #262d3d;border-radius:6px;background:#0b0d12}
+.view{display:inline-flex;align-items:center;gap:7px;height:26px;padding:0 11px;border-radius:4px;color:#9aa3b5;text-decoration:none;font-size:12.5px;font-weight:500;white-space:nowrap}
+.view:hover{color:#ffffff;background:#171b26}
+.view-on,.view-on:hover{background:#262d3d;color:#ffffff;box-shadow:inset 0 -2px 0 #f08a2c}
+.key{font:500 10.5px/1 "JetBrains Mono",ui-monospace,monospace;color:#9aa3b5;padding:2px 4px;border:1px solid #2a3142;border-radius:3px;background:#0c0f15}
+.panel{background:#10131b;display:flex;flex-direction:column;min-width:0;border:1px solid #1a1f2b;border-radius:3px;overflow:hidden}
+.tabbar{display:flex;align-items:stretch;flex:none;height:30px;background:#0c0f15;border-bottom:1px solid #1c2230;overflow:hidden}
+.tab{display:inline-flex;align-items:center;gap:7px;padding:0 12px;border:0;border-right:1px solid #1c2230;background:none;color:#9aa3b5;font:inherit;font-size:12.5px;white-space:nowrap;cursor:pointer;text-decoration:none}
+.tab-on{background:#10131b;color:#f3f4f7;box-shadow:inset 0 2px 0 #f08a2c}
+.sect{font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#8a93a6}
+.frow{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px;height:24px;padding:0 10px;font-size:12.5px}
+.frame{display:flex;align-items:center;gap:7px;height:28px;padding:0 9px;background:#161a24;border:1px solid #262d3d;border-radius:4px;color:#e8eaf0;font:inherit;font-size:12.5px;text-align:left;min-width:0;cursor:pointer}
+.step{display:flex;flex-direction:column;gap:10px;padding:14px 16px;border:1px solid #1f2533;border-radius:7px;background:#0e1118}
+.sh{display:flex;align-items:center;gap:10px}
+.num{width:22px;height:22px;flex:none;display:flex;align-items:center;justify-content:center;border-radius:50%;font-size:11.5px;font-weight:600}
+.ok{background:#0f2a26;color:#3ccfb4;border:1px solid #1f4a45}
+.warn{background:#2a200b;color:#ffc24a;border:1px solid #4a3a14}
+.todo{background:#11141c;color:#c9cfdb;border:1px solid #2a3142}
+.chk{display:flex;align-items:center;gap:8px;font-size:12.5px;color:#d4d8e1}
+</style>
+</head>
+<body>
+<div style="min-height: 100vh; display: flex; flex-direction: column; background: #07080c; color: #e8eaf0; font-family: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 13px; line-height: 1.45">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; min-height: 34px; padding: 3px 10px; background: #0c0f15; border-bottom: 1px solid #1a1f2b">
+<div style="display: flex; align-items: baseline; gap: 8px; padding-right: 4px">
+<span style="font-family: Newtown, 'IBM Plex Sans', sans-serif; font-size: 16px; letter-spacing: 0.02em; color: #e8eaf0">Open<span style="color: #f08a2c">Reliant</span></span>
+<span style="font-size: 10.5px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: #8a93a6">Editor</span>
+</div>
+<nav aria-label="Menus" style="display: flex; flex-wrap: wrap; gap: 2px">
+<button class="menu" type="button">File</button>
+<button class="menu" type="button">Edit</button>
+<button class="menu" type="button">View</button>
+<button class="menu" type="button">Mod</button>
+<button class="menu" type="button">Game</button>
+<button class="menu" type="button">Window</button>
+<button class="menu" type="button">Help</button>
+</nav>
+<a href="command-palette.html" style="margin-left: auto; display: flex; align-items: center; gap: 8px; width: 340px; max-width: 100%; height: 26px; padding: 0 8px; border: 1px solid #262d3d; border-radius: 4px; background: #11141c; color: #8a93a6; text-decoration: none; font-size: 12.5px">
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="M16 16l4 4"></path></svg>
+<span style="flex: 1">Search commands</span>
+<span class="key">Ctrl+Shift+P</span>
+</a>
+<nav aria-label="Mode" style="display: flex; gap: 2px; padding: 2px; border: 1px solid #262d3d; border-radius: 5px; background: #11141c">
+<a href="mod-manifest.html" aria-current="page" style="display: inline-flex; align-items: center; gap: 6px; padding: 3px 12px; border-radius: 3px; background: #262d3d; color: #ffffff; text-decoration: none; font-size: 12.5px; font-weight: 500"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #f08a2c"><path d="M21 8l-9-5-9 5 9 5 9-5z"></path><path d="M3 8v8l9 5 9-5V8"></path><path d="M12 13v8"></path></svg>Mod</a>
+<a href="mission-script.html" style="display: inline-flex; align-items: center; gap: 6px; padding: 3px 12px; border-radius: 3px; color: #9aa3b5; text-decoration: none; font-size: 12.5px"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4"></path><path d="M5 4h11l-2 4 2 4H5"></path></svg>Mission</a>
+</nav>
+</header>
+
+<div role="toolbar" aria-label="Example: Bananas" style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 10px; background: #0e1118; border-bottom: 1px solid #1a1f2b">
+<button class="mpick" type="button" aria-haspopup="listbox" title="StarLancer/mods/bananas">
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #f08a2c"><path d="M21 8l-9-5-9 5 9 5 9-5z"></path><path d="M3 8v8l9 5 9-5V8"></path><path d="M12 13v8"></path></svg>
+Example: Bananas
+<svg class="i i12" viewBox="0 0 24 24" aria-hidden="true" style="color: #8a93a6"><path d="M6 9l6 6 6-6"></path></svg>
+</button>
+<nav class="views" aria-label="Views of the mod">
+<a href="mod-manifest.html" class="view" title="Ctrl+1"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16"></path><path d="M4 12h10"></path><path d="M4 18h13"></path></svg>Manifest</a>
+<a href="mod-code.html" class="view" title="Ctrl+2"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 7l-5 5 5 5"></path><path d="M16 7l5 5-5 5"></path></svg>Code</a>
+<a href="mod-game-files.html" class="view" title="Ctrl+3"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="5" rx="1.5"></rect><path d="M5 9v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9"></path><path d="M10 13h4"></path></svg>Game files</a>
+<a href="mod-share.html" class="view view-on" aria-current="page" title="Ctrl+4"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12"></path><path d="M8 7l4-4 4 4"></path><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"></path></svg>Share</a>
+</nav>
+<span aria-hidden="true" style="width: 1px; height: 20px; margin: 0 4px; background: #262d3d"></span>
+<button class="tb" type="button" title="Build its models and missions, Ctrl+B">
+<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 9l-7 7 2.5 2.5 7-7"></path><path d="M12.5 4.5l7 7 2-2-7-7z"></path><path d="M10.5 6.5l4 4"></path></svg>
+Build
+</button>
+<div style="margin-left: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 8px">
+<span style="display: inline-flex; align-items: center; gap: 7px; height: 26px; padding: 0 11px; border: 1px solid #1f3b37; border-radius: 13px; background: #0f1d1c; color: #bfeee5; font-size: 12px">
+<span aria-hidden="true" style="width: 7px; height: 7px; border-radius: 50%; background: #3ccfb4"></span>
+StarLancer
+</span>
+</div>
+</div>
+
+<div style="flex: 1 1 auto; display: flex; flex-wrap: wrap; gap: 3px; padding: 3px; min-height: 0">
+
+<section class="panel" aria-label="Archive contents" style="flex: 1 1 250px">
+<div class="tabbar"><span class="tab tab-on">In the archive</span></div>
+<div style="display: flex; flex-direction: column; padding: 6px 0; overflow: auto">
+<div class="frow"><span class="mono">mod.ini</span><span class="mono" style="color: #8a93a6">1.9 kB</span></div>
+<div class="frow"><span class="mono">records.luau</span><span class="mono" style="color: #8a93a6">850 B</span></div>
+<div class="frow"><span class="mono">menu.luau</span><span class="mono" style="color: #8a93a6">485 B</span></div>
+<div class="frow"><span class="mono">troopers.luau</span><span class="mono" style="color: #8a93a6">2.1 kB</span></div>
+<div class="frow"><span class="mono">banana.shp</span><span class="mono" style="color: #8a93a6">81.4 kB</span></div>
+<div class="frow"><span class="mono" style="color: #9aa3b5">banana.obj</span><span class="mono" style="color: #8a93a6">29.1 kB</span></div>
+<div class="frow"><span class="mono" style="color: #9aa3b5">banana.mtl</span><span class="mono" style="color: #8a93a6">71 B</span></div>
+<div class="frow"><span class="mono">banana.png</span><span class="mono" style="color: #8a93a6">316 B</span></div>
+<div class="frow"><span class="mono">bananatip.png</span><span class="mono" style="color: #8a93a6">313 B</span></div>
+<div class="frow"><span class="mono">banana_shot.png</span><span class="mono" style="color: #8a93a6">7.8 kB</span></div>
+<div class="frow"><span class="mono">boing.wav</span><span class="mono" style="color: #8a93a6">12.4 kB</span></div>
+</div>
+<div style="margin-top: auto; display: flex; flex-direction: column; gap: 4px; padding: 10px; border-top: 1px solid #1a1f2b; font-size: 12px; color: #9aa3b5">
+<div style="display: flex; justify-content: space-between"><span>11 files</span><span class="mono" style="color: #e8eaf0">136.7 kB</span></div>
+<span>Every file in the folder is packed · subfolders skipped</span>
+</div>
+</section>
+
+<section class="panel" aria-label="Share" style="flex: 999 1 560px">
+<div class="tabbar"><span class="tab tab-on">Pack and share</span></div>
+<div style="flex: 1 1 auto; overflow: auto; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px">
+
+<div class="step">
+<div class="sh"><span class="num warn">1</span><span style="font-weight: 600">Checks</span><span style="margin-left: auto; color: #ffd98a; font-size: 12px">2 warnings · 0 errors</span></div>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr)); gap: 7px 18px; padding-left: 32px">
+<span class="chk"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #ffc24a"><path d="M12 3l10 18H2z"></path><path d="M12 10v5"></path><path d="M12 18v.5"></path></svg>No thumbnail (mod.png)<a href="mod-manifest.html" style="margin-left: auto; font-size: 12px">Make one</a></span>
+<span class="chk"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #ffc24a"><path d="M12 3l10 18H2z"></path><path d="M12 10v5"></path><path d="M12 18v.5"></path></svg>No Url<a href="mod-manifest.html" style="margin-left: auto; font-size: 12px">Add</a></span>
+<span class="chk"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #3ccfb4"><path d="M5 12l5 5 9-10"></path></svg>Name, Version, Author, Description</span>
+<span class="chk"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #3ccfb4"><path d="M5 12l5 5 9-10"></path></svg>OpenReliant 0.7+</span>
+<span class="chk"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #3ccfb4"><path d="M5 12l5 5 9-10"></path></svg>Bases, scripts, Luau analysis</span>
+<span class="chk"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #3ccfb4"><path d="M5 12l5 5 9-10"></path></svg>banana.shp up to date with banana.obj</span>
+<span class="chk"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #8fb4ff"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v.5"></path><path d="M12 11v5"></path></svg>No license.txt · only share what you may</span>
+</div>
+</div>
+
+<div class="step">
+<div class="sh"><span class="num todo">2</span><span style="font-weight: 600">Version</span></div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding-left: 32px">
+<span class="mono" style="color: #9aa3b5">1.0</span>
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #8a93a6"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg>
+<div role="radiogroup" aria-label="Next version" style="display: flex; padding: 2px; gap: 2px; border: 1px solid #262d3d; border-radius: 4px; background: #11141c">
+<button type="button" role="radio" aria-checked="false" style="height: 24px; padding: 0 12px; border: 0; border-radius: 3px; background: none; color: #9aa3b5; font: inherit; font-size: 12.5px; cursor: pointer">Keep 1.0</button>
+<button type="button" role="radio" aria-checked="true" style="height: 24px; padding: 0 12px; border: 0; border-radius: 3px; background: #262d3d; color: #ffffff; font: inherit; font-size: 12.5px; cursor: pointer">1.1</button>
+<button type="button" role="radio" aria-checked="false" style="height: 24px; padding: 0 12px; border: 0; border-radius: 3px; background: none; color: #9aa3b5; font: inherit; font-size: 12.5px; cursor: pointer">2.0</button>
+</div>
+<span style="color: #8a93a6; font-size: 12px">Catalogue: a higher Version shows as an update</span>
+</div>
+</div>
+
+<div class="step" style="border-color: #6a3d16; background: #15100b">
+<div class="sh"><span class="num todo" style="background: #f08a2c; color: #170b02; border-color: #f08a2c">3</span><span style="font-weight: 600">Pack</span></div>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr)); gap: 10px 14px; padding-left: 32px">
+<label style="display: flex; flex-direction: column; gap: 5px; color: #9aa3b5; font-size: 12px">Archive
+<span class="frame"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #f08a2c"><path d="M21 8l-9-5-9 5 9 5 9-5z"></path><path d="M3 8v8l9 5 9-5V8"></path></svg><span class="mono" style="color: #e8eaf0">dist/bananas.hog</span><svg class="i i12" viewBox="0 0 24 24" aria-hidden="true" style="margin-left: auto; color: #8a93a6"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg></span>
+</label>
+<div style="display: flex; flex-direction: column; gap: 7px; justify-content: flex-end">
+<label class="chk"><input type="checkbox" checked="checked" style="accent-color: #f08a2c">SHA-256 checksum file</label>
+<label class="chk"><input type="checkbox" checked="checked" style="accent-color: #f08a2c">Test the .hog in the game after</label>
+</div>
+</div>
+<div class="mono" style="margin-left: 32px; padding: 7px 10px; border: 1px solid #1f2533; border-radius: 4px; background: #0b0d12; color: #c9cfdb; font-size: 11.5px; overflow-wrap: anywhere">sltool hog pack mods/bananas dist/bananas.hog --checksum</div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-left: 32px">
+<button class="tb" type="button" style="height: 32px; padding: 0 16px; background: #f08a2c; border-color: #f08a2c; color: #170b02; font-weight: 600">
+<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8l-9-5-9 5 9 5 9-5z"></path><path d="M3 8v8l9 5 9-5V8"></path><path d="M12 13v8"></path></svg>
+Pack 1.1
+</button>
+<span style="color: #8a93a6; font-size: 12px">Warnings don't block packing</span>
+</div>
+</div>
+
+<div class="step">
+<div class="sh"><span class="num todo">4</span><span style="font-weight: 600">Catalogue</span><span style="margin-left: auto; color: #8a93a6; font-size: 12px">openreliant-mods</span></div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding-left: 32px">
+<span style="color: #9aa3b5; font-size: 12px">Category</span>
+<button class="frame" type="button" aria-haspopup="listbox" style="width: 170px">Ships<svg class="i i12" viewBox="0 0 24 24" aria-hidden="true" style="margin-left: auto; color: #8a93a6"><path d="M6 9l6 6 6-6"></path></svg></button>
+<button class="tb" type="button">Export catalogue folder</button>
+<span class="mono" style="color: #8a93a6; font-size: 11.5px">mods/ships/bananas/</span>
+</div>
+</div>
+
+</div>
+</section>
+
+<section class="panel" aria-label="Catalogue preview" style="flex: 1 1 320px">
+<div class="tabbar"><span class="tab tab-on">GET MODS preview</span></div>
+<div style="display: flex; flex-direction: column; gap: 14px; padding: 14px 12px; overflow: auto">
+<div style="display: flex; flex-direction: column; gap: 10px; padding: 14px; border: 1px solid #2a2f3c; background: #05070b; font-family: Newtown, 'IBM Plex Sans', sans-serif; text-transform: uppercase; letter-spacing: 0.03em">
+<div style="display: flex; align-items: center; justify-content: center; aspect-ratio: 5 / 2; border: 1px dashed #4a3a24; color: #b48a5c; font-size: 12px">No thumbnail</div>
+<div style="color: #ffffff; font-size: 15px">Example: Bananas</div>
+<div style="display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 12px; font-size: 11.5px">
+<span style="color: #f08a2c">Version</span><span style="color: #c9cfdb">1.1</span>
+<span style="color: #f08a2c">Author</span><span style="color: #c9cfdb">OpenReliant</span>
+<span style="color: #f08a2c">Category</span><span style="color: #c9cfdb">Ships</span>
+<span style="color: #f08a2c">Needs</span><span style="color: #c9cfdb">OpenReliant 0.7</span>
+<span style="color: #f08a2c">Size</span><span style="color: #c9cfdb">137 kB</span>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<div class="sect">Last pack</div>
+<div class="mono" style="font-size: 11.5px; color: #8a93a6">none</div>
+</div>
+</div>
+</section>
+
+</div>
+
+<footer style="display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; min-height: 24px; padding: 2px 10px; background: #0c0f15; border-top: 1px solid #1a1f2b; color: #9aa3b5; font-size: 11.5px">
+<span style="display: inline-flex; align-items: center; gap: 6px; color: #bfeee5"><span aria-hidden="true" style="width: 7px; height: 7px; border-radius: 50%; background: #3ccfb4"></span>Linked</span>
+<span>Example: Bananas</span>
+<span>11 files · 136.7 kB</span>
+<span style="margin-left: auto; color: #ffd98a">2 warnings</span>
+</footer>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Scene workspace</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+@font-face{font-family:"Newtown";src:url("../fonts/Newtown.ttf") format("truetype");font-display:swap}
+*{box-sizing:border-box}
+body{margin:0;background:#07080c}
+a{color:#f6a259}a:hover{color:#ffc58f}
+.i{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.i14{width:14px;height:14px}
+.i12{width:12px;height:12px}
+.solid{fill:currentColor;stroke:none}
+.mono{font-family:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.menu{background:none;border:0;color:#c9cfdb;padding:4px 9px;border-radius:4px;font:inherit;font-size:12.5px;cursor:pointer}
+.menu:hover{background:#1a1f2b;color:#ffffff}
+.tb{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:4px;border:1px solid #262d3d;background:#161a24;color:#dfe3ea;font:inherit;font-size:12.5px;cursor:pointer;white-space:nowrap}
+.tb:hover{background:#1d2230;border-color:#323a4e}
+.tb:disabled{color:#5d6679;background:#12151d;border-color:#1f2533;cursor:default}
+.tbi{width:30px;padding:0;justify-content:center}
+.mpick{display:inline-flex;align-items:center;gap:7px;height:30px;padding:0 10px;border:1px solid #262d3d;border-radius:5px;background:#11141c;color:#f3f4f7;font:inherit;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.mpick:hover{border-color:#36405a}
+.views{display:flex;gap:2px;padding:2px;border:1px solid #262d3d;border-radius:6px;background:#0b0d12}
+.view{display:inline-flex;align-items:center;gap:7px;height:26px;padding:0 11px;border-radius:4px;color:#9aa3b5;text-decoration:none;font-size:12.5px;font-weight:500;white-space:nowrap}
+.view:hover{color:#ffffff;background:#171b26}
+.view-on,.view-on:hover{background:#262d3d;color:#ffffff;box-shadow:inset 0 -2px 0 #f08a2c}
+.key{font:500 10.5px/1 "JetBrains Mono",ui-monospace,monospace;color:#9aa3b5;padding:2px 4px;border:1px solid #2a3142;border-radius:3px;background:#0c0f15}
+.panel{background:#10131b;display:flex;flex-direction:column;min-width:0;border:1px solid #1a1f2b;border-radius:3px;overflow:hidden}
+.tabbar{display:flex;align-items:stretch;flex:none;height:30px;background:#0c0f15;border-bottom:1px solid #1c2230;overflow:hidden}
+.tab{display:inline-flex;align-items:center;gap:7px;padding:0 12px;border:0;border-right:1px solid #1c2230;background:none;color:#9aa3b5;font:inherit;font-size:12.5px;white-space:nowrap;cursor:pointer}
+.tab:hover{color:#e8eaf0}
+.tab-on{background:#10131b;color:#f3f4f7;box-shadow:inset 0 2px 0 #f08a2c}
+.sect{font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#8a93a6}
+.row{display:flex;align-items:center;gap:7px;width:100%;height:24px;padding:0 10px;border:0;background:none;color:#d4d8e1;font:inherit;font-size:12.5px;text-align:left;white-space:nowrap;cursor:pointer}
+.row:hover{background:#171b26}
+.sel,.sel:hover{background:#3b2412;color:#ffe2c4}
+.cnt{margin-left:auto;color:#8a93a6;font-size:11.5px}
+.sw{width:9px;height:9px;flex:none;border-radius:2px}
+.eye{width:24px;height:24px;flex:none;display:flex;align-items:center;justify-content:center;border:0;border-radius:3px;background:none;color:#8a93a6;cursor:pointer}
+.eye:hover{background:#1a1f2b;color:#e8eaf0}
+.frame{display:flex;align-items:center;gap:7px;width:100%;height:26px;padding:0 8px;background:#161a24;border:1px solid #262d3d;border-radius:3px;color:#e8eaf0;font:inherit;font-size:12.5px;text-align:left;min-width:0;cursor:pointer}
+.frame:hover{border-color:#36405a}
+.lbl{color:#9aa3b5;font-size:12px}
+.field{display:grid;grid-template-columns:84px minmax(0,1fr);align-items:center;gap:8px}
+.xyz{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}
+.ax{display:flex;align-items:center;height:26px;border:1px solid #262d3d;border-radius:3px;background:#161a24;overflow:hidden;min-width:0}
+.ax b{width:18px;height:100%;flex:none;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#0b0d12}
+.ax span{flex:1;min-width:0;padding:0 6px;text-align:right;font-family:"JetBrains Mono",ui-monospace,monospace;font-size:12px;color:#e8eaf0}
+.chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 9px;border:1px solid #262d3d;border-radius:4px;background:#11141c;color:#9aa3b5;font:inherit;font-size:12px;cursor:pointer;white-space:nowrap}
+.chip-on{background:#1f2533;border-color:#36405a;color:#f3f4f7}
+.tbl{border-collapse:collapse;width:100%;font-size:12.5px}
+.tbl th{background:#0f1219;color:#8a93a6;font-weight:500;text-align:left;padding:5px 12px;border-bottom:1px solid #1f2533;white-space:nowrap}
+.tbl td{padding:4px 12px;border-bottom:1px solid #161b26;white-space:nowrap;color:#d4d8e1}
+.lab{position:absolute;font-size:11.5px;line-height:1;color:#e8eaf0;white-space:nowrap;text-shadow:0 0 3px #07080c,0 0 3px #07080c,0 0 3px #07080c}
+.mk-solid path{fill:currentColor;stroke:#07080c;stroke-width:1.2;stroke-linejoin:round}
+.mk-hollow path{fill:#0a0c11;stroke:currentColor;stroke-width:1.8;stroke-linejoin:round}
+.ord{stroke:#ff7a6b;stroke-width:1.4;stroke-dasharray:5 4;fill:none}
+.con{stroke:#6f788c;stroke-width:1.2;stroke-dasharray:2 4;fill:none}
+.trail{stroke:#5aa9ff;stroke-width:1.8;stroke-dasharray:1 6;stroke-linecap:round;fill:none}
+.br{position:absolute;width:8px;height:8px;border-color:#f08a2c;border-style:solid}
+</style>
+</head>
+<body>
+<div style="min-height: 100vh; display: flex; flex-direction: column; background: #07080c; color: #e8eaf0; font-family: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 13px; line-height: 1.45">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; min-height: 34px; padding: 3px 10px; background: #0c0f15; border-bottom: 1px solid #1a1f2b">
+<div style="display: flex; align-items: baseline; gap: 8px; padding-right: 4px">
+<span style="font-family: Newtown, 'IBM Plex Sans', sans-serif; font-size: 16px; letter-spacing: 0.02em; color: #e8eaf0">Open<span style="color: #f08a2c">Reliant</span></span>
+<span style="font-size: 10.5px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: #8a93a6">Editor</span>
+</div>
+<nav aria-label="Menus" style="display: flex; flex-wrap: wrap; gap: 2px">
+<button class="menu" type="button">File</button>
+<button class="menu" type="button">Edit</button>
+<button class="menu" type="button">View</button>
+<button class="menu" type="button">Mission</button>
+<button class="menu" type="button">Debug</button>
+<button class="menu" type="button">Game</button>
+<button class="menu" type="button">Window</button>
+<button class="menu" type="button">Help</button>
+</nav>
+<a href="command-palette.html" style="margin-left: auto; display: flex; align-items: center; gap: 8px; width: 340px; max-width: 100%; height: 26px; padding: 0 8px; border: 1px solid #262d3d; border-radius: 4px; background: #11141c; color: #8a93a6; text-decoration: none; font-size: 12.5px">
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="M16 16l4 4"></path></svg>
+<span style="flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Search records and commands</span>
+<span class="key">Ctrl+Shift+P</span>
+</a>
+<nav aria-label="Mode" style="display: flex; gap: 2px; padding: 2px; border: 1px solid #262d3d; border-radius: 5px; background: #11141c">
+<a href="mod-manifest.html" style="display: inline-flex; align-items: center; gap: 6px; padding: 3px 12px; border-radius: 3px; color: #9aa3b5; text-decoration: none; font-size: 12.5px"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8l-9-5-9 5 9 5 9-5z"></path><path d="M3 8v8l9 5 9-5V8"></path><path d="M12 13v8"></path></svg>Mod</a>
+<a href="mission-script.html" aria-current="page" style="display: inline-flex; align-items: center; gap: 6px; padding: 3px 12px; border-radius: 3px; background: #262d3d; color: #ffffff; text-decoration: none; font-size: 12.5px; font-weight: 500"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #f08a2c"><path d="M5 21V4"></path><path d="M5 4h11l-2 4 2 4H5"></path></svg>Mission</a>
+</nav>
+</header>
+
+<div role="toolbar" aria-label="First Mission" style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 10px; background: #0e1118; border-bottom: 1px solid #1a1f2b">
+<button class="mpick" type="button" aria-haspopup="listbox" title="mission90.mission.luau, in the mod First Mission">
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #f08a2c"><path d="M5 21V4"></path><path d="M5 4h11l-2 4 2 4H5"></path></svg>
+First Mission
+<svg class="i i12" viewBox="0 0 24 24" aria-hidden="true" style="color: #8a93a6"><path d="M6 9l6 6 6-6"></path></svg>
+</button>
+<nav class="views" aria-label="Views of First Mission">
+<a href="mission-script.html" class="view" title="Ctrl+1"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 7l-5 5 5 5"></path><path d="M16 7l5 5-5 5"></path></svg>Script</a>
+<a href="mission-scene.html" class="view view-on" aria-current="page" title="Ctrl+2"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2z"></path><path d="M9 4v14"></path><path d="M15 6v14"></path></svg>Scene</a>
+<a href="mission-blocks.html" class="view" title="Ctrl+3"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="6" rx="2"></rect><rect x="3" y="14" width="12" height="6" rx="2"></rect></svg>Blocks</a>
+</nav>
+<span aria-hidden="true" style="width: 1px; height: 20px; margin: 0 4px; background: #262d3d"></span>
+<button class="tb" type="button" title="Build, Ctrl+B">
+<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 9l-7 7 2.5 2.5 7-7"></path><path d="M12.5 4.5l7 7 2-2-7-7z"></path><path d="M10.5 6.5l4 4"></path></svg>
+Build
+</button>
+<div style="display: flex">
+<button class="tb" type="button" style="border-radius: 4px 0 0 4px">
+<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5l12 7-12 7z"></path></svg>
+Play in game
+</button>
+<button class="tb tbi" type="button" aria-label="Play from a part" style="border-radius: 0 4px 4px 0; border-left: 0">
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg>
+</button>
+</div>
+<span aria-hidden="true" style="width: 1px; height: 20px; margin: 0 4px; background: #262d3d"></span>
+<button class="tb" type="button">
+<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5v14"></path><path d="M15 5v14"></path></svg>
+Pause mission
+</button>
+<button class="tb tbi" type="button" disabled="disabled" aria-label="Step over, F10" title="Step over, F10">
+<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13a8 8 0 0 1 15-3.5"></path><path d="M20 4v6h-6"></path><circle cx="12" cy="18.5" r="1.8"></circle></svg>
+</button>
+<button class="tb tbi" type="button" disabled="disabled" aria-label="Step into, F11" title="Step into, F11">
+<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11"></path><path d="M8 10l4 4 4-4"></path><circle cx="12" cy="19.5" r="1.8"></circle></svg>
+</button>
+<div style="margin-left: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 8px">
+<span style="display: inline-flex; align-items: center; gap: 7px; height: 26px; padding: 0 11px; border-radius: 13px; background: #0f1d1c; color: #bfeee5; font-size: 12px">
+<span aria-hidden="true" style="width: 7px; height: 7px; border-radius: 50%; background: #3ccfb4"></span>
+Running
+<span class="mono" style="color: #7fb3aa">52.3 s</span>
+</span>
+<span style="display: inline-flex; align-items: center; gap: 7px; height: 26px; padding: 0 11px; border: 1px solid #1f3b37; border-radius: 13px; background: #0f1d1c; color: #bfeee5; font-size: 12px">
+<span aria-hidden="true" style="width: 7px; height: 7px; border-radius: 50%; background: #3ccfb4"></span>
+StarLancer
+</span>
+</div>
+</div>
+
+<div style="flex: 1 1 auto; display: flex; flex-wrap: wrap; gap: 3px; padding: 3px; min-height: 0">
+
+<section class="panel" aria-label="Mission outline" style="flex: 1 1 250px">
+<div class="tabbar" role="tablist" aria-label="Left panels">
+<button class="tab tab-on" type="button" role="tab" aria-selected="true">
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4"></path><path d="M5 4h11l-2 4 2 4H5"></path></svg>
+Mission
+</button>
+<button class="tab" type="button" role="tab" aria-selected="false">Find</button>
+</div>
+<div style="display: flex; gap: 6px; padding: 8px">
+<label class="frame" style="flex: 1; cursor: text">
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #8a93a6"><circle cx="11" cy="11" r="6.5"></circle><path d="M16 16l4 4"></path></svg>
+<input type="search" placeholder="Filter records" aria-label="Filter records" style="flex: 1; min-width: 0; background: none; border: 0; outline: none; color: #e8eaf0; font: inherit; font-size: 12.5px">
+</label>
+<button class="tb tbi" type="button" aria-label="Add a record">
+<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+</button>
+</div>
+<ul style="list-style: none; margin: 0; padding: 0 0 10px; display: flex; flex-direction: column">
+<li><button class="row" type="button" aria-expanded="true" style="padding-left: 6px; color: #f3f4f7; font-weight: 600">
+<svg class="i i12" viewBox="0 0 24 24" aria-hidden="true" style="color: #8a93a6"><path d="M6 9l6 6 6-6"></path></svg>
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #f08a2c"><path d="M5 21V4"></path><path d="M5 4h11l-2 4 2 4H5"></path></svg>
+First Mission
+<span class="cnt mono">mission90</span>
+</button></li>
+<li><button class="row" type="button" aria-expanded="true" style="padding-left: 20px">
+<svg class="i i12" viewBox="0 0 24 24" aria-hidden="true" style="color: #8a93a6"><path d="M6 9l6 6 6-6"></path></svg>
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #8a93a6"><path d="M12 3l9 5-9 5-9-5z"></path><path d="M3 13l9 5 9-5"></path></svg>
+Flight groups
+<span class="cnt">3</span>
+</button></li>
+<li style="display: flex; align-items: center; padding-right: 6px">
+<button class="row" type="button" style="padding-left: 54px">
+<span class="sw" style="background: #5aa9ff"></span>
+Alpha
+<span class="cnt">player wing</span>
+</button>
+<button class="eye" type="button" aria-label="Hide Alpha on the map" aria-pressed="true"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"></path><circle cx="12" cy="12" r="3"></circle></svg></button>
+</li>
+<li style="display: flex; align-items: center; padding-right: 6px">
+<button class="row" type="button" style="padding-left: 54px">
+<span class="sw" style="background: #c9cfdb"></span>
+Nav points
+</button>
+<button class="eye" type="button" aria-label="Hide Nav points on the map" aria-pressed="true"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"></path><circle cx="12" cy="12" r="3"></circle></svg></button>
+</li>
+<li style="display: flex; align-items: center; padding-right: 6px">
+<button class="row" type="button" style="padding-left: 54px">
+<span class="sw" style="background: #ff7a6b"></span>
+Enemies
+</button>
+<button class="eye" type="button" aria-label="Hide Enemies on the map" aria-pressed="true"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"></path><circle cx="12" cy="12" r="3"></circle></svg></button>
+</li>
+<li><button class="row" type="button" aria-expanded="true" style="padding-left: 20px">
+<svg class="i i12" viewBox="0 0 24 24" aria-hidden="true" style="color: #8a93a6"><path d="M6 9l6 6 6-6"></path></svg>
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #8a93a6"><path d="M12 3l7 17-7-4-7 4z"></path></svg>
+Ships
+<span class="cnt">3</span>
+</button></li>
+<li><button class="row" type="button" style="padding-left: 52px">
+<svg class="i i12 solid" viewBox="0 0 24 24" aria-hidden="true" style="color: #5aa9ff"><path d="M12 2l8 19-8-4.5L4 21z"></path></svg>
+Player
+<span class="cnt mono">predator</span>
+</button></li>
+<li><button class="row sel" type="button" aria-current="true" style="padding-left: 52px">
+<svg class="i i12 solid" viewBox="0 0 24 24" aria-hidden="true" style="color: #ff7a6b"><path d="M12 2l8 19-8-4.5L4 21z"></path></svg>
+Sabre 1
+<span class="cnt mono" style="color: #e9b98d">sabre</span>
+</button></li>
+<li><button class="row" type="button" style="padding-left: 52px">
+<svg class="i i12 solid" viewBox="0 0 24 24" aria-hidden="true" style="color: #ff7a6b"><path d="M12 2l8 19-8-4.5L4 21z"></path></svg>
+Sabre 2
+<span class="cnt mono">sabre</span>
+</button></li>
+<li><button class="row" type="button" aria-expanded="true" style="padding-left: 20px">
+<svg class="i i12" viewBox="0 0 24 24" aria-hidden="true" style="color: #8a93a6"><path d="M6 9l6 6 6-6"></path></svg>
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #8a93a6"><path d="M12 3l9 9-9 9-9-9z"></path></svg>
+Markers
+<span class="cnt">1</span>
+</button></li>
+<li><button class="row" type="button" style="padding-left: 52px">
+<svg class="i i12" viewBox="0 0 24 24" aria-hidden="true" style="color: #c9cfdb"><path d="M12 3l9 9-9 9-9-9z"></path></svg>
+Nav 1
+<span class="cnt">nav point</span>
+</button></li>
+<li><button class="row" type="button" aria-expanded="false" style="padding-left: 20px">
+<svg class="i i12" viewBox="0 0 24 24" aria-hidden="true" style="color: #8a93a6"><path d="M9 6l6 6-6 6"></path></svg>
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #8a93a6"><path d="M8 4c-2 0-3 1-3 3v2c0 1.5-1 3-2 3 1 0 2 1.5 2 3v2c0 2 1 3 3 3"></path><path d="M16 4c2 0 3 1 3 3v2c0 1.5 1 3 2 3-1 0-2 1.5-2 3v2c0 2-1 3-3 3"></path></svg>
+Parts
+<span class="cnt">1</span>
+</button></li>
+<li><button class="row" type="button" aria-expanded="false" style="padding-left: 20px">
+<svg class="i i12" viewBox="0 0 24 24" aria-hidden="true" style="color: #8a93a6"><path d="M9 6l6 6-6 6"></path></svg>
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #8a93a6"><path d="M13 2L4 14h7l-1 8 9-12h-7z"></path></svg>
+Triggers
+<span class="cnt">2</span>
+</button></li>
+<li><button class="row" type="button" aria-expanded="false" style="padding-left: 20px">
+<svg class="i i12" viewBox="0 0 24 24" aria-hidden="true" style="color: #8a93a6"><path d="M9 6l6 6-6 6"></path></svg>
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #8a93a6"><path d="M5 9h14"></path><path d="M5 15h14"></path><path d="M10 4L8 20"></path><path d="M16 4l-2 16"></path></svg>
+Globals
+<span class="cnt">0</span>
+</button></li>
+</ul>
+</section>
+
+<div style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 3px">
+
+<section class="panel" aria-label="Map" style="flex: 1 1 auto; min-height: 440px">
+<div class="tabbar" role="tablist" aria-label="Views">
+<button class="tab tab-on" type="button" role="tab" aria-selected="true">
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #f08a2c"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2z"></path><path d="M9 4v14"></path><path d="M15 6v14"></path></svg>
+Map
+</button>
+<button class="tab" type="button" role="tab" aria-selected="false">mission90.mission.luau</button>
+</div>
+<div role="toolbar" aria-label="Map" style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 10px; border-bottom: 1px solid #1a1f2b; background: #0e1118">
+<div role="radiogroup" aria-label="View" style="display: flex; gap: 2px; padding: 2px; border: 1px solid #262d3d; border-radius: 4px; background: #11141c">
+<button type="button" role="radio" aria-checked="true" style="height: 20px; padding: 0 9px; border: 0; border-radius: 3px; background: #262d3d; color: #ffffff; font: inherit; font-size: 12px; cursor: pointer">Top</button>
+<button type="button" role="radio" aria-checked="false" style="height: 20px; padding: 0 9px; border: 0; border-radius: 3px; background: none; color: #9aa3b5; font: inherit; font-size: 12px; cursor: pointer">Side</button>
+<button type="button" role="radio" aria-checked="false" style="height: 20px; padding: 0 9px; border: 0; border-radius: 3px; background: none; color: #9aa3b5; font: inherit; font-size: 12px; cursor: pointer">Front</button>
+</div>
+<span aria-hidden="true" style="width: 1px; height: 18px; margin: 0 4px; background: #262d3d"></span>
+<button class="chip chip-on" type="button" aria-pressed="true">
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M5 12a7 7 0 0 1 14 0"></path><path d="M2 12a10 10 0 0 1 20 0"></path></svg>
+Live
+</button>
+<button class="chip chip-on" type="button" aria-pressed="true">
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" style="stroke-dasharray: 3 3"></circle><circle cx="12" cy="12" r="1.5"></circle></svg>
+Ranges
+</button>
+<button class="chip chip-on" type="button" aria-pressed="true">
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18L18 6" style="stroke-dasharray: 3 3"></path><path d="M12 6h6v6"></path></svg>
+Orders
+</button>
+<button class="chip" type="button" aria-pressed="false">
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17c4-8 8-10 18-10"></path></svg>
+Curves
+</button>
+<div style="margin-left: auto; display: flex; align-items: center; gap: 6px">
+<span style="color: #8a93a6; font-size: 12px">Follow</span>
+<button class="frame" type="button" aria-haspopup="listbox" style="width: 120px">
+<svg class="i i12 solid" viewBox="0 0 24 24" aria-hidden="true" style="color: #5aa9ff"><path d="M12 2l8 19-8-4.5L4 21z"></path></svg>
+Player
+<svg class="i i12" viewBox="0 0 24 24" aria-hidden="true" style="margin-left: auto; color: #8a93a6"><path d="M6 9l6 6 6-6"></path></svg>
+</button>
+<button class="tb tbi" type="button" aria-label="Zoom to fit the mission" style="height: 26px">
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5"></path><path d="M20 9V4h-5"></path><path d="M4 15v5h5"></path><path d="M20 15v5h-5"></path></svg>
+</button>
+</div>
+</div>
+<div style="position: relative; flex: 1 1 auto; min-height: 360px; overflow: hidden; background-color: #0a0c11; background-image: linear-gradient(#202839 1px, transparent 1px), linear-gradient(90deg, #202839 1px, transparent 1px), linear-gradient(#131824 1px, transparent 1px), linear-gradient(90deg, #131824 1px, transparent 1px); background-size: 270px 270px, 270px 270px, 54px 54px, 54px 54px; background-position: calc(50% + 135px) calc(50% + 135px), calc(50% + 135px) calc(50% + 135px), calc(50% + 27px) calc(50% + 27px), calc(50% + 27px) calc(50% + 27px)">
+<div style="position: absolute; left: 50%; top: 50%; width: 900px; height: 600px; margin: -300px 0 0 -450px">
+
+<div aria-hidden="true" style="position: absolute; left: 180px; top: 30px; width: 540px; height: 540px; border: 1px dotted rgba(201, 207, 219, 0.3); border-radius: 50%"></div>
+<div aria-hidden="true" style="position: absolute; left: 234px; top: 84px; width: 432px; height: 432px; border: 1px dashed rgba(240, 138, 44, 0.55); border-radius: 50%; background: rgba(240, 138, 44, 0.035)"></div>
+<span class="lab" style="left: 450px; top: 90px; transform: translateX(-50%); color: #f4b27a; font-size: 11px">ship_reached · 4k</span>
+<span class="lab" style="left: 450px; top: 36px; transform: translateX(-50%); color: #9aa3b5; font-size: 11px">flyback · 5k</span>
+
+<svg viewBox="0 0 900 600" aria-hidden="true" style="position: absolute; left: 0; top: 0; width: 900px; height: 600px; overflow: visible">
+<path class="trail" d="M470 700 C474 560 480 440 482 368"></path>
+<line class="con" x1="342" y1="192" x2="401" y2="295"></line>
+<line class="con" x1="558" y1="192" x2="553" y2="316"></line>
+</svg>
+
+<svg viewBox="0 0 900 600" aria-hidden="true" style="position: absolute; left: 0; top: 0; width: 900px; height: 600px; overflow: visible">
+<line class="ord" x1="406" y1="300" x2="476" y2="354"></line>
+<line class="ord" x1="547" y1="320" x2="489" y2="355"></line>
+</svg>
+<span class="lab" style="left: 520px; top: 345px; color: #ffb3a8; font-size: 11px">fight · Player</span>
+
+<svg class="mk-solid" viewBox="0 0 24 24" aria-hidden="true" style="position: absolute; left: 441px; top: 291px; width: 18px; height: 18px; color: #c9cfdb"><path d="M12 2l10 10-10 10L2 12z"></path></svg>
+<span class="lab" style="left: 464px; top: 296px">Nav 1</span>
+
+<svg class="mk-hollow" viewBox="0 0 24 24" aria-hidden="true" style="position: absolute; left: 333px; top: 183px; width: 18px; height: 18px; color: #ff7a6b; transform: rotate(180deg)"><path d="M12 2l8 19-8-4.5L4 21z"></path></svg>
+<span class="lab" style="left: 300px; top: 160px">Sabre 1</span>
+<span class="br" aria-hidden="true" style="left: 326px; top: 176px; border-width: 2px 0 0 2px"></span>
+<span class="br" aria-hidden="true" style="left: 350px; top: 176px; border-width: 2px 2px 0 0"></span>
+<span class="br" aria-hidden="true" style="left: 326px; top: 200px; border-width: 0 0 2px 2px"></span>
+<span class="br" aria-hidden="true" style="left: 350px; top: 200px; border-width: 0 2px 2px 0"></span>
+<div style="position: absolute; left: 180px; top: 214px; display: flex; flex-direction: column; gap: 2px; padding: 6px 9px; border: 1px solid #36405a; border-radius: 4px; background: rgba(16, 19, 27, 0.94); font-size: 11.5px; white-space: nowrap">
+<span class="mono" style="color: #f3f4f7">x -2000 · z 42000</span>
+<span style="color: #9aa3b5">Drag · Shift: snap 100</span>
+</div>
+
+<svg class="mk-hollow" viewBox="0 0 24 24" aria-hidden="true" style="position: absolute; left: 549px; top: 183px; width: 18px; height: 18px; color: #ff7a6b; transform: rotate(180deg)"><path d="M12 2l8 19-8-4.5L4 21z"></path></svg>
+<span class="lab" style="left: 574px; top: 187px">Sabre 2</span>
+
+<svg class="mk-solid" viewBox="0 0 24 24" aria-hidden="true" style="position: absolute; left: 392px; top: 286px; width: 18px; height: 18px; color: #ff7a6b; transform: rotate(128deg)"><path d="M12 2l8 19-8-4.5L4 21z"></path></svg>
+<svg class="mk-solid" viewBox="0 0 24 24" aria-hidden="true" style="position: absolute; left: 544px; top: 307px; width: 18px; height: 18px; color: #ff7a6b; transform: rotate(-121deg)"><path d="M12 2l8 19-8-4.5L4 21z"></path></svg>
+<svg class="mk-solid" viewBox="0 0 24 24" aria-hidden="true" style="position: absolute; left: 472px; top: 349px; width: 20px; height: 20px; color: #5aa9ff; transform: rotate(-6deg)"><path d="M12 2l8 19-8-4.5L4 21z"></path></svg>
+<span class="lab" style="left: 497px; top: 372px; color: #a9d1ff">Player</span>
+
+</div>
+
+<div style="position: absolute; left: 10px; top: 10px; display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border: 1px solid #1f2533; border-radius: 4px; background: rgba(12, 15, 21, 0.9); font-size: 11.5px; color: #c9cfdb">
+<span style="display: flex; align-items: center; gap: 7px"><svg class="mk-hollow" viewBox="0 0 24 24" aria-hidden="true" style="width: 12px; height: 12px; color: #c9cfdb"><path d="M12 2l8 19-8-4.5L4 21z"></path></svg>Start</span>
+<span style="display: flex; align-items: center; gap: 7px"><svg class="mk-solid" viewBox="0 0 24 24" aria-hidden="true" style="width: 12px; height: 12px; color: #c9cfdb"><path d="M12 2l8 19-8-4.5L4 21z"></path></svg>Now</span>
+</div>
+
+<div aria-hidden="true" style="position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); display: flex; align-items: center; gap: 6px; padding: 4px 9px; border-radius: 12px; background: rgba(12, 15, 21, 0.9); border: 1px solid #1f2533; color: #a9d1ff; font-size: 11.5px">
+<svg class="i i12" viewBox="0 0 24 24"><path d="M12 5v14"></path><path d="M6 13l6 6 6-6"></path></svg>
+Player start · 40k
+</div>
+
+<div aria-hidden="true" style="position: absolute; left: 12px; bottom: 12px; display: flex; flex-direction: column; gap: 3px; color: #9aa3b5; font-size: 11px">
+<span>1k</span>
+<span style="width: 54px; height: 6px; border: 1px solid #9aa3b5; border-top: 0"></span>
+</div>
+
+<div aria-hidden="true" style="position: absolute; right: 12px; bottom: 12px; color: #8a93a6; font-size: 11px">X right · Z up</div>
+</div>
+</section>
+
+<section class="panel" aria-label="Live scene" style="flex: 0 0 auto; height: 200px">
+<div class="tabbar" role="tablist" aria-label="Bottom panels">
+<button class="tab tab-on" type="button" role="tab" aria-selected="true">Live scene <span style="color: #7a8398">5 Hz</span></button>
+<button class="tab" type="button" role="tab" aria-selected="false">Output</button>
+<button class="tab" type="button" role="tab" aria-selected="false">Problems</button>
+</div>
+<div style="overflow: auto">
+<table class="tbl">
+<thead><tr>
+<th scope="col">Ship</th><th scope="col">Type</th><th scope="col">Group</th><th scope="col">Order</th><th scope="col">Target</th>
+<th scope="col" aria-sort="ascending"><span style="display: inline-flex; align-items: center; gap: 4px; color: #e8eaf0">Range <svg class="i i12" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 15l6-6 6 6"></path></svg></span></th>
+<th scope="col">Place now</th>
+</tr></thead>
+<tbody>
+<tr><td style="color: #a9d1ff">Player</td><td class="mono">predator</td><td>Alpha</td><td style="color: #8a93a6">player</td><td></td><td class="mono">0</td><td class="mono">600, 0, 38900</td></tr>
+<tr><td>Nav 1</td><td class="mono">nav point</td><td>Nav points</td><td></td><td></td><td class="mono">1.3k</td><td class="mono">0, 0, 40000</td></tr>
+<tr><td>Sabre 2</td><td class="mono">sabre</td><td>Enemies</td><td class="mono" style="color: #ffb3a8">fight</td><td>Player</td><td class="mono">1.5k</td><td class="mono">1900, 0, 39700</td></tr>
+<tr style="background: #3b2412"><td style="color: #ffe2c4">Sabre 1</td><td class="mono" style="color: #ffe2c4">sabre</td><td style="color: #ffe2c4">Enemies</td><td class="mono" style="color: #ffc6bd">fight</td><td style="color: #ffe2c4">Player</td><td class="mono" style="color: #ffe2c4">1.9k</td><td class="mono" style="color: #ffe2c4">-900, 0, 40100</td></tr>
+</tbody>
+</table>
+</div>
+</section>
+
+</div>
+
+<section class="panel" aria-label="Inspector" style="flex: 1 1 310px">
+<div class="tabbar" role="tablist" aria-label="Right panels">
+<button class="tab tab-on" type="button" role="tab" aria-selected="true">Inspector</button>
+<button class="tab" type="button" role="tab" aria-selected="false">Variables</button>
+</div>
+<div style="display: flex; flex-direction: column; gap: 18px; padding: 14px 12px; overflow: auto">
+<div style="display: flex; align-items: center; gap: 10px">
+<span style="width: 34px; height: 34px; flex: none; display: flex; align-items: center; justify-content: center; border-radius: 6px; background: #2b1714; color: #ff7a6b">
+<svg class="i solid" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l8 19-8-4.5L4 21z"></path></svg>
+</span>
+<div style="min-width: 0">
+<div style="color: #f3f4f7; font-size: 14px; font-weight: 600">Sabre 1</div>
+<div style="color: #8a93a6; font-size: 12px">Ship · <span class="mono">sabre_1</span> · line 17</div>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 9px">
+<div class="sect">Ship</div>
+<div class="field">
+<label class="lbl" for="ship-name">Name</label>
+<input id="ship-name" type="text" value="Sabre 1" style="height: 26px; padding: 0 8px; border: 1px solid #262d3d; border-radius: 3px; background: #161a24; color: #e8eaf0; font: inherit; font-size: 12.5px; min-width: 0">
+</div>
+<div class="field">
+<span class="lbl">Type</span>
+<button class="frame" type="button" aria-haspopup="listbox"><span class="mono">sabre</span><svg class="i i12" viewBox="0 0 24 24" aria-hidden="true" style="margin-left: auto; color: #8a93a6"><path d="M6 9l6 6 6-6"></path></svg></button>
+</div>
+<div class="field">
+<span class="lbl">Group</span>
+<button class="frame" type="button" aria-haspopup="listbox"><span class="sw" style="background: #ff7a6b"></span>Enemies<svg class="i i12" viewBox="0 0 24 24" aria-hidden="true" style="margin-left: auto; color: #8a93a6"><path d="M6 9l6 6 6-6"></path></svg></button>
+</div>
+<div class="field">
+<span class="lbl">Pilot</span>
+<button class="frame" type="button" aria-haspopup="listbox"><span style="color: #8a93a6">none</span><svg class="i i12" viewBox="0 0 24 24" aria-hidden="true" style="margin-left: auto; color: #8a93a6"><path d="M6 9l6 6 6-6"></path></svg></button>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 9px">
+<div class="sect">Place</div>
+<div class="field">
+<span class="lbl">Position</span>
+<div class="xyz">
+<span class="ax"><b style="background: #f2767a">X</b><span>-2000</span></span>
+<span class="ax"><b style="background: #8fd18a">Y</b><span>0</span></span>
+<span class="ax"><b style="background: #6ba8ff">Z</b><span>42000</span></span>
+</div>
+</div>
+<div class="field">
+<span class="lbl">Angles</span>
+<div class="xyz">
+<span class="ax"><b style="background: #3a4256; color: #e8eaf0">Y</b><span>180</span></span>
+<span class="ax"><b style="background: #3a4256; color: #e8eaf0">P</b><span>0</span></span>
+<span class="ax"><b style="background: #3a4256; color: #e8eaf0">R</b><span>0</span></span>
+</div>
+</div>
+<p style="margin: 0 0 0 92px; color: #8a93a6; font-size: 12px">degrees · Y down</p>
+<div class="field">
+<span class="lbl">Launch</span>
+<div style="display: flex; align-items: center; gap: 8px; min-width: 0">
+<span style="color: #c9cfdb">none</span>
+<button class="tb" type="button" style="margin-left: auto; height: 24px">Carrier…</button>
+</div>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 9px; padding: 10px; border: 1px solid #1f3b37; border-radius: 4px; background: #0d1716">
+<div class="sect" style="color: #7fb3aa">Live</div>
+<div class="field"><span class="lbl">Order</span><span><span class="mono" style="color: #ffb3a8">fight</span> · Player</span></div>
+<div class="field"><span class="lbl">Place</span><span class="mono">-900, 0, 40100</span></div>
+<div style="display: flex; flex-wrap: wrap; gap: 6px">
+<button class="tb" type="button">
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="13" height="10" rx="2"></rect><path d="M16 10l5-3v10l-5-3"></path></svg>
+View in game
+</button>
+<button class="tb" type="button">Copy to start</button>
+</div>
+</div>
+<p style="margin: 0; color: #8a93a6; font-size: 12px">Drag: edits line 20, live in game</p>
+</div>
+</section>
+
+</div>
+
+<footer style="display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; min-height: 24px; padding: 2px 10px; background: #0c0f15; border-top: 1px solid #1a1f2b; color: #9aa3b5; font-size: 11.5px">
+<span style="display: inline-flex; align-items: center; gap: 6px; color: #bfeee5"><span aria-hidden="true" style="width: 7px; height: 7px; border-radius: 50%; background: #3ccfb4"></span>Running</span>
+<span>Map · top</span>
+<span class="mono">x -1.2k · z 41.6k</span>
+<span style="margin-left: auto; display: inline-flex; align-items: center; gap: 6px">
+<svg class="i i12" viewBox="0 0 24 24" aria-hidden="true" style="color: #3ccfb4"><path d="M5 12l5 5 9-10"></path></svg>
+Built 09:33:58 · mission90.dte
+</span>
+<button type="button" role="switch" aria-checked="true" style="display: inline-flex; align-items: center; gap: 7px; padding: 0; border: 0; background: none; color: #c9cfdb; font: inherit; font-size: 11.5px; cursor: pointer">
+<span aria-hidden="true" style="position: relative; width: 24px; height: 13px; border-radius: 7px; background: #f08a2c"><span style="position: absolute; top: 2px; right: 2px; width: 9px; height: 9px; border-radius: 50%; background: #170b02"></span></span>
+Live changes
+</button>
+</footer>
+
+</div>
+</body>
+</html>

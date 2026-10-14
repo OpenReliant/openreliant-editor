@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Start screen</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+@font-face{font-family:"Newtown";src:url("../fonts/Newtown.ttf") format("truetype");font-display:swap}
+*{box-sizing:border-box}
+body{margin:0;background:#07080c}
+a{color:#f6a259}a:hover{color:#ffc58f}
+.i{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.i14{width:14px;height:14px}
+.i20{width:20px;height:20px}
+.mono{font-family:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.menu{background:none;border:0;color:#c9cfdb;padding:4px 9px;border-radius:4px;font:inherit;font-size:12.5px;cursor:pointer}
+.menu:hover{background:#1a1f2b;color:#ffffff}
+.key{font:500 10.5px/1 "JetBrains Mono",ui-monospace,monospace;color:#9aa3b5;padding:2px 4px;border:1px solid #2a3142;border-radius:3px;background:#0c0f15;white-space:nowrap}
+.sect{font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#8a93a6}
+.act{display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;border:1px solid #232938;border-radius:8px;background:#10131b;color:#e8eaf0;font:inherit;text-align:left;text-decoration:none;cursor:pointer}
+.act:hover{border-color:#3a4256;background:#141824;color:#ffffff}
+.ico{width:38px;height:38px;flex:none;display:flex;align-items:center;justify-content:center;border-radius:8px}
+.tx{display:block;min-width:0;flex:1}
+.tx b{display:block;font-size:14px;font-weight:600}
+.tx small{display:block;margin-top:2px;color:#9aa3b5;font-size:12.5px;line-height:1.4}
+.chip{display:inline-flex;align-items:center;height:26px;padding:0 10px;border:1px solid #2a3142;border-radius:13px;background:#11141c;color:#c9cfdb;font:inherit;font-size:12px;cursor:pointer}
+.chip:hover{border-color:#3d475e;color:#ffffff}
+.mrow{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:4px 14px;padding:10px 12px;border-bottom:1px solid #171c27;color:#e8eaf0;text-decoration:none}
+.mrow:hover{background:#121621;color:#ffffff}
+.tag{display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:10px;font-size:11px;font-weight:600;letter-spacing:.03em}
+</style>
+</head>
+<body>
+<div style="min-height: 100vh; display: flex; flex-direction: column; color: #e8eaf0; font-family: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 13px; line-height: 1.45; background: radial-gradient(1px 1px at 12% 18%, rgba(255, 255, 255, 0.5) 50%, transparent 51%), radial-gradient(1px 1px at 72% 9%, rgba(255, 255, 255, 0.4) 50%, transparent 51%), radial-gradient(1px 1px at 38% 62%, rgba(255, 255, 255, 0.3) 50%, transparent 51%), radial-gradient(1px 1px at 88% 44%, rgba(255, 255, 255, 0.45) 50%, transparent 51%), radial-gradient(1.5px 1.5px at 25% 80%, rgba(255, 255, 255, 0.35) 50%, transparent 51%), radial-gradient(ellipse at 85% -10%, #2a160a 0%, transparent 55%), radial-gradient(ellipse at -10% 110%, #0d1631 0%, transparent 50%), #07080c">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; min-height: 34px; padding: 3px 10px; background: rgba(12, 15, 21, 0.85); border-bottom: 1px solid #1a1f2b">
+<span style="font-family: Newtown, 'IBM Plex Sans', sans-serif; font-size: 16px; letter-spacing: 0.02em">Open<span style="color: #f08a2c">Reliant</span></span>
+<span style="font-size: 10.5px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: #8a93a6">Editor</span>
+<nav aria-label="Menus" style="display: flex; flex-wrap: wrap; gap: 2px">
+<button class="menu" type="button">File</button>
+<button class="menu" type="button">Game</button>
+<button class="menu" type="button">Help</button>
+</nav>
+<a href="command-palette.html" style="margin-left: auto; display: flex; align-items: center; gap: 8px; width: 300px; max-width: 100%; height: 26px; padding: 0 8px; border: 1px solid #262d3d; border-radius: 4px; background: #11141c; color: #8a93a6; text-decoration: none; font-size: 12.5px">
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="M16 16l4 4"></path></svg>
+<span style="flex: 1">Search commands</span>
+<span class="key">Ctrl+Shift+P</span>
+</a>
+</header>
+
+<main style="flex: 1 1 auto; width: 100%; max-width: 1240px; margin: 0 auto; padding: 44px 16px 32px; display: flex; flex-direction: column; gap: 34px">
+
+<div style="display: flex; flex-direction: column; gap: 8px">
+<h1 style="margin: 0; font-family: Newtown, 'IBM Plex Sans', sans-serif; font-weight: normal; font-size: clamp(38px, 6vw, 60px); line-height: 1; letter-spacing: 0.02em; text-transform: uppercase">Open<span style="color: #f08a2c">Reliant</span> Editor</h1>
+<p style="margin: 0; max-width: 640px; color: #c9cfdb; font-size: 16px; line-height: 1.5">Missions and mods for StarLancer · every change live in the game</p>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; gap: 28px">
+
+<section aria-label="Start something" style="flex: 1 1 480px; min-width: 0; display: flex; flex-direction: column; gap: 10px">
+<a class="act" href="mission-guided.html" style="padding: 18px 18px; border-color: #6a3d16; background: linear-gradient(180deg, #1f150c, #160f09)">
+<span class="ico" style="width: 46px; height: 46px; background: #f08a2c; color: #170b02"><svg class="i i20" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4"></path><path d="M5 4h11l-2 4 2 4H5"></path></svg></span>
+<span class="tx"><b style="font-size: 16px; color: #ffe2c4">Your first mission, guided</b><small style="color: #d9c3ad">7 steps · ship, nav point, enemies, triggers, play · shows the source each step writes</small></span>
+<svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="color: #f6a259"><path d="M9 6l6 6-6 6"></path></svg>
+</a>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(230px, 100%), 1fr)); gap: 10px">
+<a class="act" href="mission-script.html">
+<span class="ico" style="background: #1d1530; color: #c4a7ff"><svg class="i i20" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg></span>
+<span class="tx"><b>New mission</b><small>Empty mission · Mission mode</small></span>
+</a>
+<a class="act" href="mission-script.html">
+<span class="ico" style="background: #12203a; color: #8fb4ff"><svg class="i i20" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H6v18h12V7z"></path><path d="M14 3v4h4"></path><path d="M10 12l-2 2 2 2"></path><path d="M14 12l2 2-2 2"></path></svg></span>
+<span class="tx"><b>Edit a game mission</b><small>Decompile into a new mod · replaces it by name</small></span>
+</a>
+</div>
+<div style="display: flex; flex-direction: column; gap: 10px; padding: 14px; border: 1px solid #232938; border-radius: 8px; background: #10131b">
+<div style="display: flex; align-items: center; gap: 12px">
+<span class="ico" style="background: #0f2221; color: #63d1c0"><svg class="i i20" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8l-9-5-9 5 9 5 9-5z"></path><path d="M3 8v8l9 5 9-5V8"></path><path d="M12 13v8"></path></svg></span>
+<span class="tx"><b>New mod</b><small>From a template · Mod mode</small></span>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 6px; padding-left: 50px">
+<a class="chip" href="mod-manifest.html" style="text-decoration: none">Music</a>
+<a class="chip" href="mod-manifest.html" style="text-decoration: none">Sounds, speech</a>
+<a class="chip" href="mod-manifest.html" style="text-decoration: none">Ship, gun, missile</a>
+<a class="chip" href="mod-manifest.html" style="text-decoration: none">Rules (hooks)</a>
+<a class="chip" href="mod-manifest.html" style="text-decoration: none">Textures, models</a>
+<a class="chip" href="mod-manifest.html" style="text-decoration: none">HUD</a>
+<a class="chip" href="mod-manifest.html" style="text-decoration: none">Game mode</a>
+<a class="chip" href="mod-manifest.html" style="text-decoration: none">Empty</a>
+</div>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 8px">
+<button class="chip" type="button" style="height: 30px; gap: 8px"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>Open…<span class="key">Ctrl+O</span></button>
+<button class="chip" type="button" style="height: 30px; gap: 8px"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8l-9-5-9 5 9 5 9-5z"></path><path d="M3 8v8l9 5 9-5V8"></path></svg>Open .hog, read only</button>
+</div>
+</section>
+
+<section aria-label="Your mods" style="flex: 1 1 420px; min-width: 0; display: flex; flex-direction: column; border: 1px solid #232938; border-radius: 8px; background: rgba(16, 19, 27, 0.92); overflow: hidden">
+<div style="display: flex; align-items: center; gap: 10px; padding: 12px 12px 10px; border-bottom: 1px solid #1a1f2b">
+<span class="sect">Your mods</span>
+<span class="mono" style="color: #7a8398; font-size: 11.5px">StarLancer/mods</span>
+<label style="margin-left: auto; display: flex; align-items: center; gap: 6px; width: 170px; height: 26px; padding: 0 8px; border: 1px solid #262d3d; border-radius: 4px; background: #11141c">
+<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true" style="color: #8a93a6"><circle cx="11" cy="11" r="6.5"></circle><path d="M16 16l4 4"></path></svg>
+<input type="search" placeholder="Filter" aria-label="Filter your mods" style="flex: 1; min-width: 0; border: 0; outline: none; background: none; color: #e8eaf0; font: inherit; font-size: 12.5px">
+</label>
+</div>
+<a class="mrow" href="mission-guided.html">
+<span style="display: flex; flex-direction: column; gap: 2px; min-width: 0"><span style="font-weight: 600">First Mission</span><span style="color: #8a93a6; font-size: 12px">first-mission · 1 mission</span></span>
+<span class="tag" style="background: #1d1530; color: #d7ccff">Missions</span>
+</a>
+<a class="mrow" href="mission-script.html">
+<span style="display: flex; flex-direction: column; gap: 2px; min-width: 0"><span style="font-weight: 600">Viper's Phoenix</span><span style="color: #8a93a6; font-size: 12px">viper-phoenix · mission1.dte</span></span>
+<span class="tag" style="background: #1d1530; color: #d7ccff">Missions</span>
+</a>
+<a class="mrow" href="mod-manifest.html">
+<span style="display: flex; flex-direction: column; gap: 2px; min-width: 0"><span style="font-weight: 600">Example: Bananas</span><span style="color: #8a93a6; font-size: 12px">bananas · gun, missile, pilot, ship type, 3 scripts</span></span>
+<span class="tag" style="background: #2a1414; color: #ffb3a8">Ships</span>
+</a>
+<a class="mrow" href="mod-game-files.html">
+<span style="display: flex; flex-direction: column; gap: 2px; min-width: 0"><span style="font-weight: 600">Master Recordings</span><span style="color: #8a93a6; font-size: 12px">master-recordings · 71 FLAC files</span></span>
+<span class="tag" style="background: #0f2221; color: #9ff0e3">Sound</span>
+</a>
+<a class="mrow" href="mod-manifest.html">
+<span style="display: flex; flex-direction: column; gap: 2px; min-width: 0"><span style="font-weight: 600">Jukebox</span><span style="color: #8a93a6; font-size: 12px">jukebox · CD player pages</span></span>
+<span class="tag" style="background: #0f2221; color: #9ff0e3">Sound</span>
+</a>
+<a class="mrow" href="mod-manifest.html" style="border-bottom: 0">
+<span style="display: flex; flex-direction: column; gap: 2px; min-width: 0"><span style="font-weight: 600">Realistic Planets</span><span style="color: #8a93a6; font-size: 12px">realistic-planets · planet models, GLSL</span></span>
+<span class="tag" style="background: #12203a; color: #a9d1ff">Environment</span>
+</a>
+<div style="margin-top: auto; padding: 10px 12px; border-top: 1px solid #1a1f2b; color: #8a93a6; font-size: 12px">.hog mods: read only · unpack to edit</div>
+</section>
+
+</div>
+
+<div style="display: flex; flex-wrap: wrap; gap: 28px">
+
+<section aria-label="The game" style="flex: 1 1 480px; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 14px; padding: 14px 16px; border: 1px solid #1f3b37; border-radius: 8px; background: rgba(13, 23, 22, 0.92)">
+<span aria-hidden="true" style="width: 10px; height: 10px; flex: none; border-radius: 50%; background: #3ccfb4; box-shadow: 0 0 0 4px rgba(60, 207, 180, 0.15)"></span>
+<div style="flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+<span style="font-weight: 600; color: #dff7f2">StarLancer · linked</span>
+<span style="color: #9fc9c1; font-size: 12.5px">OpenReliant 0.15.0 · editor link on 22539 · developer mode</span>
+</div>
+<button class="chip" type="button" style="height: 30px">Game settings</button>
+</section>
+
+<section aria-label="Learn" style="flex: 1 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 8px; padding: 4px 4px">
+<span class="sect">Learn</span>
+<div style="display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px">
+<a href="https://github.com/OpenReliant/openreliant/blob/main/docs/guide/missions.md">Writing missions</a>
+<a href="https://github.com/OpenReliant/openreliant/blob/main/docs/guide/mission-reference.md">Mission reference</a>
+<a href="https://github.com/OpenReliant/openreliant/blob/main/docs/guide/what-mods-can-do.md">What mods can do</a>
+<a href="https://github.com/OpenReliant/openreliant/blob/main/docs/guide/modding.md">Modding</a>
+<a href="https://github.com/OpenReliant/openreliant/blob/main/docs/guide/scripting.md">Scripting</a>
+</div>
+</section>
+
+</div>
+
+</main>
+
+</div>
+</body>
+</html>
