@@ -58,6 +58,7 @@ pub const divider_height = 20;
 pub const chip_height = 26;
 
 const view_tab_height = 26;
+const view_tab_rounding = 4;
 /// The view tabs' line and padding around the tabs.
 const view_tabs_inset = 1 + 2;
 
@@ -442,11 +443,12 @@ pub fn viewTabs(id: []const u8, tabs: []const ViewTab, current: usize) ?usize {
         if (tab.disabled != null) {
             foreground = theme.text_off;
         } else if (on) {
-            gui.rect(list, min, max, theme.border, 4);
-            gui.insetUnderline(list, min, max, 4, 2, theme.accent);
+            gui.rect(list, min, max, theme.border, view_tab_rounding);
+            // An orange line along the bottom, between the rounded corners.
+            gui.rect(list, .{ .x = min.x + px(view_tab_rounding), .y = max.y - px(2) }, .{ .x = max.x - px(view_tab_rounding), .y = max.y }, theme.accent, 0);
             foreground = theme.white;
         } else if (hovered) {
-            gui.rect(list, min, max, theme.row_hover, 4);
+            gui.rect(list, min, max, theme.row_hover, view_tab_rounding);
             foreground = theme.white;
         }
         const middle = at.y + height / 2;

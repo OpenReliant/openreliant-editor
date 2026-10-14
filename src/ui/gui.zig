@@ -224,30 +224,6 @@ pub fn outline(list: *c.ImDrawList, min: Vec2, max: Vec2, color: Color, rounding
     c.ImDrawList_AddRectEx(list, min, max, color, px(rounding), px(1), 0);
 }
 
-/// Draws the line a stylesheet's `inset 0 -thickness 0` shadow draws in a box from `min` to `max`
-/// with corners of `rounding`: along the box's bottom, `thickness` pixels thick, and curving up
-/// into its lower corners.
-pub fn insetUnderline(list: *c.ImDrawList, min: Vec2, max: Vec2, rounding: f32, thickness: f32, color: Color) void {
-    const radius = px(rounding);
-    const width = px(thickness);
-    const quarter: f32 = std.math.pi / 2.0;
-    // The line's middle runs half its width inside the box's edge.
-    const middle = radius - width / 2;
-    arc(list, .{ .x = min.x + radius, .y = max.y - radius }, middle, 2 * quarter, quarter);
-    arc(list, .{ .x = max.x - radius, .y = max.y - radius }, middle, quarter, 0);
-    c.ImDrawList_PathStroke(list, color, width, 0);
-}
-
-/// Adds to the draw list's path the points of an arc around `center`, from angle `from` to `to`,
-/// with y downwards.
-fn arc(list: *c.ImDrawList, center: Vec2, radius: f32, from: f32, to: f32) void {
-    const steps = 8;
-    for (0..steps + 1) |step| {
-        const angle = from + (to - from) * @as(f32, @floatFromInt(step)) / steps;
-        c.ImDrawList_PathLineTo(list, .{ .x = center.x + @cos(angle) * radius, .y = center.y + @sin(angle) * radius });
-    }
-}
-
 pub fn line(list: *c.ImDrawList, from: Vec2, to: Vec2, color: Color) void {
     c.ImDrawList_AddLineEx(list, from, to, color, px(1));
 }
