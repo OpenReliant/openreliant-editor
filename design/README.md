@@ -122,7 +122,7 @@ catalogue's descriptions, and the command's reference. The game keeps playing th
 
 [Page](screens/mission-debugging.html). The script listing beside the source, breakpoints with
 conditions and log points, which the editor checks each time the game holds, watches, and a
-timeline of the run on the script clock.
+timeline of the run on the script clock ([The debugger](#the-debugger)).
 
 ### Command palette
 
@@ -177,6 +177,20 @@ Cmd for Ctrl. Changed keys are saved for each system on its own.
 ![The Keys settings on macOS](images/keys-macos.png)
 
 [Page](screens/keys-macos.html). The same settings on macOS.
+
+### Editor link
+
+![The Editor link settings](images/settings-link.png)
+
+[Page](screens/settings-link.html). Linking when playing, the game's port, how often the state
+comes while the script runs, the breakpoints kept, and live changes once OpenReliant takes them,
+with the linked game beside them.
+
+## The debugger
+
+[debugger.md](debugger.md) designs the debugger and its link to the game: what it does and shows,
+the link's messages, what the editor checks itself, what OpenReliant still needs, and the stages to
+make it in.
 
 ## Libraries
 
