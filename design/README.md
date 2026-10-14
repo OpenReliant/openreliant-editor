@@ -197,7 +197,6 @@ Cmd for Ctrl. Changed keys are saved for each system on its own.
 - The live scene: [#1059](https://github.com/OpenReliant/openreliant/issues/1059)
 - The editor's live changes to the mission: [#1057](https://github.com/OpenReliant/openreliant/issues/1057)
 - Playing a mission from a part: [#577](https://github.com/OpenReliant/openreliant/issues/577)
-- The mission format as a package: [#1060](https://github.com/OpenReliant/openreliant/issues/1060)
 - The game's console and reloading mods' scripts: [#1201](https://github.com/OpenReliant/openreliant/issues/1201)
 - Starting with a chosen set of mods: [#1202](https://github.com/OpenReliant/openreliant/issues/1202)
 - Exporting a mod for the catalogue: [#1203](https://github.com/OpenReliant/openreliant/issues/1203)

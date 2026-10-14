@@ -1,0 +1,31 @@
+# Builds the editor and runs the tests on Linux, macOS and Windows for every pull request and every
+# push to main, and checks the Zig code's formatting and the repository's files.
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.17.0
+      # The formatting and the files are the same on every system, so they're checked once.
+      - if: runner.os == 'Linux'
+        run: zig fmt --check src build.zig
+      - if: runner.os == 'Linux'
+        run: scripts/check-files.sh
+      - run: zig build --summary all
+      - run: zig build test --summary all
+      # Releases will be built ReleaseFast, without the safety checks, so the tests run in that mode
+      # too.
+      - run: zig build test --release=fast --summary all

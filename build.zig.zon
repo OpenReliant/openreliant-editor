@@ -1,0 +1,55 @@
+.{
+    .name = .openreliant_editor,
+    .version = "0.0.1", // x-release-please-version
+    .fingerprint = 0xca6294c595ab78da,
+    .minimum_zig_version = "0.17.0",
+    .dependencies = .{
+        .openreliant = .{
+            .url = "git+https://github.com/OpenReliant/openreliant.git#fd5d7dec75b2d9a3748c39f203699d82918b254e",
+            .hash = "openreliant-0.14.0-0BXqcn9DEAGMfVU3sRjik-iid3jrPhuvcGUVgqUSJcTc",
+        },
+        .sdl = .{
+            .url = "git+https://github.com/castholm/SDL.git?ref=v0.5.4+3.4.16#b72b3671502a70e109350ecac90afdc480dcfcc6",
+            .hash = "sdl-0.5.4+3.4.16-SDL--sQ4qAH3kwC19Zs1kxdHplaSDnWl2MUptZD4AItI",
+        },
+        .translate_c = .{
+            .url = "git+https://codeberg.org/ziglang/translate-c?ref=2.0.0#0da7a16c3235b935b82421646076e0657cda21f6",
+            .hash = "translate_c-2.0.0-Q_BUWltOBwA0229IE8wwSxxGzOxyRso3hvcb1nN8oJX_",
+        },
+        .dear_bindings = .{
+            .url = "https://github.com/dearimgui/dear_bindings/releases/download/DearBindings_v0.24_ImGui_v1.92.9b-docking/DearBindings_v0.24_ImGui_v1.92.9b-docking.zip",
+            .hash = "N-V-__8AACU1ZQR8hBZ0rIHIpCXU-lyD74drmNZtaXlch9Tn",
+        },
+        .text_editor = .{
+            .url = "git+https://github.com/goossens/ImGuiColorTextEdit.git#b12d713e77e8edddff1e69973f67085ac9cfaf74",
+            .hash = "N-V-__8AANDcfQCwWgHQB--1nns3rygYVA-j1syez9jGDaJA",
+        },
+        .plex_sans = .{
+            .url = "https://github.com/IBM/plex/releases/download/%40ibm%2Fplex-sans%401.1.0/ibm-plex-sans.zip",
+            .hash = "N-V-__8AAHx9wwCXDYaI-Bqj3h8Q9ISr9xIuGRGIhT34zt2L",
+        },
+        .jetbrains_mono = .{
+            .url = "https://github.com/JetBrains/JetBrainsMono/releases/download/v2.304/JetBrainsMono-2.304.zip",
+            .hash = "N-V-__8AADWVlwASf7XCdCqpjVW5Jv_7oogANJ_H4_dIoEp6",
+        },
+        .lucide = .{
+            .url = "https://registry.npmjs.org/lucide-static/-/lucide-static-1.57.0.tgz",
+            .hash = "N-V-__8AAPRkFwMXDdr1ybO31hZPOkzp3zHTztiZPpU1GEoF",
+        },
+        .imgui = .{
+            .url = "git+https://github.com/ocornut/imgui.git?ref=v1.92.9b-docking#b48d1afbe8ee8b238e2961dc363a949dd7304e23",
+            .hash = "N-V-__8AAMiwhADTFf225fEZAyMZ0m0uy3MKKpZbqgX5260R",
+        },
+        .rc = .{
+            .url = "git+https://codeberg.org/ziglang/rc?ref=zig-0.17.x#a8a3b3cebbe6e414fa12d6ad028c56a3a349c75e",
+            .hash = "rc-0.0.0-rMftL71EAAAxhe4swpM5rrfcmC9k_j7ApwJJPRssBiDL",
+        },
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+        "assets",
+        "LICENSE",
+    },
+}
