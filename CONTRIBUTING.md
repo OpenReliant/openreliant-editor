@@ -102,5 +102,11 @@ and Windows, and the tests in ReleaseFast too.
   `feat: the Script view builds missions as they're typed`. Keep the body short, and end it with
   `Closes #N` for each issue it finishes.
 - File an issue for each gap you leave, and link it from the code where the gap is.
+- Releases come from [release-please](https://github.com/googleapis/release-please), as
+  OpenReliant's do ([`release.yml`](.github/workflows/release.yml),
+  [`release-please-config.json`](release-please-config.json)): it keeps a release pull request open
+  with the next version and its changelog, and merging it tags the version and attaches the builds
+  for Windows, macOS and Linux, on x86-64 and Arm, with their checksums. `build.zig.zon` holds the
+  version being worked towards, which `--version` reports; the first release is 0.0.1.
 - The repository holds the editor and its design. The game's files, and everything extracted or
   derived from them, stay out: the pre-commit hook, `make check-files` and CI see to it.

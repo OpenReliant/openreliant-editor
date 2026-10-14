@@ -4,6 +4,8 @@
 const std = @import("std");
 const c = @import("c");
 
+const icon = @import("icon.zig");
+
 pub const Error = error{Sdl};
 
 /// SDL's last error, logged under the call `what` that failed, as an error.
@@ -78,6 +80,7 @@ pub const Window = struct {
             .PresentMode = c.SDL_GPU_PRESENTMODE_VSYNC,
         };
         if (!c.cImGui_ImplSDLGPU3_Init(&info)) return fail("ImGui_ImplSDLGPU3_Init");
+        icon.set(handle);
         if (!hidden) _ = c.SDL_ShowWindow(handle);
         return .{ .handle = handle, .gpu = gpu, .scale = scale };
     }

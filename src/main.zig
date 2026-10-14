@@ -19,6 +19,8 @@ pub const document = @import("mission/document.zig");
 pub const script_view = @import("views/script.zig");
 pub const start_screen = @import("screens/start.zig");
 pub const settings_screen = @import("screens/settings.zig");
+pub const icon = @import("platform/icon.zig");
+pub const version = @import("version.zig");
 const Window = @import("platform/window.zig").Window;
 
 /// What the command line asks for.
@@ -39,12 +41,14 @@ const Options = struct {
     /// Opens each of the game's own missions as the editor does and builds it again from its
     /// source, without a window.
     check_missions: bool = false,
+    print_version: bool = false,
 
     const Show = enum { start, settings, palette, keys, problems };
 
     const usage =
         \\Usage: openreliant-editor [<mod folder or mission file>] [options]
         \\
+        \\  --version              the editor's version
         \\  --line <number>        show this line of the mission
         \\  --game <folder>        the game's folder for this run
         \\  --screenshot <file>    draw without a window and save a frame as a PNG file
@@ -58,6 +62,10 @@ const Options = struct {
 
     fn parse(args: []const [:0]const u8) ?Options {
         var options: Options = .{};
+        if (args.len == 2 and std.mem.eql(u8, args[1], "--version")) {
+            options.print_version = true;
+            return options;
+        }
         var index: usize = 1;
         while (index < args.len) : (index += 1) {
             const arg = args[index];
@@ -104,6 +112,13 @@ pub fn main(init: std.process.Init) !u8 {
         std.debug.print("{s}", .{Options.usage});
         return 2;
     };
+    if (options.print_version) {
+        var out_buffer: [64]u8 = undefined;
+        var stdout: std.Io.File.Writer = .initStreaming(.stdout(), io, &out_buffer);
+        try stdout.interface.print("openreliant-editor {s}\n", .{version.string});
+        try stdout.interface.flush();
+        return 0;
+    }
 
     // A run that takes a picture keeps no settings, so that it shows the defaults and changes
     // nothing.

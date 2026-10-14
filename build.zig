@@ -1,9 +1,12 @@
 const std = @import("std");
 const Translator = @import("translate_c").Translator;
+const rc = @import("rc");
 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+    // The releases leave the debug information out of the editor.
+    const strip = b.option(bool, "strip", "Leave the debug information out of the editor") orelse false;
     // The C and C++ libraries' headers become a Zig module through the translate-c package, as in
     // OpenReliant.
     const translate_c = b.dependency("translate_c", .{});
@@ -13,13 +16,26 @@ pub fn build(b: *std.Build) void {
     const openreliant = b.dependency("openreliant", .{ .target = target, .optimize = optimize });
 
     // SDL3 for the window, the input and the GPU, the same package and version as OpenReliant's.
-    const sdl_library = b.dependency("sdl", .{ .target = target, .optimize = optimize }).artifact("SDL3");
+    // Building for a Mac other than the host, SDL and the editor need the SDK's paths: from xcrun.
+    const macos_sdk: ?[]const u8 = if (target.result.os.tag == .macos and !target.query.isNative())
+        std.mem.trimEnd(u8, b.run(&.{ "xcrun", "--sdk", "macosx", "--show-sdk-path" }), "\n")
+    else
+        null;
+    const sdl_dependency = if (macos_sdk) |sdk| b.dependency("sdl", .{
+        .target = target,
+        .optimize = optimize,
+        .system_include_path = b.graph.cwdRelativePath(b.pathJoin(&.{ sdk, "usr/include" })),
+        .system_framework_path = b.graph.cwdRelativePath(b.pathJoin(&.{ sdk, "System/Library/Frameworks" })),
+        .library_path = b.graph.cwdRelativePath(b.pathJoin(&.{ sdk, "usr/lib" })),
+    }) else b.dependency("sdl", .{ .target = target, .optimize = optimize });
+    const sdl_library = sdl_dependency.artifact("SDL3");
 
     // Dear ImGui's docking branch draws the whole interface. It is C++: Dear Bindings' C API wraps
     // it, its own backends drive it with SDL3 and SDL_GPU, and the text editor and the few
     // internal calls the editor makes join it through small C shims (`src/ui/text_editor`,
     // `src/ui/imgui_extras`).
     const interface = interfaceLibrary(b, target, sdl_library);
+    if (macos_sdk) |sdk| addMacosSdk(b, interface.root_module, sdk);
 
     // The one translated header holds SDL, Dear ImGui and the text editor's shim, so that the types
     // they share, such as `SDL_GPUDevice`, are the same Zig types.
@@ -33,19 +49,36 @@ pub fn build(b: *std.Build) void {
     translator.linkLibrary(sdl_library);
     for (interfaceIncludes(b)) |include| translator.addIncludePath(include);
 
+    // The version Release Please keeps in build.zig.zon, and where the checkout is past its last
+    // release, for `--version` (`src/version.zig`).
+    const build_options = b.addOptions();
+    build_options.addOption([]const u8, "version", @import("build.zig.zon").version);
+    build_options.addOption([]const u8, "describe", describe(b));
+
     const editor = b.createModule(.{
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
+        .strip = strip,
         .imports = &.{
             .{ .name = "openreliant", .module = openreliant.module("openreliant") },
             .{ .name = "source_parser", .module = openreliant.module("source_parser") },
             .{ .name = "c", .module = translator.mod },
         },
     });
+    editor.addOptions("build_options", build_options);
+    if (macos_sdk) |sdk| addMacosSdk(b, editor, sdk);
     addFonts(b, editor, openreliant);
+    // Luau's licence goes with the program, whose mission source parser it is.
+    b.getInstallStep().dependOn(&b.addInstallFile(openreliant.path("deps/luau/LICENSE.txt"), "LICENSE-luau.txt").step);
+    // OpenReliant's own icon, which the window shows on macOS, also in the Dock, and on Linux
+    // (`src/platform/icon.zig`). On Windows, the executable carries it.
+    for ([_][]const u8{ "openreliant-256.png", "openreliant-512.png" }) |icon| {
+        editor.addAnonymousImport(icon, .{ .root_source_file = openreliant.path(b.fmt("assets/icon/{s}", .{icon})) });
+    }
 
     const exe = b.addExecutable(.{ .name = "openreliant-editor", .root_module = editor });
+    if (target.result.os.tag == .windows) addWindowsResources(b, exe, openreliant, target, optimize);
     b.installArtifact(exe);
 
     const run = b.addRunArtifact(exe);
@@ -60,6 +93,69 @@ pub fn build(b: *std.Build) void {
     const check = b.step("check", "Check that the program and the tests compile, without writing binaries");
     check.dependOn(&b.addTest(.{ .root_module = editor }).step);
     check.dependOn(&b.addExecutable(.{ .name = "openreliant-editor", .root_module = editor }).step);
+}
+
+/// Gives `module` the macOS SDK's headers, frameworks and libraries at `sdk`, which a build for a
+/// Mac other than the host does not find by itself.
+fn addMacosSdk(b: *std.Build, module: *std.Build.Module, sdk: []const u8) void {
+    module.addSystemIncludePath(b.graph.cwdRelativePath(b.pathJoin(&.{ sdk, "usr/include" })));
+    module.addSystemFrameworkPath(b.graph.cwdRelativePath(b.pathJoin(&.{ sdk, "System/Library/Frameworks" })));
+    module.addLibraryPath(b.graph.cwdRelativePath(b.pathJoin(&.{ sdk, "usr/lib" })));
+}
+
+/// `git describe` of the checkout against the release tags, such as `v0.0.1-12-gabc1234-dirty`, or
+/// nothing where there is no git or no tag, as in a source archive. The build can't track what
+/// the answer depends on, so asking makes the build run build.zig again each time, as OpenReliant's
+/// does.
+fn describe(b: *std.Build) []const u8 {
+    b.graph.poisonCache();
+    const root = b.root.toString(b.allocator) catch @panic("out of memory");
+    return switch (b.runFallible(&.{ "git", "-C", root, "describe", "--tags", "--match", "v*", "--long", "--dirty", "--abbrev=7" }, .{ .stderr_behavior = .ignore })) {
+        .success => |out| std.mem.trimEnd(u8, out, "\n"),
+        else => "",
+    };
+}
+
+/// Gives the Windows executable OpenReliant's icon, the editor's name and version for the file's
+/// properties and the Task Manager, and its manifest (`src/platform/windows.manifest`). The rc
+/// package compiles them without the system's headers, so every system builds the same bytes. Its
+/// compiler is built in Debug, which compiles fastest, as it reads only these few files.
+fn addWindowsResources(b: *std.Build, exe: *std.Build.Step.Compile, openreliant: *std.Build.Dependency, target: std.Build.ResolvedTarget, optimize: std.lang.Optimize) void {
+    const version = @import("build.zig.zon").version;
+    const numbers = std.SemanticVersion.parse(version) catch @panic("build.zig.zon's version isn't a semantic version");
+    const script = b.addWriteFiles().add("editor.rc", b.fmt(
+        \\1 ICON "openreliant.ico"
+        \\
+        \\1 VERSIONINFO
+        \\FILEVERSION {0d},{1d},{2d},0
+        \\PRODUCTVERSION {0d},{1d},{2d},0
+        \\BEGIN
+        \\  BLOCK "StringFileInfo"
+        \\  BEGIN
+        \\    BLOCK "040904B0"
+        \\    BEGIN
+        \\      VALUE "ProductName", "OpenReliant Editor"
+        \\      VALUE "FileDescription", "OpenReliant Editor"
+        \\      VALUE "ProductVersion", "{3s}"
+        \\      VALUE "FileVersion", "{3s}"
+        \\      VALUE "OriginalFilename", "openreliant-editor.exe"
+        \\    END
+        \\  END
+        \\  BLOCK "VarFileInfo"
+        \\  BEGIN
+        \\    VALUE "Translation", 0x0409, 1200
+        \\  END
+        \\END
+        \\
+    , .{ numbers.major, numbers.minor, numbers.patch, version }));
+    const resources: rc.Compiler = .init(b.dependency("rc", .{ .optimize = .debug }), .{
+        .rc_files = &.{script},
+        .manifest = .{ .file = b.path("src/platform/windows.manifest"), .for_dll = false },
+        .target = target,
+        .optimize = optimize,
+        .rc_options = .{ .auto_includes = .none, .include_paths = &.{openreliant.path("assets/icon")} },
+    });
+    exe.root_module.addObjectFile(resources.getObjectFile());
 }
 
 /// Dear ImGui with its docking branch, Dear Bindings' C API over it, its SDL3 and SDL_GPU backends,

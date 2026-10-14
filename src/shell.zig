@@ -237,8 +237,11 @@ fn modeSwitchWidth() f32 {
     return px(2) * 3 + (px(12) * 2 + px(14) + px(6)) * 2 + gui.textSize("Mod").x + gui.textSize("Mission").x;
 }
 
-/// The switch between Mod and Mission mode.
+/// The switch between Mod and Mission mode. Its buttons have IDs of their own, apart from the
+/// menus of the same names beside them.
 fn modeSwitch(app: *App) void {
+    gui.pushId("mode");
+    defer gui.popId();
     const width = modeSwitchWidth();
     const height = px(28);
     const at = gui.cursor();
