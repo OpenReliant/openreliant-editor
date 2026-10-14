@@ -444,8 +444,11 @@ pub fn viewTabs(id: []const u8, tabs: []const ViewTab, current: usize) ?usize {
             foreground = theme.text_off;
         } else if (on) {
             gui.rect(list, min, max, theme.border, view_tab_rounding);
-            // An orange line along the bottom, between the rounded corners.
-            gui.rect(list, .{ .x = min.x + px(view_tab_rounding), .y = max.y - px(2) }, .{ .x = max.x - px(view_tab_rounding), .y = max.y }, theme.accent, 0);
+            // An orange line along the bottom: the tab's last 2 pixels, which thin out into its
+            // rounded corners.
+            c.ImDrawList_PushClipRect(list, .{ .x = min.x, .y = max.y - px(2) }, max, true);
+            gui.rect(list, min, max, theme.accent, view_tab_rounding);
+            c.ImDrawList_PopClipRect(list);
             foreground = theme.white;
         } else if (hovered) {
             gui.rect(list, min, max, theme.row_hover, view_tab_rounding);
