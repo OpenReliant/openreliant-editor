@@ -45,8 +45,11 @@ for page in screens/*.html; do
     out="images/$name.png"
     rm -f "$out"
     # The browser stays open after it writes the picture, so it's stopped once the file is there.
+    # The pages load Newtown from fonts/, which a page opened from a file may only do with
+    # --allow-file-access-from-files.
     "$chrome" --headless=new --disable-gpu --hide-scrollbars --force-device-scale-factor=1 \
-        --window-size=1440,900 --virtual-time-budget=5000 --user-data-dir="$(native "$profile")" \
+        --window-size=1440,900 --virtual-time-budget=5000 --allow-file-access-from-files \
+        --user-data-dir="$(native "$profile")" \
         --screenshot="$(native "$PWD/$out")" "file:///$(native "$PWD/$page" | sed 's#^/##')" >/dev/null 2>&1 &
     pid=$!
     for _ in $(seq 1 60); do

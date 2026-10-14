@@ -404,27 +404,27 @@ fn resultRow(app: *App, result: Result, selected: bool, term: []const u8) bool {
         },
     }
     gui.sans(.regular, fonts.size.smaller);
-    gui.drawText(list, .{ .x = at.x + px(12), .y = middle - c.ImGui_GetFontSize() / 2 }, theme.text_dim, group);
+    gui.drawText(list, .{ .x = at.x + px(12), .y = gui.textTop(middle) }, theme.text_dim, group);
     gui.popFont();
     gui.sans(.regular, fonts.size.body);
     const x = at.x + px(84);
     const color = if (off) theme.text_off else theme.text_button;
     if (term.len > 0) if (std.ascii.findIgnoreCase(name, term)) |found| {
         // The typed part in orange.
-        gui.drawText(list, .{ .x = x, .y = middle - c.ImGui_GetFontSize() / 2 }, color, name[0..found]);
+        gui.drawText(list, .{ .x = x, .y = gui.textTop(middle) }, color, name[0..found]);
         const lit_x = x + gui.textSize(name[0..found]).x;
         gui.popFont();
         gui.sans(.semibold, fonts.size.body);
-        gui.drawText(list, .{ .x = lit_x, .y = middle - c.ImGui_GetFontSize() / 2 }, theme.rgb(0xffb070), name[found .. found + term.len]);
+        gui.drawText(list, .{ .x = lit_x, .y = gui.textTop(middle) }, theme.rgb(0xffb070), name[found .. found + term.len]);
         const rest_x = lit_x + gui.textSize(name[found .. found + term.len]).x;
         gui.popFont();
         gui.sans(.regular, fonts.size.body);
-        gui.drawText(list, .{ .x = rest_x, .y = middle - c.ImGui_GetFontSize() / 2 }, color, name[found + term.len ..]);
+        gui.drawText(list, .{ .x = rest_x, .y = gui.textTop(middle) }, color, name[found + term.len ..]);
         gui.popFont();
         drawKey(list, at, width, middle, key);
         return clicked;
     };
-    gui.drawText(list, .{ .x = x, .y = middle - c.ImGui_GetFontSize() / 2 }, color, name);
+    gui.drawText(list, .{ .x = x, .y = gui.textTop(middle) }, color, name);
     gui.popFont();
     drawKey(list, at, width, middle, key);
     return clicked;

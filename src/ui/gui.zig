@@ -64,49 +64,116 @@ pub fn textSize(value: []const u8) Vec2 {
     return c.ImGui_CalcTextSizeEx(value.ptr, value.ptr + value.len, false, -1);
 }
 
+/// Where a line of text in the current font goes for it to sit in the middle of a box whose
+/// middle is at `middle`, as a browser places the design's text: a line of the design's line
+/// height centred on the middle, and the baseline in it on the nearest whole pixel.
+pub fn textTop(middle: f32) f32 {
+    return textTopIn(middle, null);
+}
+
+/// `textTop` for a line `line_pixels` design pixels high where the design sets one, such as a key
+/// chip's, as high as its font.
+pub fn textTopIn(middle: f32, line_pixels: ?f32) f32 {
+    const face = fonts.current() orelse return middle - c.ImGui_GetFontSize() / 2;
+    const size = px(face.size);
+    const line_height = if (line_pixels) |pixels| px(pixels) else size * fonts.line_height;
+    return @round(middle - line_height / 2 + face.family.metrics().baselineInLine(size, line_height)) - ascent();
+}
+
+/// How far below the top of a line of the current font its baseline is, as ImGui draws it.
+pub fn ascent() f32 {
+    return c.or_imgui_font_ascent();
+}
+
 /// Draws `value` at `at` in `color`, in the current font.
 pub fn drawText(list: *c.ImDrawList, at: Vec2, color: Color, value: []const u8) void {
     c.ImDrawList_AddTextEx(list, at, color, value.ptr, value.ptr + value.len);
 }
 
-/// Draws `value` at `at` with `spacing` design pixels between its characters, as the design's
-/// uppercase headings are.
+/// The lines of `value` wrapped at `width` in the current font, broken at spaces as ImGui wraps
+/// text. Unlike ImGui's own wrapping, which keeps lines as high as the font, the caller places
+/// each line, as high as the design's.
+pub const Lines = struct {
+    rest: []const u8,
+    width: f32,
+
+    pub fn next(lines: *Lines) ?[]const u8 {
+        const left = std.mem.trimStart(u8, lines.rest, " \n");
+        if (left.len == 0) return null;
+        const start = left.ptr;
+        const cut: [*]const u8 = c.ImFont_CalcWordWrapPosition(c.ImGui_GetFont(), c.ImGui_GetFontSize(), start, start + left.len, lines.width);
+        // A word wider than the line goes on a line of its own.
+        var length = cut - start;
+        if (length == 0) length = std.mem.findAny(u8, left, " \n") orelse left.len;
+        lines.rest = left[length..];
+        return std.mem.trimEnd(u8, left[0..length], " \n");
+    }
+
+    /// How many lines there are.
+    pub fn count(lines: Lines) usize {
+        var copy = lines;
+        var total: usize = 0;
+        while (copy.next()) |_| total += 1;
+        return total;
+    }
+};
+
+pub fn wrap(value: []const u8, width: f32) Lines {
+    return .{ .rest = value, .width = width };
+}
+
+/// Draws `value` at `at` with `spacing` design pixels after each of its characters, as the
+/// design's letter spacing. Each character goes to the nearest whole pixel. Its width.
 pub fn drawSpaced(list: *c.ImDrawList, at: Vec2, color: Color, value: []const u8, spacing: f32) f32 {
+    const font = c.ImGui_GetFontBaked().?;
     var x = at.x;
     var view = std.unicode.Utf8View.initUnchecked(value).iterator();
     while (view.nextCodepointSlice()) |character| {
-        drawText(list, .{ .x = x, .y = at.y }, color, character);
-        x += textSize(character).x + px(spacing);
+        drawText(list, .{ .x = @round(x), .y = at.y }, color, character);
+        x += advance(font, character) + px(spacing);
     }
     return x - at.x;
 }
 
-/// The width `value` takes with `spacing` between its characters.
+/// The width `value` takes with `spacing` after each of its characters.
 pub fn spacedWidth(value: []const u8, spacing: f32) f32 {
+    const font = c.ImGui_GetFontBaked().?;
     var width: f32 = 0;
     var view = std.unicode.Utf8View.initUnchecked(value).iterator();
-    while (view.nextCodepointSlice()) |character| width += textSize(character).x + px(spacing);
+    while (view.nextCodepointSlice()) |character| width += advance(font, character) + px(spacing);
     return width;
+}
+
+/// How far `character` moves the pen in `font`. ImGui keeps characters to the first 65536, and
+/// draws the others as the replacement character.
+fn advance(font: *c.ImFontBaked, character: []const u8) f32 {
+    const codepoint = std.unicode.utf8Decode(character) catch std.unicode.replacement_character;
+    return c.ImFontBaked_GetCharAdvance(font, std.math.cast(c.ImWchar, codepoint) orelse std.unicode.replacement_character);
 }
 
 /// Pushes Newtown at `size` design pixels; `popFont` takes it off.
 pub fn brand(size: f32) void {
-    c.ImGui_PushFontFloat(fonts.brand(), size * fonts.em.brand);
+    pushFace(fonts.face(.brand, .regular, size));
 }
 
 /// Pushes the interface's font at `size` design pixels.
 pub fn sans(weight: fonts.Weight, size: f32) void {
-    c.ImGui_PushFontFloat(fonts.sans(weight), size * fonts.em.sans);
+    pushFace(fonts.face(.sans, weight, size));
 }
 
 /// Pushes the code font at `size` design pixels.
 pub fn mono(weight: fonts.Weight, size: f32) void {
-    c.ImGui_PushFontFloat(fonts.mono(weight), size * fonts.em.mono);
+    pushFace(fonts.face(.mono, weight, size));
 }
 
-/// Pushes the font the icons are drawn in, so that an icon is `size` design pixels square.
+fn pushFace(face: *const fonts.Face) void {
+    c.ImGui_PushFontFloat(face.font, face.imgui_size);
+}
+
+/// Pushes the font the icons are drawn in, so that an icon is `size` design pixels square: Lucide's
+/// glyphs take the whole of its size.
 pub fn iconFont(size: f32) void {
-    c.ImGui_PushFontFloat(fonts.sans(.regular), size * fonts.em.icons);
+    c.ImGui_PushFontFloat(fonts.iconFont(), size);
 }
 
 pub fn popFont() void {
@@ -226,6 +293,13 @@ pub fn pushIdInt(value: usize) void {
 
 pub fn popId() void {
     c.ImGui_PopID();
+}
+
+test Lines {
+    // An empty text, or one of spaces, has no lines. Wrapping words needs ImGui's fonts, which the
+    // tests don't load.
+    try std.testing.expectEqual(0, wrap("", 100).count());
+    try std.testing.expectEqual(0, wrap(" \n ", 100).count());
 }
 
 test print {

@@ -24,55 +24,51 @@ const Filter = struct {
 };
 
 pub fn draw(app: *App) void {
-    const viewport = c.ImGui_GetMainViewport();
-    c.ImGui_SetNextWindowPos(viewport.*.WorkPos, 0);
-    c.ImGui_SetNextWindowSize(viewport.*.WorkSize, 0);
-    gui.pushVar(c.ImGuiStyleVar_WindowRounding, 0);
-    gui.pushVar(c.ImGuiStyleVar_WindowBorderSize, 0);
-    gui.pushVar2(c.ImGuiStyleVar_WindowPadding, .{ .x = 0, .y = 0 });
-    gui.pushVar2(c.ImGuiStyleVar_FramePadding, .{ .x = px(9), .y = (px(34) - px(fonts.size.ui * fonts.em.sans)) / 2 });
-    gui.pushColor(c.ImGuiCol_WindowBg, theme.ground);
-    gui.pushColor(c.ImGuiCol_MenuBarBg, theme.fade(theme.bar, 0.85));
-    gui.sans(.regular, fonts.size.ui);
-    _ = c.ImGui_Begin("start", null, c.ImGuiWindowFlags_NoDecoration | c.ImGuiWindowFlags_NoMove | c.ImGuiWindowFlags_NoSavedSettings | c.ImGuiWindowFlags_NoBringToFrontOnFocus | c.ImGuiWindowFlags_NoDocking | c.ImGuiWindowFlags_MenuBar);
-    gui.popFont();
-    gui.popColor(2);
-    gui.popVar(4);
+    shell.beginScreen("start", .start, theme.fade(theme.bar, 0.85));
     defer c.ImGui_End();
     sky();
     app.shortcuts();
     shell.menuBar(app, .start);
 
+    // The page is at most 1240 pixels wide, with 16 pixels of padding to each side inside that.
     const window_pos = c.ImGui_GetWindowPos();
     const window_width = c.ImGui_GetWindowWidth();
-    const width = @min(window_width - px(32), px(max_width));
+    const width = @min(window_width, px(max_width)) - px(16) * 2;
     const left = window_pos.x + (window_width - width) / 2;
     _ = c.ImGui_BeginChild("page", .{ .x = 0, .y = 0 }, 0, 0);
     defer c.ImGui_EndChild();
-    gui.setCursor(.{ .x = left, .y = gui.cursor().y + px(44) });
+    // The page gives each gap itself, as the design does.
+    gui.pushVar2(c.ImGuiStyleVar_ItemSpacing, .{ .x = 0, .y = 0 });
+    defer gui.popVar(1);
+    const top = gui.cursor().y + px(44);
 
-    // The heading.
+    // The heading, in Newtown at 60 pixels spaced 0.02 em, in a line as high as its letters; 8
+    // pixels under it, the line under it, at 16 pixels in a line of 24; and 34 before the cards.
     const list = gui.drawList();
-    gui.brand(60);
-    var at = gui.cursor();
-    gui.drawText(list, at, theme.text, "OPEN");
-    at.x += gui.textSize("OPEN").x;
-    gui.drawText(list, at, theme.accent, "RELIANT");
-    at.x += gui.textSize("RELIANT ").x;
-    gui.drawText(list, at, theme.text, "EDITOR");
+    const heading_size = 60;
+    gui.brand(heading_size);
+    const heading_y = gui.textTopIn(top + px(heading_size) / 2, heading_size);
+    var x = left;
+    x += gui.drawSpaced(list, .{ .x = x, .y = heading_y }, theme.text, "OPEN", 0.02 * heading_size);
+    x += gui.drawSpaced(list, .{ .x = x, .y = heading_y }, theme.accent, "RELIANT", 0.02 * heading_size);
+    _ = gui.drawSpaced(list, .{ .x = x, .y = heading_y }, theme.text, " EDITOR", 0.02 * heading_size);
     gui.popFont();
-    // The heading's line is as high as its letters, 60 pixels, and 8 more go before the line
-    // under it.
-    c.ImGui_Dummy(.{ .x = width, .y = px(60) });
-    gui.setCursor(.{ .x = left, .y = gui.cursor().y + px(8) });
-    widgets.caption(gui.print("Missions and mods for {s} · every change live in the game", .{app.profile.name}), theme.text_menu, 16, .regular);
-    gui.setCursor(.{ .x = left, .y = gui.cursor().y + px(28) });
+    const line_top = top + px(heading_size) + px(8);
+    gui.sans(.regular, 16);
+    gui.drawText(list, .{ .x = left, .y = gui.textTopIn(line_top + px(24) / 2, 24) }, theme.text_menu, gui.print("Missions and mods for {s} · every change live in the game", .{app.profile.name}));
+    gui.popFont();
+    gui.setCursor(.{ .x = left, .y = top });
+    c.ImGui_Dummy(.{ .x = width, .y = line_top + px(24) - top });
+    gui.setCursor(.{ .x = left, .y = line_top + px(24) + px(34) });
 
-    // Two columns, or one where the window is narrow.
+    // Two columns, 480 and 420 pixels wide and sharing the room left over, or one under the other
+    // where they don't fit.
     const gap = px(28);
-    const two = width > px(940);
-    const left_width = if (two) (width - gap) * 0.54 else width;
-    const right_width = if (two) width - gap - left_width else width;
+    const bases = [2]f32{ px(480), px(420) };
+    const two = bases[0] + gap + bases[1] <= width;
+    const share = (width - gap - bases[0] - bases[1]) / 2;
+    const left_width = if (two) bases[0] + share else width;
+    const right_width = if (two) bases[1] + share else width;
     const row_top = gui.cursor().y;
     gui.setCursor(.{ .x = left, .y = row_top });
     c.ImGui_BeginGroup();
@@ -126,7 +122,7 @@ fn startSomething(app: *App, width: f32) void {
     if (card("guided", .{
         .width = width,
         .title = "Your first mission, guided",
-        .detail = "7 steps · ship, nav point, enemies, triggers, play · shows the source each step writes",
+        .detail = "From an empty map to playing it",
         .icon = .flag,
         .tile = theme.accent,
         .tile_icon = theme.on_accent,
@@ -148,8 +144,8 @@ fn startSomething(app: *App, width: f32) void {
     gui.setCursor(.{ .x = row_top.x, .y = gui.cursor().y + px(10) });
     newMod(app, width);
     gui.space(10);
-    const open_key = app.keyText(.open_mod);
-    if (chipButton("open", "Open…", .folder_open, open_key, null)) app.run(.open_mod);
+    const open = commands.info(.open_file);
+    if (chipButton("open", open.label, open.icon, app.keyText(.open_file), null)) app.run(.open_file);
     gui.sameLine(8);
     if (chipButton("open hog", "Open .hog, read only", .box, null, app.unavailable(.open_hog))) app.run(.open_hog);
 }
@@ -167,35 +163,67 @@ const Card = struct {
     height: ?f32 = null,
 };
 
+/// The design's card, `.act`: in its line, a tile with the icon, 12 pixels, then the title and the
+/// detail under it, 2 pixels apart, and a chevron after them on the featured card.
+const CardLayout = struct {
+    tile: f32,
+    padding: gui.Vec2,
+    text_x: f32,
+    text_width: f32,
+    title_size: f32,
+    /// The title's line, and each of the detail's.
+    title_line: f32,
+    detail_line: f32,
+    detail_lines: usize,
+
+    /// The detail's size, and its lines' height in ems.
+    const detail_size = fonts.size.ui;
+    const detail_line_height = 1.4;
+
+    fn of(shown: Card, left: f32) CardLayout {
+        const tile = px(if (shown.featured) 46 else 38);
+        const padding = if (shown.featured) gui.vec2(px(18), px(18)) else gui.vec2(px(14), px(12));
+        const text_x = left + px(1) + padding.x + tile + px(12);
+        const chevron = if (shown.featured) px(12) + px(fonts.size.icon) else 0;
+        const text_width = left + shown.width - px(1) - padding.x - chevron - text_x;
+        const title_size: f32 = if (shown.featured) 16 else 14;
+        gui.sans(.regular, detail_size);
+        defer gui.popFont();
+        return .{
+            .tile = tile,
+            .padding = padding,
+            .text_x = text_x,
+            .text_width = text_width,
+            .title_size = title_size,
+            .title_line = px(title_size * fonts.line_height),
+            .detail_line = px(detail_size * detail_line_height),
+            .detail_lines = gui.wrap(shown.detail, text_width).count(),
+        };
+    }
+
+    /// The title and the detail together.
+    fn textHeight(layout: CardLayout) f32 {
+        return layout.title_line + px(2) + layout.detail_line * @as(f32, @floatFromInt(layout.detail_lines));
+    }
+
+    /// The card's height, with its line.
+    fn height(layout: CardLayout) f32 {
+        return @max(layout.tile, layout.textHeight()) + layout.padding.y * 2 + px(1) * 2;
+    }
+};
+
 /// The height a card's content needs.
 fn cardHeight(shown: Card) f32 {
-    const tile: f32 = px(if (shown.featured) 46 else 38);
-    const padding_y = px(if (shown.featured) 18 else 12);
-    const padding_x = px(if (shown.featured) 18 else 14);
-    const text_width = shown.width - padding_x - tile - px(12) - padding_x - px(20);
-    gui.sans(.semibold, if (shown.featured) 16 else 13.5);
-    const title_height = c.ImGui_GetFontSize();
-    gui.popFont();
-    gui.sans(.regular, fonts.size.small);
-    const detail_size = c.ImGui_CalcTextSizeEx(shown.detail.ptr, shown.detail.ptr + shown.detail.len, false, text_width);
-    gui.popFont();
-    return @max(tile, title_height + px(4) + detail_size.y) + padding_y * 2;
+    return CardLayout.of(shown, 0).height();
 }
 
 /// The design's `.act`: a card with an icon in a tile, a title and a line under it.
 fn card(id: []const u8, shown: Card) bool {
     const at = gui.cursor();
-    const tile: f32 = px(if (shown.featured) 46 else 38);
-    const padding_x = px(if (shown.featured) 18 else 14);
-    const text_x = at.x + padding_x + tile + px(12);
-    const text_width = shown.width - (text_x - at.x) - padding_x - px(20);
-    gui.sans(.semibold, if (shown.featured) 16 else 13.5);
-    const title_height = c.ImGui_GetFontSize();
-    gui.popFont();
-    gui.sans(.regular, fonts.size.small);
-    const detail_size = c.ImGui_CalcTextSizeEx(shown.detail.ptr, shown.detail.ptr + shown.detail.len, false, text_width);
-    gui.popFont();
-    const height = shown.height orelse cardHeight(shown);
+    const layout = CardLayout.of(shown, at.x);
+    const tile = layout.tile;
+    const padding_x = layout.padding.x;
+    const height = shown.height orelse layout.height();
     const clicked = c.ImGui_InvisibleButton(gui.z(id), .{ .x = shown.width, .y = height }, 0) and shown.disabled == null;
     const hovered = gui.hovered();
     if (shown.disabled == null) gui.handCursor();
@@ -208,15 +236,20 @@ fn card(id: []const u8, shown: Card) bool {
         gui.rect(list, at, max, theme.panel, 8);
         gui.outline(list, at, max, if (hovered and shown.disabled == null) theme.border_strong else theme.rgb(0x232938), 8);
     }
-    const tile_min = gui.vec2(at.x + padding_x, at.y + (height - tile) / 2);
+    const tile_min = gui.vec2(at.x + px(1) + padding_x, at.y + (height - tile) / 2);
     gui.rect(list, tile_min, .{ .x = tile_min.x + tile, .y = tile_min.y + tile }, if (shown.disabled != null and !shown.featured) theme.button_off else shown.tile, 8);
     widgets.drawIcon(list, .{ .x = tile_min.x + (tile - px(20)) / 2, .y = tile_min.y + tile / 2 }, shown.icon, 20, if (shown.disabled != null and !shown.featured) theme.text_off else shown.tile_icon);
-    const text_top = at.y + (height - (title_height + px(4) + detail_size.y)) / 2;
-    gui.sans(.semibold, if (shown.featured) 16 else 13.5);
-    gui.drawText(list, .{ .x = text_x, .y = text_top }, if (shown.featured) theme.selected_text else if (shown.disabled != null) theme.text_muted else theme.text, shown.title);
+    // The title and the detail, together in the middle of the card.
+    const text_top = at.y + (height - layout.textHeight()) / 2;
+    gui.sans(.semibold, layout.title_size);
+    gui.drawText(list, .{ .x = layout.text_x, .y = gui.textTopIn(text_top + layout.title_line / 2, layout.title_line / gui.scale) }, if (shown.featured) theme.selected_text else if (shown.disabled != null) theme.text_muted else theme.text, shown.title);
     gui.popFont();
-    gui.sans(.regular, fonts.size.small);
-    c.ImDrawList_AddTextImFontPtrEx(list, c.ImGui_GetFont(), c.ImGui_GetFontSize(), .{ .x = text_x, .y = text_top + title_height + px(4) }, if (shown.featured) theme.rgb(0xd9c3ad) else theme.text_dim, shown.detail.ptr, shown.detail.ptr + shown.detail.len, text_width, null);
+    gui.sans(.regular, CardLayout.detail_size);
+    var lines = gui.wrap(shown.detail, layout.text_width);
+    var line_top = text_top + layout.title_line + px(2);
+    while (lines.next()) |line| : (line_top += layout.detail_line) {
+        gui.drawText(list, .{ .x = layout.text_x, .y = gui.textTopIn(line_top + layout.detail_line / 2, layout.detail_line / gui.scale) }, if (shown.featured) theme.rgb(0xd9c3ad) else theme.text_muted, line);
+    }
     gui.popFont();
     if (shown.featured) widgets.drawIcon(list, .{ .x = max.x - padding_x - px(14), .y = at.y + height / 2 }, .chevron_right, fonts.size.icon_small, theme.accent);
     if (shown.disabled) |off| gui.tooltip(off.reason);
@@ -289,7 +322,7 @@ fn chipButton(id: []const u8, label: []const u8, icon: ?Icon, key: ?[]const u8, 
         widgets.drawIcon(list, .{ .x = x, .y = middle }, which, fonts.size.icon_small, color);
         x += px(14) + px(8);
     }
-    gui.drawText(list, .{ .x = x, .y = middle - c.ImGui_GetFontSize() / 2 }, color, label);
+    gui.drawText(list, .{ .x = x, .y = gui.textTop(middle) }, color, label);
     x += gui.textSize(label).x + px(8);
     if (key) |written| widgets.drawKeyChip(list, .{ .x = x, .y = middle }, written, .normal);
     if (disabled) |off| gui.tooltip(off.reason);
@@ -368,7 +401,7 @@ fn tag(list: *c.ImDrawList, right_middle: gui.Vec2, text: []const u8, background
     const height = px(20);
     const min = gui.vec2(right_middle.x - width, right_middle.y - height / 2);
     gui.rect(list, min, .{ .x = right_middle.x, .y = right_middle.y + height / 2 }, background, 10);
-    _ = gui.drawSpaced(list, .{ .x = min.x + px(7), .y = right_middle.y - c.ImGui_GetFontSize() / 2 }, foreground, text, 0.33);
+    _ = gui.drawSpaced(list, .{ .x = min.x + px(7), .y = gui.textTop(right_middle.y) }, foreground, text, 0.33);
 }
 
 /// The game: whether it's linked, and its settings.

@@ -19,31 +19,23 @@ const theme = ui.theme;
 const widgets = ui.widgets;
 const px = gui.px;
 
-/// The design's heights: the menu bar, the toolbar and the status bar.
-const menu_bar_height = 34;
-const toolbar_height = 43;
+/// The design's menu bar: 3 pixels of padding above and below its controls, at least 34 pixels
+/// high with its line at the bottom.
+const menu_bar_padding = 3;
+const menu_bar_least_height = 34;
+/// The mode switch's height, which makes the workspace's menu bar higher than the others.
+const mode_switch_height = 30;
+
+/// The toolbar: 6 pixels of padding above and below a row of controls as high as the view tabs,
+/// which the others are centred on, and its line.
+const toolbar_padding = 6;
+const toolbar_row = widgets.view_tabs_height;
+const toolbar_height = toolbar_padding * 2 + toolbar_row + 1;
+
 const status_bar_height = 24;
 
 pub fn draw(app: *App) void {
-    const viewport = c.ImGui_GetMainViewport();
-    c.ImGui_SetNextWindowPos(viewport.*.WorkPos, 0);
-    c.ImGui_SetNextWindowSize(viewport.*.WorkSize, 0);
-    c.ImGui_SetNextWindowViewport(viewport.*.ID);
-    gui.pushVar(c.ImGuiStyleVar_WindowRounding, 0);
-    gui.pushVar(c.ImGuiStyleVar_WindowBorderSize, 0);
-    gui.pushVar2(c.ImGuiStyleVar_WindowPadding, .{ .x = 0, .y = 0 });
-    // The menu bar's height comes from the frame padding and the font when the window begins.
-    gui.pushVar2(c.ImGuiStyleVar_FramePadding, .{ .x = px(9), .y = (px(menu_bar_height) - px(fonts.size.ui * fonts.em.sans)) / 2 });
-    gui.pushColor(c.ImGuiCol_WindowBg, theme.ground);
-    gui.pushColor(c.ImGuiCol_MenuBarBg, theme.bar);
-    gui.sans(.regular, fonts.size.ui);
-    const flags = c.ImGuiWindowFlags_NoDecoration | c.ImGuiWindowFlags_NoMove | c.ImGuiWindowFlags_NoResize | c.ImGuiWindowFlags_NoSavedSettings |
-        c.ImGuiWindowFlags_NoBringToFrontOnFocus | c.ImGuiWindowFlags_NoNavFocus | c.ImGuiWindowFlags_NoDocking | c.ImGuiWindowFlags_MenuBar;
-    _ = c.ImGui_Begin("workspace", null, flags);
-    gui.popFont();
-    gui.popColor(2);
-    gui.popVar(4);
-
+    beginScreen("workspace", .full, theme.bar);
     app.shortcuts();
     menuBar(app, .full);
     toolbar(app);
@@ -57,7 +49,7 @@ pub fn draw(app: *App) void {
     }
     // The dock space draws the panels' tab bars, in the design's font and height.
     gui.sans(.regular, fonts.size.ui);
-    gui.pushVar2(c.ImGuiStyleVar_FramePadding, .{ .x = px(12), .y = (px(panels.tab_bar_height) - px(fonts.size.ui * fonts.em.sans)) / 2 });
+    gui.pushVar2(c.ImGuiStyleVar_FramePadding, .{ .x = px(12), .y = (px(panels.tab_bar_height) - c.ImGui_GetFontSize()) / 2 });
     gui.pushVar2(c.ImGuiStyleVar_ItemInnerSpacing, .{ .x = px(7), .y = px(4) });
     gui.pushColor(c.ImGuiCol_Text, theme.text_muted);
     _ = c.ImGui_DockSpaceEx(dockspace, dock_size, c.OR_DOCK_NODE_NO_WINDOW_MENU_BUTTON | c.OR_DOCK_NODE_NO_CLOSE_BUTTON, null);
@@ -83,28 +75,78 @@ pub const MenuSet = enum {
     start,
     /// File, Edit, View, Window and Help, in the settings.
     settings,
+
+    /// The menu bar's height: the workspace's holds the mode switch.
+    pub fn height(set: MenuSet) f32 {
+        return switch (set) {
+            .full => @max(menu_bar_least_height, menu_bar_padding * 2 + mode_switch_height + 1),
+            .start, .settings => menu_bar_least_height,
+        };
+    }
 };
+
+/// Begins a screen: a window over the whole of the main viewport, with `set`'s menu bar on a
+/// background of `bar`. `c.ImGui_End` ends it.
+pub fn beginScreen(name: [:0]const u8, set: MenuSet, bar: theme.Color) void {
+    const viewport = c.ImGui_GetMainViewport();
+    c.ImGui_SetNextWindowPos(viewport.*.WorkPos, 0);
+    c.ImGui_SetNextWindowSize(viewport.*.WorkSize, 0);
+    c.ImGui_SetNextWindowViewport(viewport.*.ID);
+    gui.pushVar(c.ImGuiStyleVar_WindowRounding, 0);
+    gui.pushVar(c.ImGuiStyleVar_WindowBorderSize, 0);
+    gui.pushVar2(c.ImGuiStyleVar_WindowPadding, .{ .x = 0, .y = 0 });
+    // ImGui makes the menu bar as high as the font with the frame padding above and below it.
+    gui.sans(.regular, fonts.size.ui);
+    gui.pushVar2(c.ImGuiStyleVar_FramePadding, .{ .x = px(9), .y = (px(set.height()) - c.ImGui_GetFontSize()) / 2 });
+    // The bar draws its line inside its height (`menuBar`); with a frame border, ImGui would draw
+    // one below it as well, and keep the content from it.
+    gui.pushVar(c.ImGuiStyleVar_FrameBorderSize, 0);
+    gui.pushColor(c.ImGuiCol_WindowBg, theme.ground);
+    gui.pushColor(c.ImGuiCol_MenuBarBg, bar);
+    const flags = c.ImGuiWindowFlags_NoDecoration | c.ImGuiWindowFlags_NoMove | c.ImGuiWindowFlags_NoSavedSettings | c.ImGuiWindowFlags_NoBringToFrontOnFocus |
+        c.ImGuiWindowFlags_NoNavFocus | c.ImGuiWindowFlags_NoDocking | c.ImGuiWindowFlags_MenuBar;
+    _ = c.ImGui_Begin(name, null, flags);
+    gui.popColor(2);
+    gui.popVar(5);
+    gui.popFont();
+}
 
 /// The menu bar: the editor's name, the menus, the search box and, in the workspace, the mode
 /// switch.
 pub fn menuBar(app: *App, set: MenuSet) void {
     gui.sans(.regular, fonts.size.ui);
     defer gui.popFont();
-    if (!c.ImGui_BeginMenuBar()) return;
+    const window_pos = c.ImGui_GetWindowPos();
+    const width = c.ImGui_GetWindowWidth();
+    const height = px(set.height());
+    // The bar's controls are centred between its padding, above its line.
+    const middle = window_pos.y + (height - px(1)) / 2;
+    // ImGui puts the menus' labels the frame padding below the bar's top, which it reads as the
+    // bar begins: there they sit in the middle, as the design's menu buttons.
+    gui.pushVar2(c.ImGuiStyleVar_FramePadding, .{ .x = px(9), .y = gui.textTop(middle) - window_pos.y });
+    const open = c.ImGui_BeginMenuBar();
+    gui.popVar(1);
+    if (!open) return;
     defer c.ImGui_EndMenuBar();
-    const bar_min = gui.cursor();
-    const bar_y = c.ImGui_GetWindowPos().y;
-    // The line under the bar.
-    gui.rect(c.ImGui_GetWindowDrawList(), .{ .x = c.ImGui_GetWindowPos().x, .y = bar_y + px(menu_bar_height) - px(1) }, .{ .x = c.ImGui_GetWindowPos().x + c.ImGui_GetWindowWidth(), .y = bar_y + px(menu_bar_height) }, theme.divider, 0);
-    wordmark(.{ .x = bar_min.x + px(10), .y = bar_y + px(menu_bar_height) / 2 });
-    gui.setCursor(.{ .x = bar_min.x + px(10) + wordmarkWidth() + px(18), .y = bar_min.y });
+    const bar_top = gui.cursor().y;
+    gui.rect(gui.drawList(), .{ .x = window_pos.x, .y = window_pos.y + height - px(1) }, .{ .x = window_pos.x + width, .y = window_pos.y + height }, theme.divider, 0);
+    const name_end = wordmark(window_pos.x + px(10), middle);
 
+    // A menu's label goes half the item spacing after the cursor, and its highlight reaches the
+    // spacing to each side and half the spacing above and below, as far as the design's menu
+    // buttons. The buttons start after the name's padding of 4 and the bar's gap of 14, and have
+    // 2 pixels between them. Each label goes where its button puts it, to the nearest pixel: ImGui
+    // would round each label's width up.
+    const spacing = gui.vec2(px(9), px(10));
+    var label_x = name_end + px(4) + px(14) + spacing.x;
     gui.pushColor(c.ImGuiCol_Text, theme.text_menu);
     gui.pushColor(c.ImGuiCol_HeaderHovered, theme.divider);
     gui.pushColor(c.ImGuiCol_Header, theme.divider);
-    gui.pushVar2(c.ImGuiStyleVar_ItemSpacing, .{ .x = px(9), .y = px(6) });
+    gui.pushVar2(c.ImGuiStyleVar_ItemSpacing, spacing);
     for (std.enums.values(commands.Menu)) |menu| {
         if (!shown(menu, set)) continue;
+        gui.setCursor(.{ .x = @round(label_x) - @trunc(spacing.x / 2), .y = bar_top });
+        label_x += gui.spacedWidth(menu.label(), 0) + spacing.x * 2 + px(2);
         if (c.ImGui_BeginMenu(menu.label())) {
             gui.popColor(1);
             menuEntries(app, menu);
@@ -115,22 +157,19 @@ pub fn menuBar(app: *App, set: MenuSet) void {
     gui.popVar(1);
     gui.popColor(3);
 
-    // The search box and the mode switch, at the bar's end.
-    const right = c.ImGui_GetWindowPos().x + c.ImGui_GetWindowWidth() - px(10);
-    const mode_width: f32 = if (set == .full) modeSwitchWidth() + px(14) else 0;
+    // The search box and the mode switch, at the bar's end, 14 pixels apart.
+    const right = window_pos.x + width - px(10);
+    const mode_width: f32 = if (set == .full) modeSwitchWidth(app.mode) + px(14) else 0;
     const search_width = px(if (set == .full) 340 else 300);
-    const middle = bar_y + px(menu_bar_height) / 2;
     if (set != .settings) {
-        gui.setCursor(.{ .x = right - mode_width - search_width, .y = middle - px(13) });
+        gui.setCursor(.{ .x = right - mode_width - search_width, .y = middle - px(search_box_height) / 2 });
         if (searchBox(app, search_width, if (set == .full) "Search records and commands" else "Search commands")) app.palette.show(.commands);
     } else {
-        gui.sans(.regular, fonts.size.ui);
         const text = "Settings";
-        gui.drawText(gui.drawList(), .{ .x = right - gui.textSize(text).x, .y = middle - c.ImGui_GetFontSize() / 2 }, theme.text_muted, text);
-        gui.popFont();
+        gui.drawText(gui.drawList(), .{ .x = right - gui.textSize(text).x, .y = gui.textTop(middle) }, theme.text_muted, text);
     }
     if (set == .full) {
-        gui.setCursor(.{ .x = right - mode_width + px(14), .y = middle - px(14) });
+        gui.setCursor(.{ .x = right - mode_width + px(14), .y = middle - px(mode_switch_height) / 2 });
         modeSwitch(app);
     }
 }
@@ -183,36 +222,32 @@ fn isChecked(app: *const App, command: Command) bool {
     };
 }
 
-/// "OpenReliant EDITOR": the name in Newtown, Reliant in orange, then EDITOR in small spaced
-/// capitals.
-pub fn wordmark(at: gui.Vec2) void {
+/// "OpenReliant EDITOR" from `left`: the name in Newtown at 16 pixels spaced 0.02 em, Reliant in
+/// orange, then EDITOR 8 pixels after it in small capitals spaced 0.14 em, on the same baseline.
+/// The name's line is centred on `middle`, as the design's stylesheet centres it. Where it ends.
+pub fn wordmark(left: f32, middle: f32) f32 {
     const list = gui.drawList();
-    gui.brand(16);
-    const open_width = gui.textSize("Open").x;
-    const top = at.y - c.ImGui_GetFontSize() / 2;
-    gui.drawText(list, .{ .x = at.x, .y = top }, theme.text, "Open");
-    gui.drawText(list, .{ .x = at.x + open_width, .y = top }, theme.accent, "Reliant");
-    const name_width = open_width + gui.textSize("Reliant").x;
+    const name_size = 16;
+    gui.brand(name_size);
+    const name_top = gui.textTop(middle);
+    const baseline = name_top + gui.ascent();
+    var x = left;
+    x += gui.drawSpaced(list, .{ .x = x, .y = name_top }, theme.text, "Open", 0.02 * name_size);
+    x += gui.drawSpaced(list, .{ .x = x, .y = name_top }, theme.accent, "Reliant", 0.02 * name_size);
     gui.popFont();
+    x += px(8);
     gui.sans(.semibold, fonts.size.tiny);
-    _ = gui.drawSpaced(list, .{ .x = at.x + name_width + px(8), .y = top + px(4.5) }, theme.text_dim, "EDITOR", 1.47);
+    x += gui.drawSpaced(list, .{ .x = x, .y = baseline - gui.ascent() }, theme.text_dim, "EDITOR", 0.14 * fonts.size.tiny);
     gui.popFont();
+    return x;
 }
 
-fn wordmarkWidth() f32 {
-    gui.brand(16);
-    const name = gui.textSize("OpenReliant").x;
-    gui.popFont();
-    gui.sans(.semibold, fonts.size.tiny);
-    const editor = gui.spacedWidth("EDITOR", 1.47);
-    gui.popFont();
-    return name + px(8) + editor;
-}
+const search_box_height = 26;
 
 /// The search box that opens the command palette.
 fn searchBox(app: *App, width: f32, placeholder: []const u8) bool {
     const at = gui.cursor();
-    const height = px(26);
+    const height = px(search_box_height);
     const clicked = c.ImGui_InvisibleButton("search", .{ .x = width, .y = height }, 0);
     gui.handCursor();
     const list = gui.drawList();
@@ -222,7 +257,7 @@ fn searchBox(app: *App, width: f32, placeholder: []const u8) bool {
     const middle = at.y + height / 2;
     widgets.drawIcon(list, .{ .x = at.x + px(8), .y = middle }, .search, fonts.size.icon_small, theme.text_dim);
     gui.sans(.regular, fonts.size.ui);
-    gui.drawText(list, .{ .x = at.x + px(8) + px(14) + px(8), .y = middle - c.ImGui_GetFontSize() / 2 }, theme.text_dim, placeholder);
+    gui.drawText(list, .{ .x = at.x + px(8) + px(14) + px(8), .y = gui.textTop(middle) }, theme.text_dim, placeholder);
     gui.popFont();
     if (app.keyText(.palette)) |key| {
         const key_width = widgets.keyChipWidth(key);
@@ -231,10 +266,27 @@ fn searchBox(app: *App, width: f32, placeholder: []const u8) bool {
     return clicked;
 }
 
-fn modeSwitchWidth() f32 {
-    gui.sans(.medium, fonts.size.ui);
+/// The mode switch's line and its padding inside it, around its buttons.
+const mode_switch_inset = 1 + 2;
+
+/// The modes the switch offers, with their labels and icons.
+const modes = [_]struct { app_mod.Mode, []const u8, ui.icons.Icon }{
+    .{ .mod, "Mod", .box },
+    .{ .mission, "Mission", .flag },
+};
+
+/// A button of the mode switch: its icon and label in 12 pixels of padding, the label heavier for
+/// the mode on.
+fn modeButtonWidth(label: []const u8, on: bool) f32 {
+    gui.sans(if (on) .medium else .regular, fonts.size.ui);
     defer gui.popFont();
-    return px(2) * 3 + (px(12) * 2 + px(14) + px(6)) * 2 + gui.textSize("Mod").x + gui.textSize("Mission").x;
+    return px(12) * 2 + px(14) + px(6) + gui.textSize(label).x;
+}
+
+fn modeSwitchWidth(current: app_mod.Mode) f32 {
+    var width = px(mode_switch_inset) * 2 + px(2) * (modes.len - 1);
+    for (modes) |mode| width += modeButtonWidth(mode[1], mode[0] == current);
+    return width;
 }
 
 /// The switch between Mod and Mission mode. Its buttons have IDs of their own, apart from the
@@ -242,32 +294,33 @@ fn modeSwitchWidth() f32 {
 fn modeSwitch(app: *App) void {
     gui.pushId("mode");
     defer gui.popId();
-    const width = modeSwitchWidth();
-    const height = px(28);
+    const width = modeSwitchWidth(app.mode);
+    const height = px(mode_switch_height);
     const at = gui.cursor();
     const list = gui.drawList();
     const max = gui.vec2(at.x + width, at.y + height);
     gui.rect(list, at, max, theme.field, 5);
     gui.outline(list, at, max, theme.border, 5);
-    gui.sans(.medium, fonts.size.ui);
-    defer gui.popFont();
-    var x = at.x + px(2);
+    var x = at.x + px(mode_switch_inset);
+    const button_top = at.y + px(mode_switch_inset);
+    const button_height = height - px(mode_switch_inset) * 2;
+    const middle = at.y + height / 2;
     const off = app.unavailable(.switch_mode);
-    inline for (.{ .{ app_mod.Mode.mod, "Mod", ui.icons.Icon.box }, .{ app_mod.Mode.mission, "Mission", ui.icons.Icon.flag } }) |option| {
-        const item_width = px(12) * 2 + px(14) + px(6) + gui.textSize(option[1]).x;
-        gui.setCursor(.{ .x = x, .y = at.y + px(2) });
-        const pressed = c.ImGui_InvisibleButton(option[1], .{ .x = item_width, .y = px(24) }, 0);
-        const on = app.mode == option[0];
-        const min = gui.vec2(x, at.y + px(2));
-        if (on) gui.rect(list, min, .{ .x = x + item_width, .y = at.y + px(26) }, theme.border, 3);
+    for (modes) |mode| {
+        const on = app.mode == mode[0];
+        const button_width = modeButtonWidth(mode[1], on);
+        gui.setCursor(.{ .x = x, .y = button_top });
+        const pressed = c.ImGui_InvisibleButton(gui.z(mode[1]), .{ .x = button_width, .y = button_height }, 0);
+        if (on) gui.rect(list, .{ .x = x, .y = button_top }, .{ .x = x + button_width, .y = button_top + button_height }, theme.border, 3);
         const disabled = !on and off != null;
         const foreground = if (on) theme.white else if (disabled) theme.text_off else theme.text_muted;
-        const middle = at.y + height / 2;
-        widgets.drawIcon(list, .{ .x = x + px(12), .y = middle }, option[2], fonts.size.icon_small, if (on and option[0] == .mission) theme.accent else foreground);
-        gui.drawText(list, .{ .x = x + px(12) + px(14) + px(6), .y = middle - c.ImGui_GetFontSize() / 2 }, foreground, option[1]);
+        widgets.drawIcon(list, .{ .x = x + px(12), .y = middle }, mode[2], fonts.size.icon_small, if (on and mode[0] == .mission) theme.accent else foreground);
+        gui.sans(if (on) .medium else .regular, fonts.size.ui);
+        gui.drawText(list, .{ .x = x + px(12) + px(14) + px(6), .y = gui.textTop(middle) }, foreground, mode[1]);
+        gui.popFont();
         if (disabled) gui.tooltip(off.?.reason);
         if (pressed and !disabled and !on) app.run(.switch_mode);
-        x += item_width + px(2);
+        x += button_width + px(2);
     }
     gui.setCursor(at);
     c.ImGui_Dummy(.{ .x = width, .y = height });
@@ -282,17 +335,19 @@ fn toolbar(app: *App) void {
     const list = gui.drawList();
     gui.rect(list, .{ .x = window_pos.x, .y = top }, .{ .x = window_pos.x + width, .y = top + px(toolbar_height) }, theme.toolbar, 0);
     gui.rect(list, .{ .x = window_pos.x, .y = top + px(toolbar_height) - px(1) }, .{ .x = window_pos.x + width, .y = top + px(toolbar_height) }, theme.divider, 0);
-    gui.setCursor(.{ .x = window_pos.x + px(10), .y = top + px(6) });
+    const row: ToolbarRow = .{ .top = top + px(toolbar_padding) };
+    gui.setCursor(.{ .x = window_pos.x + px(10), .y = row.top });
     gui.pushVar2(c.ImGuiStyleVar_ItemSpacing, .{ .x = px(6), .y = px(6) });
     defer gui.popVar(1);
 
     const document = app.document;
     const title = if (document) |open| open.outline().name orelse if (open.number) |number| gui.print("Mission {d}", .{number}) else open.file else "No mission";
     const picker_tip = if (document) |open| gui.print("{s}, in the mod {s}", .{ open.file, if (app.project) |opened| opened.name else "" }) else null;
+    row.centre(widgets.picker_height);
     if (widgets.picker("mission picker", title, theme.accent, picker_tip)) _ = c.ImGui_OpenPopup("missions", 0);
     missionMenu(app);
-    gui.sameLine(6);
 
+    row.next(6, widgets.view_tabs_height);
     const views = [_]widgets.ViewTab{
         .{ .label = "Script", .icon = .code, .tooltip = app.keyText(.view_1) },
         .{ .label = "Scene", .icon = .map, .disabled = app.unavailable(.view_2) },
@@ -303,10 +358,10 @@ fn toolbar(app: *App) void {
         1 => .view_2,
         else => .view_3,
     });
-    gui.sameLine(6);
+    row.next(6, widgets.divider_height);
     widgets.toolbarDivider();
-    gui.sameLine(6);
 
+    row.next(6, widgets.tool_button_height);
     const problem_count = if (document) |open| open.problems().len else 0;
     if (widgets.toolButton("build", .{
         .label = "Build",
@@ -315,13 +370,13 @@ fn toolbar(app: *App) void {
         .disabled = app.unavailable(.build),
         .tooltip = if (app.keyText(.build)) |key| gui.print("Build, {s}", .{key}) else "Build",
     })) app.run(.build);
-    gui.sameLine(6);
+    row.next(6, widgets.tool_button_height);
     if (widgets.toolButton("play", .{ .label = "Play in game", .icon = .play, .corners = .left, .disabled = app.unavailable(.play) })) app.run(.play);
-    gui.sameLine(0);
+    row.next(0, widgets.tool_button_height);
     if (widgets.toolButton("play from part", .{ .icon = .chevron_down, .icon_only = true, .corners = .right, .disabled = app.unavailable(.play_from_part), .tooltip = "Play from a part" })) app.run(.play_from_part);
-    gui.sameLine(6);
+    row.next(6, widgets.divider_height);
     widgets.toolbarDivider();
-    gui.sameLine(6);
+    row.next(6, widgets.tool_button_height);
     const held = app.held;
     if (widgets.toolButton("continue", .{
         .label = "Continue",
@@ -332,7 +387,7 @@ fn toolbar(app: *App) void {
         .disabled = app.unavailable(.@"continue"),
     })) app.run(.@"continue");
     inline for (.{ .{ Command.step_over, ui.icons.Icon.redo_dot }, .{ Command.step_into, ui.icons.Icon.arrow_down_to_dot }, .{ Command.pause, ui.icons.Icon.pause }, .{ Command.let_go, ui.icons.Icon.square } }) |button| {
-        gui.sameLine(6);
+        row.next(6, widgets.tool_button_height);
         const tip = if (app.keyText(button[0])) |key| gui.print("{s}, {s}", .{ commands.info(button[0]).label, key }) else commands.info(button[0]).label;
         if (widgets.toolButton(@tagName(button[0]), .{ .icon = button[1], .icon_only = true, .disabled = app.unavailable(button[0]), .tooltip = tip })) app.run(button[0]);
     }
@@ -362,13 +417,31 @@ fn toolbar(app: *App) void {
     gui.sameLine(0);
     const right = window_pos.x + width - px(10);
     const start = @max(gui.cursor().x + px(8), right - total + px(8));
-    gui.setCursor(.{ .x = start, .y = top + px(8.5) });
+    gui.setCursor(.{ .x = start, .y = row.top });
+    row.centre(widgets.chip_height);
     for (chips[0..chip_count], 0..) |chip, index| {
-        if (index > 0) gui.sameLine(8);
+        if (index > 0) row.next(8, widgets.chip_height);
         widgets.chip(chip);
     }
     gui.setCursor(.{ .x = window_pos.x, .y = top + px(toolbar_height) });
 }
+
+/// The toolbar's row of controls, each centred on the row as the design's flex row centres them.
+const ToolbarRow = struct {
+    top: f32,
+
+    /// Moves the cursor down for the next control, `height` design pixels high, to sit in the
+    /// middle of the row.
+    fn centre(row: ToolbarRow, height: f32) void {
+        gui.setCursor(.{ .x = gui.cursor().x, .y = row.top + (px(toolbar_row) - px(height)) / 2 });
+    }
+
+    /// Puts the next control `gap` design pixels after the last one, in the middle of the row.
+    fn next(row: ToolbarRow, gap: f32, height: f32) void {
+        gui.sameLine(gap);
+        row.centre(height);
+    }
+};
 
 /// The mod's missions, which the picker opens.
 fn missionMenu(app: *App) void {
@@ -402,7 +475,7 @@ fn statusBar(app: *App) void {
     gui.sans(.regular, fonts.size.smaller);
     defer gui.popFont();
     const middle = top + px(status_bar_height) / 2;
-    const text_y = middle - c.ImGui_GetFontSize() / 2;
+    const text_y = gui.textTop(middle);
     var x = window_pos.x + px(10);
     const gap = px(16);
 

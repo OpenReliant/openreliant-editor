@@ -32,20 +32,7 @@ const Find = struct {
 var capturing: ?Command = null;
 
 pub fn draw(app: *App) void {
-    const viewport = c.ImGui_GetMainViewport();
-    c.ImGui_SetNextWindowPos(viewport.*.WorkPos, 0);
-    c.ImGui_SetNextWindowSize(viewport.*.WorkSize, 0);
-    gui.pushVar(c.ImGuiStyleVar_WindowRounding, 0);
-    gui.pushVar(c.ImGuiStyleVar_WindowBorderSize, 0);
-    gui.pushVar2(c.ImGuiStyleVar_WindowPadding, .{ .x = 0, .y = 0 });
-    gui.pushVar2(c.ImGuiStyleVar_FramePadding, .{ .x = px(9), .y = (px(34) - px(fonts.size.ui * fonts.em.sans)) / 2 });
-    gui.pushColor(c.ImGuiCol_WindowBg, theme.ground);
-    gui.pushColor(c.ImGuiCol_MenuBarBg, theme.bar);
-    gui.sans(.regular, fonts.size.ui);
-    _ = c.ImGui_Begin("settings", null, c.ImGuiWindowFlags_NoDecoration | c.ImGuiWindowFlags_NoMove | c.ImGuiWindowFlags_NoSavedSettings | c.ImGuiWindowFlags_NoBringToFrontOnFocus | c.ImGuiWindowFlags_NoDocking | c.ImGuiWindowFlags_MenuBar);
-    gui.popFont();
-    gui.popColor(2);
-    gui.popVar(4);
+    shell.beginScreen("settings", .settings, theme.bar);
     defer c.ImGui_End();
     if (capturing == null) app.shortcuts();
     shell.menuBar(app, .settings);
@@ -114,7 +101,7 @@ fn navigation(app: *App) void {
         const list = gui.drawList();
         if (on) gui.rect(list, item, .{ .x = item.x + width, .y = item.y + height }, theme.border, 4) else if (gui.hovered()) gui.rect(list, item, .{ .x = item.x + width, .y = item.y + height }, theme.row_hover, 4);
         gui.sans(.regular, fonts.size.body);
-        gui.drawText(list, .{ .x = item.x + px(12), .y = item.y + (height - c.ImGui_GetFontSize()) / 2 }, if (on) theme.white else theme.text_menu, page[1]);
+        gui.drawText(list, .{ .x = item.x + px(12), .y = gui.textTop(item.y + height / 2) }, if (on) theme.white else theme.text_menu, page[1]);
         gui.popFont();
         gui.setCursor(.{ .x = at.x, .y = item.y + height + px(2) });
     }
@@ -212,7 +199,7 @@ fn keysPage(app: *App) void {
     gui.rect(list, head_at, .{ .x = head_at.x + width, .y = head_at.y + head_height }, theme.table_head, 0);
     gui.rect(list, .{ .x = head_at.x, .y = head_at.y + head_height - px(1) }, .{ .x = head_at.x + width, .y = head_at.y + head_height }, theme.table_head_line, 0);
     gui.sans(.medium, fonts.size.ui);
-    const head_y = head_at.y + (head_height - c.ImGui_GetFontSize()) / 2;
+    const head_y = gui.textTop(head_at.y + head_height / 2);
     gui.drawText(list, .{ .x = head_at.x + px(14), .y = head_y }, theme.text_dim, "Action");
     var x = head_at.x + px(14) + width * columns[0];
     for ([_]keys.System{ .windows_linux, .macos }) |system| {
@@ -281,7 +268,7 @@ fn keyRow(app: *App, command: Command, width: f32, columns: [3]f32) void {
     const macos = keymap.chords(command, .macos);
     if (keys.differBeyondModifier(windows, macos)) gui.dot(list, .{ .x = at.x + px(17), .y = middle }, 3, theme.accent);
     gui.sans(.regular, fonts.size.ui);
-    gui.drawText(list, .{ .x = at.x + px(29), .y = middle - c.ImGui_GetFontSize() / 2 }, theme.text_row, rowLabel(command));
+    gui.drawText(list, .{ .x = at.x + px(29), .y = gui.textTop(middle) }, theme.text_row, rowLabel(command));
     gui.popFont();
     var x = at.x + px(14) + width * columns[0];
     for ([_]keys.System{ .windows_linux, .macos }) |system| {
@@ -289,11 +276,11 @@ fn keyRow(app: *App, command: Command, width: f32, columns: [3]f32) void {
         const front = system == app.keys_system;
         if (capturing == command and front) {
             gui.sans(.regular, fonts.size.small);
-            gui.drawText(list, .{ .x = x, .y = middle - c.ImGui_GetFontSize() / 2 }, theme.accent, "Press keys · Esc cancels · Backspace clears");
+            gui.drawText(list, .{ .x = x, .y = gui.textTop(middle) }, theme.accent, "Press keys · Esc cancels · Backspace clears");
             gui.popFont();
         } else if (chords.len == 0) {
             gui.sans(.regular, fonts.size.small);
-            gui.drawText(list, .{ .x = x, .y = middle - c.ImGui_GetFontSize() / 2 }, theme.text_off, "none");
+            gui.drawText(list, .{ .x = x, .y = gui.textTop(middle) }, theme.text_off, "none");
             gui.popFont();
         } else {
             var chip_x = x;
@@ -329,7 +316,10 @@ fn bigKey(list: *c.ImDrawList, middle: gui.Vec2, text: []const u8, front: bool) 
     gui.rect(list, min, max, theme.bar, 4);
     gui.outline(list, min, max, theme.key_border, 4);
     gui.rect(list, .{ .x = min.x + px(1), .y = max.y - px(2) }, .{ .x = max.x - px(1), .y = max.y - px(1) }, theme.key_border, 0);
-    gui.drawText(list, .{ .x = min.x + px(7), .y = middle.y - c.ImGui_GetFontSize() / 2 - px(1) }, if (front) theme.text_button else theme.text_dim, text);
+    // The text is in the middle of the key's face, inside its line of 1 pixel at the top and 2 at
+    // the bottom.
+    const face_middle = (min.y + px(1) + max.y - px(2)) / 2;
+    gui.drawText(list, .{ .x = min.x + px(7), .y = gui.textTopIn(face_middle, fonts.size.smaller) }, if (front) theme.text_button else theme.text_dim, text);
     return width;
 }
 
@@ -400,7 +390,7 @@ fn systemSwitch(app: *App) void {
         }
         const on = app.keys_system == system;
         if (on) gui.rect(list, .{ .x = x, .y = at.y + px(2) }, .{ .x = x + item_width, .y = at.y + px(26) }, theme.border, 3);
-        gui.drawText(list, .{ .x = x + px(12), .y = at.y + (height - c.ImGui_GetFontSize()) / 2 }, if (on) theme.white else theme.text_muted, system.label());
+        gui.drawText(list, .{ .x = x + px(12), .y = gui.textTop(at.y + height / 2) }, if (on) theme.white else theme.text_muted, system.label());
         x += item_width + px(2);
     }
     gui.setCursor(at);
@@ -464,7 +454,7 @@ fn statusBar(app: *App, top: f32, left: f32, width: f32) void {
     gui.rect(list, .{ .x = left, .y = top }, .{ .x = left + width, .y = top + px(1) }, theme.divider, 0);
     gui.sans(.regular, fonts.size.smaller);
     defer gui.popFont();
-    const y = top + (px(24) - c.ImGui_GetFontSize()) / 2;
+    const y = gui.textTop(top + px(24) / 2);
     const system = app.keys_system;
     const first = gui.print("Key map · {s} defaults", .{if (system == .macos) "macOS" else "Windows and Linux"});
     gui.drawText(list, .{ .x = left + px(10), .y = y }, theme.text_muted, first);

@@ -35,6 +35,10 @@ screen against its page with `--screenshot`, which draws without a window:
 zig-out/bin/openreliant-editor <mod folder> --screenshot script.png
 ```
 
+Text goes where a browser puts the design's: the fonts draw at the design's exact sizes
+(`src/ui/fonts.zig`), and `gui.textTop` places a line in the middle of its box as the stylesheet
+does, its baseline on a whole pixel.
+
 ### Games come from their profile
 
 OpenReliant will play other games than StarLancer, so the editor never names a game's commands,

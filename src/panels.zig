@@ -57,11 +57,11 @@ fn begin(app: *App, panel: Panel) bool {
         const class: c.ImGuiWindowClass = .{ .DockNodeFlagsOverrideSet = c.OR_DOCK_NODE_NO_TAB_BAR, .ParentViewportId = 0xffff_ffff, .DockingAllowUnclassed = true };
         c.ImGui_SetNextWindowClass(&class);
     }
-    gui.pushVar2(c.ImGuiStyleVar_FramePadding, .{ .x = px(12), .y = (px(tab_bar_height) - px(fonts.size.ui * fonts.em.sans)) / 2 });
+    gui.sans(.regular, fonts.size.ui);
+    gui.pushVar2(c.ImGuiStyleVar_FramePadding, .{ .x = px(12), .y = (px(tab_bar_height) - c.ImGui_GetFontSize()) / 2 });
     gui.pushVar2(c.ImGuiStyleVar_WindowPadding, .{ .x = 0, .y = 0 });
     gui.pushVar2(c.ImGuiStyleVar_ItemInnerSpacing, .{ .x = px(7), .y = px(4) });
     gui.pushColor(c.ImGuiCol_Text, theme.text_muted);
-    gui.sans(.regular, fonts.size.ui);
     const flags: c.ImGuiWindowFlags = if (panel == .source) c.ImGuiWindowFlags_NoScrollbar | c.ImGuiWindowFlags_NoScrollWithMouse else 0;
     const visible = c.ImGui_Begin(panel.title(), if (panel == .source) null else &open, flags);
     gui.popFont();
@@ -83,7 +83,7 @@ fn tab(app: *App, panel: Panel) void {
     gui.rect(list, .{ .x = rect[2] - px(1), .y = rect[1] }, .{ .x = rect[2], .y = rect[3] }, theme.tab_divider, 0);
     if (selected) {
         gui.sans(.regular, fonts.size.ui);
-        gui.drawText(list, .{ .x = rect[0] + px(12), .y = (rect[1] + rect[3] - c.ImGui_GetFontSize()) / 2 }, theme.text_strong, panel.label());
+        gui.drawText(list, .{ .x = rect[0] + px(12), .y = gui.textTop((rect[1] + rect[3]) / 2) }, theme.text_strong, panel.label());
         gui.popFont();
     }
     const count: ?widgets.Pill = switch (panel) {
@@ -293,7 +293,7 @@ fn tableHeader(columns: []const []const u8, widths: []const f32) void {
     gui.sans(.medium, fonts.size.ui);
     var x = at.x + px(12);
     for (columns, widths) |column, column_width| {
-        gui.drawText(list, .{ .x = x, .y = at.y + (height - c.ImGui_GetFontSize()) / 2 }, theme.text_dim, column);
+        gui.drawText(list, .{ .x = x, .y = gui.textTop(at.y + height / 2) }, theme.text_dim, column);
         x += px(column_width);
     }
     gui.popFont();
@@ -331,12 +331,12 @@ fn breakpoints(app: *App) void {
         const middle = at.y + height / 2;
         gui.dot(list, .{ .x = at.x + px(17), .y = middle }, 4.5, theme.breakpoint);
         gui.mono(.regular, fonts.size.ui);
-        gui.drawText(list, .{ .x = at.x + px(28), .y = middle - c.ImGui_GetFontSize() / 2 }, theme.text_row, gui.print("{d}", .{line + 1}));
-        gui.drawText(list, .{ .x = at.x + px(76), .y = middle - c.ImGui_GetFontSize() / 2 }, theme.syntax.name, statement[0..@min(statement.len, 48)]);
+        gui.drawText(list, .{ .x = at.x + px(28), .y = gui.textTop(middle) }, theme.text_row, gui.print("{d}", .{line + 1}));
+        gui.drawText(list, .{ .x = at.x + px(76), .y = gui.textTop(middle) }, theme.syntax.name, statement[0..@min(statement.len, 48)]);
         gui.popFont();
         if (record) |found| {
             gui.mono(.regular, fonts.size.ui);
-            gui.drawText(list, .{ .x = at.x + px(406), .y = middle - c.ImGui_GetFontSize() / 2 }, theme.text_dim, found.title);
+            gui.drawText(list, .{ .x = at.x + px(406), .y = gui.textTop(middle) }, theme.text_dim, found.title);
             gui.popFont();
         }
         if (clicked) app.goTo(@intCast(line), 0);
@@ -534,7 +534,7 @@ fn variableRow(name: []const u8, value: []const u8, color: theme.Color) void {
     c.ImGui_Dummy(.{ .x = width, .y = height });
     const list = gui.drawList();
     gui.mono(.regular, fonts.size.ui);
-    const y = at.y + (height - c.ImGui_GetFontSize()) / 2;
+    const y = gui.textTop(at.y + height / 2);
     gui.drawText(list, .{ .x = at.x + px(34), .y = y }, color, name);
     gui.drawText(list, .{ .x = at.x + width - px(12) - gui.textSize(value).x, .y = y }, theme.text_row, value);
     gui.popFont();
@@ -712,9 +712,9 @@ fn codeExcerpt(document: *Document, record: game.Record, width: f32) void {
     while (line <= last) : (line += 1) {
         const text = document.editor.lineText(line);
         const number = gui.print("{d}", .{line + 1});
-        gui.drawText(list, .{ .x = at.x + px(34) - gui.textSize(number).x, .y = y + (line_height - c.ImGui_GetFontSize()) / 2 }, theme.text_faint, number);
+        gui.drawText(list, .{ .x = at.x + px(34) - gui.textSize(number).x, .y = gui.textTop(y + line_height / 2) }, theme.text_faint, number);
         c.ImDrawList_PushClipRect(list, at, .{ .x = at.x + width - px(4), .y = at.y + height }, true);
-        gui.drawText(list, .{ .x = at.x + px(44), .y = y + (line_height - c.ImGui_GetFontSize()) / 2 }, theme.syntax.name, std.mem.trimStart(u8, text, " \t"));
+        gui.drawText(list, .{ .x = at.x + px(44), .y = gui.textTop(y + line_height / 2) }, theme.syntax.name, std.mem.trimStart(u8, text, " \t"));
         c.ImDrawList_PopClipRect(list);
         y += line_height;
     }
@@ -792,8 +792,8 @@ fn parameterTable(word: game.Word, width: f32) void {
     gui.sans(.regular, fonts.size.small);
     var y = at.y;
     const head_height = px(28);
-    gui.drawText(list, .{ .x = at.x + px(10), .y = y + (head_height - c.ImGui_GetFontSize()) / 2 }, theme.text_muted, if (word.kind == .condition) "Event value" else "Value");
-    gui.drawText(list, .{ .x = at.x + label_width + px(10), .y = y + (head_height - c.ImGui_GetFontSize()) / 2 }, theme.text_muted, "Type");
+    gui.drawText(list, .{ .x = at.x + px(10), .y = gui.textTop(y + head_height / 2) }, theme.text_muted, if (word.kind == .condition) "Event value" else "Value");
+    gui.drawText(list, .{ .x = at.x + label_width + px(10), .y = gui.textTop(y + head_height / 2) }, theme.text_muted, "Type");
     y += head_height;
     gui.popFont();
     for (word.parameters) |parameter| {

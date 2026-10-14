@@ -23,6 +23,8 @@ void or_dock_builder_dock_window(const char *name, unsigned int node) { ImGui::D
 
 void or_dock_builder_finish(unsigned int dockspace) { ImGui::DockBuilderFinish(dockspace); }
 
+float or_imgui_font_ascent(void) { return ImGui::GetFontBaked()->Ascent; }
+
 bool or_imgui_window_tab(float rect[4], void **draw_list, bool *selected) {
     ImGuiWindow *window = ImGui::GetCurrentWindow();
     ImGuiDockNode *node = window->DockNode;

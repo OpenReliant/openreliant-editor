@@ -34,8 +34,9 @@ const max_completions = 8;
 pub fn attach(app: *App, document: *Document) void {
     const editor = document.editor;
     editor.setMargins(marker_room, 0, text_room);
-    // The design's 19 pixel lines for 12.5 pixel code.
-    editor.setLineSpacing(19 / (fonts.size.ui * fonts.em.mono));
+    // The design's 19 pixel lines for 12.5 pixel code: the editor makes its lines as high as the
+    // font's size in ImGui times this.
+    editor.setLineSpacing(19 / fonts.face(.mono, .regular, fonts.size.ui).imgui_size);
     editor.setLineNumbers(App, app, drawLineNumber);
     editor.setDecorations(decoration_room, App, app, drawDecoration);
     state = .{};
@@ -103,13 +104,13 @@ fn tabs(app: *App, document: *Document) void {
         const icon: Icon = if (tab == .source) .file_code else .list;
         widgets.drawIcon(list, .{ .x = inner, .y = middle }, icon, fonts.size.icon_small, if (tab == .source) theme.accent else foreground);
         inner += px(14) + px(7);
-        gui.drawText(list, .{ .x = inner, .y = middle - c.ImGui_GetFontSize() / 2 }, foreground, label);
+        gui.drawText(list, .{ .x = inner, .y = gui.textTop(middle) }, foreground, label);
         inner += gui.textSize(label).x + px(7);
         if (tab == .source and document.dirty()) {
             gui.dot(list, .{ .x = inner + px(3.5), .y = middle }, 3.5, theme.text_menu);
             gui.tooltip("Changed since saved");
         }
-        if (tab == .listing) gui.drawText(list, .{ .x = inner, .y = middle - c.ImGui_GetFontSize() / 2 }, theme.text_faint, listing_detail);
+        if (tab == .listing) gui.drawText(list, .{ .x = inner, .y = gui.textTop(middle) }, theme.text_faint, listing_detail);
         x += tab_width;
     }
     gui.setCursor(.{ .x = at.x, .y = at.y + height });
@@ -127,7 +128,7 @@ fn breadcrumbs(app: *App, document: *Document) void {
     const middle = at.y + height / 2;
     var x = at.x + px(12);
     gui.sans(.regular, fonts.size.small);
-    gui.drawText(list, .{ .x = x, .y = middle - c.ImGui_GetFontSize() / 2 }, theme.text_muted, document.file);
+    gui.drawText(list, .{ .x = x, .y = gui.textTop(middle) }, theme.text_muted, document.file);
     x += gui.textSize(document.file).x + px(6);
     gui.popFont();
     const cursor = document.editor.cursor();
@@ -136,14 +137,14 @@ fn breadcrumbs(app: *App, document: *Document) void {
         x += px(12) + px(6);
         gui.mono(.regular, fonts.size.small);
         const name = if (record.section == .triggers) gui.print("on({s}, \"{s}\")", .{ record.subject, record.condition }) else record.title;
-        gui.drawText(list, .{ .x = x, .y = middle - c.ImGui_GetFontSize() / 2 }, theme.text_button, name);
+        gui.drawText(list, .{ .x = x, .y = gui.textTop(middle) }, theme.text_button, name);
         x += gui.textSize(name).x + px(6);
         gui.popFont();
         if (statementOf(document, record.*, cursor.line)) |statement| {
             widgets.drawIcon(list, .{ .x = x, .y = middle }, .chevron_right, fonts.size.icon_tiny, theme.chevron);
             x += px(12) + px(6);
             gui.sans(.regular, fonts.size.small);
-            gui.drawText(list, .{ .x = x, .y = middle - c.ImGui_GetFontSize() / 2 }, theme.text_muted, gui.print("statement {d} of {d}", .{ statement[0], statement[1] }));
+            gui.drawText(list, .{ .x = x, .y = gui.textTop(middle) }, theme.text_muted, gui.print("statement {d} of {d}", .{ statement[0], statement[1] }));
             gui.popFont();
         }
     }
@@ -349,7 +350,7 @@ fn drawCompletion(app: *App, document: *Document, typed: []const u8) void {
         const middle = y + row_height / 2;
         widgets.drawIcon(list, .{ .x = at.x + px(9), .y = middle }, kindIcon(word.kind), fonts.size.icon_small, kindColor(word.kind));
         gui.mono(.regular, fonts.size.ui);
-        const text_y = middle - c.ImGui_GetFontSize() / 2;
+        const text_y = gui.textTop(middle);
         const name_x = at.x + px(9) + px(14) + px(8);
         const typed_width = gui.textSize(word.name[0..typed.len]).x;
         gui.drawText(list, .{ .x = name_x, .y = text_y }, theme.teal_bright, word.name[0..typed.len]);
@@ -357,7 +358,7 @@ fn drawCompletion(app: *App, document: *Document, typed: []const u8) void {
         gui.popFont();
         gui.sans(.regular, fonts.size.smaller);
         const kind = word.kind.label();
-        gui.drawText(list, .{ .x = at.x + list_width - px(9) - gui.textSize(kind).x, .y = middle - c.ImGui_GetFontSize() / 2 }, if (selected) theme.popup_kind else theme.text_dim, kind);
+        gui.drawText(list, .{ .x = at.x + list_width - px(9) - gui.textSize(kind).x, .y = gui.textTop(middle) }, if (selected) theme.popup_kind else theme.text_dim, kind);
         gui.popFont();
         y += row_height;
     }
@@ -458,7 +459,7 @@ fn drawLineNumber(app: *App, number: *const c.OrTextLineNumber) void {
     const text = gui.print("{d}", .{line + 1});
     const color = if (problem) theme.error_count else if (line == number.cursor_line) theme.text_menu else theme.text_faint;
     const width = gui.textSize(text).x;
-    gui.drawText(list, .{ .x = number.x + number.width - width, .y = number.y + (number.height - c.ImGui_GetFontSize()) / 2 }, color, text);
+    gui.drawText(list, .{ .x = number.x + number.width - width, .y = gui.textTop(number.y + number.height / 2) }, color, text);
 }
 
 /// A line's decoration: a problem's message at the end of its line.
@@ -480,7 +481,7 @@ fn drawDecoration(app: *App, decoration: *const c.OrTextDecoration) void {
         const max = gui.vec2(x + width, end.y + height - px(1));
         gui.rect(list, min, max, theme.error_outline_row, 3);
         widgets.drawIcon(list, .{ .x = x + px(6), .y = end.y + height / 2 }, .lightbulb, fonts.size.icon_tiny, theme.warning_text);
-        gui.drawText(list, .{ .x = x + px(6) + px(12) + px(5), .y = end.y + (height - c.ImGui_GetFontSize()) / 2 }, theme.error_text, message);
+        gui.drawText(list, .{ .x = x + px(6) + px(12) + px(5), .y = gui.textTop(end.y + height / 2) }, theme.error_text, message);
         return;
     }
 }

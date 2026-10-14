@@ -1,6 +1,7 @@
 /* What the editor asks of Dear ImGui's internal API, which Dear Bindings' public C API leaves out:
- * the dock builder that lays out the panels, and the place of a docked window's tab. The internal
- * C bindings aren't translated, since translate-c can't read their structs with bitfields. */
+ * the dock builder that lays out the panels, the current font's ascent, and the place of a docked
+ * window's tab. The internal C bindings aren't translated, since translate-c can't read their
+ * structs with bitfields. */
 #pragma once
 
 #include <stdbool.h>
@@ -21,6 +22,10 @@ void or_dock_builder_reset(unsigned int dockspace, float width, float height);
 unsigned int or_dock_builder_split(unsigned int node, int direction, float ratio, unsigned int *at_direction, unsigned int *opposite);
 void or_dock_builder_dock_window(const char *name, unsigned int node);
 void or_dock_builder_finish(unsigned int dockspace);
+
+/* How far below the top of a line of the current font its baseline is, in pixels, as ImGui places
+ * the glyphs (`ImFontBaked::Ascent`). */
+float or_imgui_font_ascent(void);
 
 /* The tab of the current window, where a dock node shows it: its rectangle, the draw list its tab
  * bar is drawn in, and whether it's the tab in front. False for a window that shows no tab. */

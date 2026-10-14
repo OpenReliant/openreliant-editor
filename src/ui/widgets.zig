@@ -43,11 +43,23 @@ pub const ToolButton = struct {
     /// A square button with the icon alone.
     icon_only: bool = false,
     corners: Corners = .all,
-    height: f32 = 28,
+    height: f32 = tool_button_height,
     /// The label's size and weight.
     size: f32 = fonts.size.ui,
     weight: fonts.Weight = .regular,
 };
+
+/// The design's heights of the toolbar's controls.
+pub const tool_button_height = 28;
+pub const picker_height = 30;
+/// The view tabs' box: 26 pixels high tabs inside its line and padding.
+pub const view_tabs_height = view_tab_height + view_tabs_inset * 2;
+pub const divider_height = 20;
+pub const chip_height = 26;
+
+const view_tab_height = 26;
+/// The view tabs' line and padding around the tabs.
+const view_tabs_inset = 1 + 2;
 
 /// The design's `.tb` button. True when clicked.
 pub fn toolButton(id: []const u8, options: ToolButton) bool {
@@ -126,7 +138,7 @@ pub fn toolButton(id: []const u8, options: ToolButton) bool {
         x += px(icon_size) + px(6);
     }
     if (options.label.len > 0) {
-        gui.drawText(list, .{ .x = x, .y = middle - c.ImGui_GetFontSize() / 2 }, foreground, options.label);
+        gui.drawText(list, .{ .x = x, .y = gui.textTop(middle) }, foreground, options.label);
         x += label_width + px(6);
     }
     if (options.key) |key| {
@@ -165,7 +177,7 @@ pub const KeyChipStyle = enum { normal, on_accent };
 pub fn keyChip(text: []const u8) void {
     const at = gui.cursor();
     const width = keyChipWidth(text);
-    const height = px(17);
+    const height = keyChipHeight();
     c.ImGui_Dummy(.{ .x = width, .y = height });
     drawKeyChip(gui.drawList(), .{ .x = at.x, .y = at.y + height / 2 }, text, .normal);
 }
@@ -176,12 +188,18 @@ pub fn keyChipWidth(text: []const u8) f32 {
     return gui.textSize(text).x + px(4) * 2 + px(2);
 }
 
+/// A key chip's height: a line as high as its font's size, 2 pixels above and below it, and its
+/// line.
+fn keyChipHeight() f32 {
+    return px(fonts.size.tiny) + px(2) * 2 + px(2);
+}
+
 /// Draws a key chip starting at `middle.x`, centred on `middle.y`.
 pub fn drawKeyChip(list: *c.ImDrawList, middle: Vec2, text: []const u8, style: KeyChipStyle) void {
     gui.mono(.medium, fonts.size.tiny);
     defer gui.popFont();
     const width = gui.textSize(text).x + px(4) * 2 + px(2);
-    const height = c.ImGui_GetFontSize() + px(2) * 2 + px(2);
+    const height = keyChipHeight();
     const min = gui.vec2(middle.x, middle.y - height / 2);
     const max = gui.vec2(middle.x + width, middle.y + height / 2);
     const background, const border, const foreground = switch (style) {
@@ -190,7 +208,7 @@ pub fn drawKeyChip(list: *c.ImDrawList, middle: Vec2, text: []const u8, style: K
     };
     gui.rect(list, min, max, background, 3);
     gui.outline(list, min, max, border, 3);
-    gui.drawText(list, .{ .x = min.x + px(5), .y = middle.y - c.ImGui_GetFontSize() / 2 }, foreground, text);
+    gui.drawText(list, .{ .x = min.x + px(5), .y = gui.textTopIn(middle.y, fonts.size.tiny) }, foreground, text);
 }
 
 pub const PillStyle = enum { normal, err, warn };
@@ -215,6 +233,9 @@ pub fn pillWidth(text: []const u8) f32 {
     return @max(px(18), gui.textSize(text).x + px(5) * 2);
 }
 
+/// The design's pills have 16 pixel lines.
+const pill_line = 16;
+
 pub fn drawPill(list: *c.ImDrawList, middle: Vec2, shown: Pill) void {
     gui.sans(.regular, fonts.size.tiny);
     defer gui.popFont();
@@ -228,7 +249,7 @@ pub fn drawPill(list: *c.ImDrawList, middle: Vec2, shown: Pill) void {
     const min = gui.vec2(middle.x, middle.y - height / 2);
     gui.rect(list, min, .{ .x = middle.x + width, .y = middle.y + height / 2 }, background, 9);
     const text_width = gui.textSize(shown.text).x;
-    gui.drawText(list, .{ .x = middle.x + (width - text_width) / 2, .y = middle.y - c.ImGui_GetFontSize() / 2 }, foreground, shown.text);
+    gui.drawText(list, .{ .x = middle.x + (width - text_width) / 2, .y = gui.textTopIn(middle.y, pill_line) }, foreground, shown.text);
 }
 
 pub const ChipStyle = enum {
@@ -270,7 +291,7 @@ pub fn chipWidth(shown: Chip) f32 {
 
 pub fn chip(shown: Chip) void {
     const width = chipWidth(shown);
-    const height = px(26);
+    const height = px(chip_height);
     const at = gui.cursor();
     c.ImGui_Dummy(.{ .x = width, .y = height });
     const list = gui.drawList();
@@ -293,24 +314,24 @@ pub fn chip(shown: Chip) void {
         x += px(7) + px(7);
     }
     gui.sans(.regular, fonts.size.small);
-    gui.drawText(list, .{ .x = x, .y = middle - c.ImGui_GetFontSize() / 2 }, foreground, shown.text);
+    gui.drawText(list, .{ .x = x, .y = gui.textTop(middle) }, foreground, shown.text);
     x += gui.textSize(shown.text).x + px(7);
     gui.popFont();
     if (shown.extra) |extra| {
         if (shown.extra_mono) gui.mono(.regular, fonts.size.small) else gui.sans(.regular, fonts.size.small);
-        gui.drawText(list, .{ .x = x, .y = middle - c.ImGui_GetFontSize() / 2 }, dim, extra);
+        gui.drawText(list, .{ .x = x, .y = gui.textTop(middle) }, dim, extra);
         gui.popFont();
     }
     if (shown.tooltip) |tip| gui.tooltip(tip);
 }
 
-/// A thin upright line between groups of the toolbar's buttons.
+/// A thin upright line between groups of the toolbar's buttons, with 4 pixels to each side.
 pub fn toolbarDivider() void {
     const at = gui.cursor();
-    const height = px(28);
-    c.ImGui_Dummy(.{ .x = px(9), .y = height });
+    const height = px(divider_height);
+    c.ImGui_Dummy(.{ .x = px(4) * 2 + px(1), .y = height });
     const x = at.x + px(4);
-    gui.rect(gui.drawList(), .{ .x = x, .y = at.y + px(4) }, .{ .x = x + px(1), .y = at.y + height - px(4) }, theme.border, 0);
+    gui.rect(gui.drawList(), .{ .x = x, .y = at.y }, .{ .x = x + px(1), .y = at.y + height }, theme.border, 0);
 }
 
 pub const ViewTab = struct {
@@ -327,27 +348,28 @@ pub fn viewTabs(id: []const u8, tabs: []const ViewTab, current: usize) ?usize {
     defer gui.popId();
     gui.sans(.medium, fonts.size.ui);
     defer gui.popFont();
-    var total: f32 = px(2) * 2 + px(2) * @as(f32, @floatFromInt(tabs.len - 1));
+    var total: f32 = px(view_tabs_inset) * 2 + px(2) * @as(f32, @floatFromInt(tabs.len - 1));
     for (tabs) |tab| total += tabWidth(tab);
     const at = gui.cursor();
-    const height = px(30);
+    const height = px(view_tabs_height);
     const list = gui.drawList();
     const box_max = gui.vec2(at.x + total, at.y + height);
     gui.rect(list, at, box_max, theme.code, 6);
     gui.outline(list, at, box_max, theme.border, 6);
     var clicked: ?usize = null;
-    var x = at.x + px(2);
+    var x = at.x + px(view_tabs_inset);
+    const tab_top = at.y + px(view_tabs_inset);
     for (tabs, 0..) |tab, index| {
         const width = tabWidth(tab);
-        gui.setCursor(.{ .x = x, .y = at.y + px(2) });
+        gui.setCursor(.{ .x = x, .y = tab_top });
         gui.pushIdInt(index);
-        const pressed = c.ImGui_InvisibleButton("view", .{ .x = width, .y = px(26) }, 0);
+        const pressed = c.ImGui_InvisibleButton("view", .{ .x = width, .y = px(view_tab_height) }, 0);
         gui.popId();
         const hovered = c.ImGui_IsItemHovered(c.ImGuiHoveredFlags_AllowWhenDisabled);
         if (tab.disabled == null) gui.handCursor();
         const on = index == current;
-        const min = gui.vec2(x, at.y + px(2));
-        const max = gui.vec2(x + width, at.y + px(28));
+        const min = gui.vec2(x, tab_top);
+        const max = gui.vec2(x + width, tab_top + px(view_tab_height));
         var foreground = theme.text_muted;
         if (tab.disabled != null) {
             foreground = theme.text_off;
@@ -361,7 +383,7 @@ pub fn viewTabs(id: []const u8, tabs: []const ViewTab, current: usize) ?usize {
         }
         const middle = at.y + height / 2;
         drawIcon(list, .{ .x = x + px(11), .y = middle }, tab.icon, fonts.size.icon_small, foreground);
-        gui.drawText(list, .{ .x = x + px(11) + px(14) + px(7), .y = middle - c.ImGui_GetFontSize() / 2 }, foreground, tab.label);
+        gui.drawText(list, .{ .x = x + px(11) + px(14) + px(7), .y = gui.textTop(middle) }, foreground, tab.label);
         if (tab.disabled) |off| {
             gui.tooltip(off.reason);
         } else if (tab.tooltip) |tip| {
@@ -385,7 +407,7 @@ pub fn picker(id: []const u8, label: []const u8, flag_color: Color, tooltip: ?[]
     gui.sans(.semibold, fonts.size.body);
     defer gui.popFont();
     const width = px(10) * 2 + px(14) + px(7) + gui.textSize(label).x + px(7) + px(12);
-    const height = px(30);
+    const height = px(picker_height);
     const at = gui.cursor();
     const clicked = c.ImGui_InvisibleButton(gui.z(id), .{ .x = width, .y = height }, 0);
     const hovered = gui.hovered();
@@ -398,7 +420,7 @@ pub fn picker(id: []const u8, label: []const u8, flag_color: Color, tooltip: ?[]
     var x = at.x + px(10);
     drawIcon(list, .{ .x = x, .y = middle }, .flag, fonts.size.icon_small, flag_color);
     x += px(14) + px(7);
-    gui.drawText(list, .{ .x = x, .y = middle - c.ImGui_GetFontSize() / 2 }, theme.text_strong, label);
+    gui.drawText(list, .{ .x = x, .y = gui.textTop(middle) }, theme.text_strong, label);
     x += gui.textSize(label).x + px(7);
     drawIcon(list, .{ .x = x, .y = middle }, .chevron_down, fonts.size.icon_tiny, theme.text_dim);
     if (tooltip) |tip| gui.tooltip(tip);
@@ -413,8 +435,9 @@ pub fn sectionHeading(text: []const u8) void {
     const shown = std.ascii.upperString(upper[0..@min(text.len, upper.len)], text[0..@min(text.len, upper.len)]);
     const at = gui.cursor();
     const width = gui.spacedWidth(shown, 0.84);
-    c.ImGui_Dummy(.{ .x = width, .y = c.ImGui_GetFontSize() });
-    _ = gui.drawSpaced(gui.drawList(), at, theme.text_dim, shown, 0.84);
+    const height = px(fonts.size.tiny * fonts.line_height);
+    c.ImGui_Dummy(.{ .x = width, .y = height });
+    _ = gui.drawSpaced(gui.drawList(), .{ .x = at.x, .y = gui.textTop(at.y + height / 2) }, theme.text_dim, shown, 0.84);
 }
 
 pub const Badge = struct {
@@ -448,7 +471,7 @@ pub fn drawBadge(list: *c.ImDrawList, right: f32, middle: f32, shown: Badge) f32
     const height = px(16);
     const min = gui.vec2(right - width, middle - height / 2);
     gui.rect(list, min, .{ .x = right, .y = middle + height / 2 }, shown.background, 3);
-    _ = gui.drawSpaced(list, .{ .x = min.x + px(6), .y = middle - c.ImGui_GetFontSize() / 2 }, shown.foreground, text, 0.5);
+    _ = gui.drawSpaced(list, .{ .x = min.x + px(6), .y = gui.textTop(middle) }, shown.foreground, text, 0.5);
     return min.x;
 }
 
@@ -535,7 +558,7 @@ pub fn row(id: []const u8, shown: Row) RowResult {
             if (end.mono) gui.mono(.regular, fonts.size.smaller) else gui.sans(.regular, fonts.size.smaller);
             const end_width = gui.textSize(end.text).x;
             end_left = right - end_width;
-            gui.drawText(list, .{ .x = end_left, .y = middle - c.ImGui_GetFontSize() / 2 }, end.color, end.text);
+            gui.drawText(list, .{ .x = end_left, .y = gui.textTop(middle) }, end.color, end.text);
             gui.popFont();
         },
         .badge => |badge| end_left = drawBadge(list, right, middle, badge),
@@ -546,7 +569,7 @@ pub fn row(id: []const u8, shown: Row) RowResult {
     }
     const label_color = shown.label_color orelse if (shown.selected) theme.selected_text else if (shown.failed) theme.error_text else if (shown.strong) theme.text_strong else theme.text_row;
     if (shown.mono_label) gui.mono(if (shown.strong) .semibold else .regular, fonts.size.ui) else gui.sans(if (shown.strong) .semibold else .regular, fonts.size.ui);
-    clippedText(list, .{ .x = x, .y = middle - c.ImGui_GetFontSize() / 2 }, end_left - px(8), label_color, shown.label);
+    clippedText(list, .{ .x = x, .y = gui.textTop(middle) }, end_left - px(8), label_color, shown.label);
     gui.popFont();
     return result;
 }
@@ -557,7 +580,7 @@ pub fn fieldLabel(text: []const u8, mono_label: bool) void {
     const height = px(26);
     c.ImGui_Dummy(.{ .x = px(96), .y = height });
     if (mono_label) gui.mono(.regular, fonts.size.small) else gui.sans(.regular, fonts.size.small);
-    gui.drawText(gui.drawList(), .{ .x = at.x, .y = at.y + (height - c.ImGui_GetFontSize()) / 2 }, theme.text_muted, text);
+    gui.drawText(gui.drawList(), .{ .x = at.x, .y = gui.textTop(at.y + height / 2) }, theme.text_muted, text);
     gui.popFont();
     gui.sameLine(8);
 }
@@ -597,12 +620,12 @@ pub fn frame(id: []const u8, shown: Frame) bool {
     }
     const limit = max.x - px(8) - (if (shown.chevron) px(12) + px(6) else 0);
     if (shown.mono_label) gui.mono(.regular, fonts.size.ui) else gui.sans(.regular, fonts.size.ui);
-    clippedText(list, .{ .x = x, .y = middle - c.ImGui_GetFontSize() / 2 }, limit, theme.text, shown.label);
+    clippedText(list, .{ .x = x, .y = gui.textTop(middle) }, limit, theme.text, shown.label);
     x += gui.textSize(shown.label).x + px(7);
     gui.popFont();
     if (shown.detail) |detail| if (x < limit) {
         gui.mono(.regular, fonts.size.ui);
-        clippedText(list, .{ .x = x, .y = middle - c.ImGui_GetFontSize() / 2 }, limit, theme.text_dim, detail);
+        clippedText(list, .{ .x = x, .y = gui.textTop(middle) }, limit, theme.text_dim, detail);
         gui.popFont();
     };
     if (shown.chevron) drawIcon(list, .{ .x = max.x - px(8) - px(12), .y = middle }, .chevron_down, fonts.size.icon_tiny, theme.text_dim);
@@ -635,7 +658,7 @@ pub fn segmented(id: []const u8, options: []const []const u8, current: usize, di
         const on = index == current;
         if (on) gui.rect(list, .{ .x = x, .y = at.y + px(2) }, .{ .x = x + each, .y = at.y + px(24) }, theme.border, 3);
         const text_width = gui.textSize(option).x;
-        gui.drawText(list, .{ .x = x + (each - text_width) / 2, .y = at.y + px(2) + (px(22) - c.ImGui_GetFontSize()) / 2 }, if (on) theme.white else theme.text_muted, option);
+        gui.drawText(list, .{ .x = x + (each - text_width) / 2, .y = gui.textTop(at.y + px(2) + px(22) / 2) }, if (on) theme.white else theme.text_muted, option);
         if (disabled) |off| gui.tooltip(off.reason);
     }
     gui.setCursor(at);
@@ -663,7 +686,7 @@ pub fn checkbox(id: []const u8, label: []const u8, checked: bool, disabled: ?Dis
         gui.rect(list, min, max, theme.button, 3);
         gui.outline(list, min, max, theme.border_strong, 3);
     }
-    gui.drawText(list, .{ .x = at.x + box + px(8), .y = middle - c.ImGui_GetFontSize() / 2 }, if (disabled == null) theme.text_menu else theme.text_off, label);
+    gui.drawText(list, .{ .x = at.x + box + px(8), .y = gui.textTop(middle) }, if (disabled == null) theme.text_menu else theme.text_off, label);
     if (disabled) |off| gui.tooltip(off.reason);
     return clicked;
 }
@@ -686,7 +709,7 @@ pub fn toggle(id: []const u8, label: []const u8, on: bool, disabled: ?Disabled) 
     gui.rect(list, min, max, if (lit) theme.accent else theme.border, 7);
     const knob_x = if (on) max.x - px(2) - px(4.5) else min.x + px(2) + px(4.5);
     gui.dot(list, .{ .x = knob_x, .y = middle }, 4.5, if (lit) theme.on_accent else theme.text_off);
-    gui.drawText(list, .{ .x = max.x + px(7), .y = middle - c.ImGui_GetFontSize() / 2 }, if (disabled == null) theme.text_menu else theme.text_off, label);
+    gui.drawText(list, .{ .x = max.x + px(7), .y = gui.textTop(middle) }, if (disabled == null) theme.text_menu else theme.text_off, label);
     if (disabled) |off| gui.tooltip(off.reason);
     return clicked;
 }
@@ -744,7 +767,7 @@ pub fn searchField(id: [:0]const u8, buffer: [:0]u8, hint: [:0]const u8, width: 
     }
     gui.sans(.regular, fonts.size.ui);
     defer gui.popFont();
-    const padding_y = (px(height) - c.ImGui_GetFontSize()) / 2;
+    const padding_y = gui.textTop(at.y + px(height) / 2) - at.y;
     gui.setCursor(.{ .x = x, .y = at.y });
     c.ImGui_SetNextItemWidth(max.x - x - px(6));
     gui.pushColor(c.ImGuiCol_FrameBg, theme.fade(theme.field, 0));
