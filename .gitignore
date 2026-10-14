@@ -1,0 +1,19 @@
+# Zig's build output, its cache, and the packages it fetches into the project.
+/zig-out/
+/.zig-cache/
+/zig-pkg/
+
+# The game's files and what's made from them: never commit these. `scripts/check-files.sh`, run by
+# the pre-commit hook and by CI, refuses them too.
+/game/
+*.[hH][oO][gG]
+*.[dD][tT][eE]
+*.[sS][hH][pP]
+*.[fF][mM]8
+*.[sS][pP][rR]
+*.[bB][iI][kK]
+*.[eE][xX][eE]
+*.[dD][lL][lL]
+
+# The pictures the editor takes of its screens with --screenshot.
+/shots/
