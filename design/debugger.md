@@ -20,8 +20,8 @@ it fills are [Script](README.md#script), held at a breakpoint, and [Debugging](R
 - **Shows the script listing beside the source**, with the held instruction and the breakpoints in
   both.
 
-Later, as OpenReliant carries them: a timeline of the run, the live scene, and live changes, which
-send each build into the running game.
+Later: a timeline of the run and the live scene, which OpenReliant carries from 0.16.0, and live
+changes, which send each build into the running game once OpenReliant takes them.
 
 ## The link
 
@@ -39,7 +39,8 @@ its library exports, so the two can't drift apart.
 | `0x09` Script flags | Editor | A byte for each byte of the script, bit 0 set where it stops | Sent for each attempt at the mission, and as breakpoints change |
 | `0x1A` Stopped | Game | The offset in the script of the byte it stopped before | Holds: the line, then the state |
 | `0x105` Get state | Editor | | Sent on each hold, and for watches while the script runs |
-| `0x106` State | Game | The script's clock, hold, step and pause, threads, globals and variables | Fills Threads, Variables, Watch and the values shown inline |
+| `0x106` State | Game | The script's clock, hold, step and pause, threads, globals and variables. From OpenReliant 0.16.0, also each ship's order and target, and the triggers fired and the commands run since the last state | Fills Threads, Variables, Watch, the values shown inline, the timeline, and the live scene's orders |
+| `0x103` Get mission | Editor | | Sent for the live scene, a few times a second while it shows. Only the file that comes with `Mission started` is answered with the flags |
 | `0x15` Run control | Editor | Pause or go on, run on, step into, step over, run a part | Continue, the steps, Pause |
 | `0x1B` First finished | Game | Whether the start parts' first thread has finished | Says when the start parts are done |
 | `0x102` Mission ended | Game | | Says no mission plays, and keeps the link |
@@ -175,7 +176,9 @@ timeline under them. The listing marks the held instruction and the breakpoints'
 on a line of either side selects its counterpart in the other. Its own gutter sets breakpoints by
 offset. `@@` and an offset in the command palette goes to the offset's line.
 
-The timeline waits for the game's events (below), and shows a note until then.
+The timeline has a row each for the triggers fired, the commands run and the holds, on the script's
+clock. Each state gives the triggers and commands since the one before; the holds are the editor's
+own.
 
 ### Settings: Editor link
 
@@ -212,17 +215,17 @@ StarLancer's offsets or opcodes:
   kind;
 - the names of the state's globals, from the outline.
 
-## What OpenReliant needs
+## What OpenReliant gives
 
-| Need | For | Issue |
+| What | For | In OpenReliant |
 |---|---|---|
-| The compiler's map of source lines to the script's statements, from its library | Line breakpoints, the held line, the listing's lines | [#1206](https://github.com/OpenReliant/openreliant/issues/1206) |
-| The link's text payloads read into records in its library, which `openreliant debug` reads them with now | The editor and `openreliant debug` reading them alike | [#1206](https://github.com/OpenReliant/openreliant/issues/1206) |
-| The start of a mission waiting for the editor's flags, rather than for a fifth of a second | Breakpoints in the start parts, on a slow computer too | [#1206](https://github.com/OpenReliant/openreliant/issues/1206) |
-| The script's events: a trigger firing, a part starting, a command running, a hold | The timeline | [#1207](https://github.com/OpenReliant/openreliant/issues/1207) |
-| The live scene | The Live scene panel, the inspector's Live section, watches of ranges | [#1059](https://github.com/OpenReliant/openreliant/issues/1059) |
-| The editor's live changes to the mission | Live changes, the status bar's switch | [#1057](https://github.com/OpenReliant/openreliant/issues/1057) |
-| Starting a mission partway through | Play from part, linked | [#577](https://github.com/OpenReliant/openreliant/issues/577) |
+| The compiler's map of source lines to the script's statements, from its library | Line breakpoints, the held line, the listing's lines | 0.15.0 ([#1206](https://github.com/OpenReliant/openreliant/issues/1206)) |
+| The link's text payloads read into records in its library, which `openreliant debug` reads them with too | The editor and `openreliant debug` reading them alike | 0.15.0 ([#1206](https://github.com/OpenReliant/openreliant/issues/1206)) |
+| The start of a mission waiting for the editor's flags, rather than for a fifth of a second | Breakpoints in the start parts, on a slow computer too | 0.15.0 ([#1206](https://github.com/OpenReliant/openreliant/issues/1206)) |
+| The script's events in `State`: the triggers fired and the commands run | The timeline | 0.16.0 ([#1207](https://github.com/OpenReliant/openreliant/issues/1207)) |
+| Each ship's place and heading in `Mission file`, kept up to date every frame, and its order and target in `State` | The Live scene panel, the inspector's Live section, watches of ranges | 0.16.0 ([#1059](https://github.com/OpenReliant/openreliant/issues/1059)) |
+| The editor's live changes to the mission | Live changes, the status bar's switch | Not yet ([#1057](https://github.com/OpenReliant/openreliant/issues/1057)) |
+| Starting a mission partway through, with the variables the earlier parts set | The `earlier parts` box of Play from part | Not yet ([#577](https://github.com/OpenReliant/openreliant/issues/577)) |
 
 The compiler keeps each statement's place in the source until the script is written, and writes
 down the offset of the instruction the VM stops before. The start's wait is an improvement on the
@@ -241,11 +244,11 @@ Each stage is a release of its own, with OpenReliant's part merged first.
    Conditions, hit counts, log points, breakpoints by offset and the kinds of entry, the
    breakpoint's editor, Watch, the values shown inline, the Debugging screen with the listing
    beside the source, and `@@` offsets in the palette.
-3. **The timeline** ([#20](https://github.com/OpenReliant/openreliant-editor/issues/20)), once
-   OpenReliant sends the script's events.
-4. **The live scene** ([#21](https://github.com/OpenReliant/openreliant-editor/issues/21)), once
-   OpenReliant carries it: the Live scene panel, the inspector's Live section, watches of ranges,
-   and the Scene view's ships where they are now in the game.
+3. **The timeline** ([#20](https://github.com/OpenReliant/openreliant-editor/issues/20)), from the
+   script's events in OpenReliant 0.16.0's `State`.
+4. **The live scene** ([#21](https://github.com/OpenReliant/openreliant-editor/issues/21)), from
+   OpenReliant 0.16.0's `Mission file` and `State`: the Live scene panel, the inspector's Live
+   section, watches of ranges, and the Scene view's ships where they are now in the game.
 5. **Live changes** ([#22](https://github.com/OpenReliant/openreliant-editor/issues/22)), once
    OpenReliant takes them: each build sent into the running game, with the status bar's switch.
 

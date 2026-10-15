@@ -260,8 +260,10 @@ pub const Session = struct {
             session.note(.failure, "No profile for {s} · unlinked", .{hello.game.name});
             return session.closeLink();
         }
-        if (hello.protocol != link.protocol_version) {
-            session.note(.failure, "Link protocol {d}, editor's {d}", .{ hello.protocol, link.protocol_version });
+        // Each version of the protocol only adds messages and keys, which a reader passes over, so
+        // a newer game links as it is. An older one lacks what the editor reads.
+        if (hello.protocol < link.protocol_version) {
+            session.note(.failure, "Link protocol {d}, editor's {d} · update OpenReliant", .{ hello.protocol, link.protocol_version });
         }
         const text = std.mem.concat(session.gpa, u8, &.{ hello.game.name, hello.game.vm, hello.openreliant }) catch return;
         const vm_end = hello.game.name.len + hello.game.vm.len;
@@ -753,6 +755,32 @@ test "the editor answers a mission it has no build of with no flags" {
         }
     }.done);
     session.freeNotes();
+}
+
+test "a newer game links quietly, and an older one says to update" {
+    const gpa = std.testing.allocator;
+    const io = std.testing.io;
+    for ([_]struct { protocol: u32, failures: usize }{
+        .{ .protocol = link.protocol_version + 1, .failures = 0 },
+        .{ .protocol = link.protocol_version - 1, .failures = 1 },
+    }) |case| {
+        var fake: FakeGame = try .listen(io);
+        defer fake.deinit();
+        var session: Session = .init(gpa, io, &game.starlancer.profile, connection_mod.testing.noWake);
+        defer session.deinit();
+        session.connect(fake.port(), .waiting);
+        try fake.accept();
+        try fake.sendRecord(.hello, link.Hello{ .protocol = case.protocol, .openreliant = "9.9.9", .game = .{ .name = "StarLancer", .vm = "starlancer" } });
+        try settle(&session, io, struct {
+            fn done(s: *const Session) bool {
+                return s.link_state == .linked;
+            }
+        }.done);
+        var failures: usize = 0;
+        for (session.takeNotes()) |note| failures += @intFromBool(note.kind == .failure);
+        try std.testing.expectEqual(case.failures, failures);
+        session.freeNotes();
+    }
 }
 
 test "a game that isn't there: the editor gives up" {
