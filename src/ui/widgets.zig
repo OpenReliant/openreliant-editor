@@ -575,14 +575,56 @@ pub const Badge = struct {
 pub fn clippedText(list: *c.ImDrawList, at: Vec2, limit: f32, color: Color, text: []const u8) void {
     if (at.x + gui.textSize(text).x <= limit) return gui.drawText(list, at, color, text);
     const ellipsis = "…";
-    const room = limit - at.x - gui.textSize(ellipsis).x;
-    var end = text.len;
-    while (end > 0 and gui.textSize(text[0..end]).x > room) {
-        end -= 1;
-        while (end > 0 and text[end] & 0xc0 == 0x80) end -= 1;
+    const shown = fittingStart(text, limit - at.x - gui.textSize(ellipsis).x, textWidth);
+    gui.drawText(list, at, color, shown);
+    gui.drawText(list, .{ .x = at.x + gui.textSize(shown).x, .y = at.y }, color, ellipsis);
+}
+
+/// How wide `text` is in the current font.
+fn textWidth(text: []const u8) f32 {
+    return gui.textSize(text).x;
+}
+
+/// The longest start of `text` that is at most `room` wide by `width` and ends between two
+/// characters. It halves the lengths the start can be, since a longer start is never narrower.
+/// `text` itself is wider than `room`.
+fn fittingStart(text: []const u8, room: f32, comptime width: fn ([]const u8) f32) []const u8 {
+    var fits: usize = 0;
+    var too_long = text.len;
+    while (too_long - fits > 1) {
+        const half = fits + (too_long - fits) / 2;
+        // The nearest end between two characters, below the half or else above it.
+        var end = half;
+        while (end > fits and isContinuation(text[end])) end -= 1;
+        if (end == fits) {
+            end = half;
+            while (end < too_long and isContinuation(text[end])) end += 1;
+            if (end == too_long) break;
+        }
+        if (width(text[0..end]) <= room) fits = end else too_long = end;
     }
-    gui.drawText(list, at, color, text[0..end]);
-    gui.drawText(list, .{ .x = at.x + gui.textSize(text[0..end]).x, .y = at.y }, color, ellipsis);
+    return text[0..fits];
+}
+
+/// Whether `byte` continues a character of UTF-8 rather than starting one.
+fn isContinuation(byte: u8) bool {
+    return byte & 0xc0 == 0x80;
+}
+
+test fittingStart {
+    const characters = struct {
+        /// A width of 1 for each character.
+        fn width(text: []const u8) f32 {
+            const count = std.unicode.utf8CountCodepoints(text) catch @panic("a start that splits a character");
+            return @floatFromInt(count);
+        }
+    }.width;
+    try std.testing.expectEqualStrings("abc", fittingStart("abcdef", 3, characters));
+    try std.testing.expectEqualStrings("", fittingStart("abcdef", 0.5, characters));
+    // A cut never splits a character: "é" is two bytes.
+    try std.testing.expectEqualStrings("é", fittingStart("éa", 1, characters));
+    try std.testing.expectEqualStrings("aéé", fittingStart("aééé", 3, characters));
+    try std.testing.expectEqualStrings("aé", fittingStart("aé€é", 2.5, characters));
 }
 
 /// The design's small uppercase badges, such as START and HELD, ending at `right`. Where the badge
@@ -883,7 +925,7 @@ pub fn textField(id: []const u8, value: []const u8, options: TextField) ?[]const
     if (options.tag) |tag| {
         const tag_width = px(18);
         c.ImDrawList_AddRectFilledEx(list, at, .{ .x = at.x + tag_width, .y = max.y }, tag.color, px(3), c.ImDrawFlags_RoundCornersLeft);
-        gui.sans(.semibold, 11);
+        gui.sans(.semibold, fonts.size.note);
         gui.drawText(list, .{ .x = at.x + (tag_width - gui.textSize(tag.letter).x) / 2, .y = gui.textTop(middle) }, tag.text, tag.letter);
         gui.popFont();
         left = at.x + tag_width + px(6);

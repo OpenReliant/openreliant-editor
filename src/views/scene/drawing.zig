@@ -11,7 +11,9 @@ const fonts = ui.fonts;
 const gui = ui.gui;
 const plot = ui.plot;
 const theme = ui.theme;
+const widgets = ui.widgets;
 const Color = theme.Color;
+const Icon = ui.icons.Icon;
 const Vec2 = gui.Vec2;
 const px = gui.px;
 
@@ -26,6 +28,10 @@ const cluster_figures = fonts.size.tiny;
 const cluster_padding = 4;
 /// How long a leg to or from a place off the map is drawn, in pixels.
 const stub_length = 56;
+/// How far the notes over the map are from its edges, in design pixels: a note in a box, such as
+/// the legend, and one without, such as the scale.
+pub const box_margin = 10;
+pub const note_margin = 12;
 
 pub fn distanceTo(a: Vec2, b: Vec2) f32 {
     return @sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
@@ -281,28 +287,45 @@ pub fn brackets(list: *c.ImDrawList, middle: Vec2, half: f32) void {
     }
 }
 
-/// The note by the selected thing: where it is on the map's axes, `names` across and up, and how
-/// to move it.
-pub fn placeNote(list: *c.ImDrawList, middle: Vec2, names: [2][]const u8, values: [2]f64) void {
-    const where = gui.print("{s} {d} · {s} {d}", .{ names[0], @round(values[0]), names[1], @round(values[1]) });
+/// The note by the selected thing: where it is on the map's axes, and how to move it.
+pub const PlaceNote = struct {
+    box: [2]Vec2,
+    where: []const u8,
+
     const how = "Drag · Shift: snap 100";
-    gui.mono(.regular, fonts.size.smaller);
-    const where_width = gui.textSize(where).x;
-    gui.popFont();
-    gui.sans(.regular, fonts.size.smaller);
-    const how_width = gui.textSize(how).x;
-    gui.popFont();
-    const width = @max(where_width, how_width) + px(18);
-    const height = px(42);
-    const min: Vec2 = .{ .x = middle.x - px(14) - width, .y = middle.y + px(14) };
-    const max: Vec2 = .{ .x = min.x + width, .y = min.y + height };
+    /// In design pixels: how far its corner is from the mark's middle, across and down, its
+    /// height, its padding each side, and the middles of its two lines, down from its top.
+    const offset = 14;
+    const height = 42;
+    const inset = 9;
+    const lines = [2]f32{ 13, 29 };
+
+    /// The note by the mark at `middle`, at `values` on the axes `names` across and up.
+    pub fn at(middle: Vec2, names: [2][]const u8, values: [2]f64) PlaceNote {
+        const where = gui.print("{s} {d} · {s} {d}", .{ names[0], @round(values[0]), names[1], @round(values[1]) });
+        gui.mono(.regular, fonts.size.smaller);
+        const where_width = gui.textSize(where).x;
+        gui.popFont();
+        gui.sans(.regular, fonts.size.smaller);
+        const how_width = gui.textSize(how).x;
+        gui.popFont();
+        const width = @max(where_width, how_width) + px(2 * inset);
+        const min: Vec2 = .{ .x = middle.x - px(offset) - width, .y = middle.y + px(offset) };
+        return .{ .box = .{ min, .{ .x = min.x + width, .y = min.y + px(height) } }, .where = where };
+    }
+};
+
+/// Draws `note` (`PlaceNote.at`).
+pub fn placeNote(list: *c.ImDrawList, note: PlaceNote) void {
+    const min, const max = note.box;
     gui.rect(list, min, max, theme.fade(theme.panel, 0.94), 4);
     gui.outline(list, min, max, theme.border_strong, 4);
+    const left = min.x + px(PlaceNote.inset);
     gui.mono(.regular, fonts.size.smaller);
-    gui.drawText(list, .{ .x = min.x + px(9), .y = gui.textTop(min.y + px(13)) }, theme.text_strong, where);
+    gui.drawText(list, .{ .x = left, .y = gui.textTop(min.y + px(PlaceNote.lines[0])) }, theme.text_strong, note.where);
     gui.popFont();
     gui.sans(.regular, fonts.size.smaller);
-    gui.drawText(list, .{ .x = min.x + px(9), .y = gui.textTop(min.y + px(29)) }, theme.text_muted, how);
+    gui.drawText(list, .{ .x = left, .y = gui.textTop(min.y + px(PlaceNote.lines[1])) }, theme.text_muted, PlaceNote.how);
     gui.popFont();
 }
 
@@ -368,34 +391,69 @@ pub fn leg(list: *c.ImDrawList, from: End, to: End, look: LegLook, corners: [2]V
     return .{ along(start, way, shown[0]), along(start, way, shown[1]) };
 }
 
-/// What the map's marks and lines are, in its top left corner: where the ships start, and while the
-/// routes show, the legs ships fly and those they jump.
-pub fn legend(list: *c.ImDrawList, corner: Vec2, routes: bool) void {
-    const rows = [_][]const u8{ "Start", "Flies", "Jumps" };
-    const shown: usize = if (routes) rows.len else 1;
+/// The legend's rows: where the ships start, and while the routes show, the legs ships fly and those
+/// they jump.
+const legend_rows = [_][]const u8{ "Start", "Flies", "Jumps" };
+/// The legend, in design pixels: the room for a row's sample, the gap between it and the row's
+/// text, its rows' height, and its padding across and down.
+const legend_sample = 18;
+const legend_gap = 7;
+const legend_row = 20;
+const legend_padding: Vec2 = .{ .x = 10, .y = 5 };
+
+/// Where the legend goes, in the map's top left corner `corner`.
+pub fn legendBox(corner: Vec2, routes: bool) [2]Vec2 {
+    const rows = legendRows(routes);
     gui.sans(.regular, fonts.size.smaller);
     defer gui.popFont();
     var widest: f32 = 0;
-    for (rows[0..shown]) |text| widest = @max(widest, gui.textSize(text).x);
-    const sample = px(18);
-    const row = px(20);
-    const min: Vec2 = .{ .x = corner.x + px(10), .y = corner.y + px(10) };
-    const max: Vec2 = .{ .x = min.x + px(10 + 7 + 10) + sample + widest, .y = min.y + px(10) + row * @as(f32, @floatFromInt(shown)) };
+    for (rows) |text| widest = @max(widest, gui.textSize(text).x);
+    const min: Vec2 = .{ .x = corner.x + px(box_margin), .y = corner.y + px(box_margin) };
+    const width = px(2 * legend_padding.x + legend_sample + legend_gap) + widest;
+    const height = px(2 * legend_padding.y + legend_row * @as(f32, @floatFromInt(rows.len)));
+    return .{ min, .{ .x = min.x + width, .y = min.y + height } };
+}
+
+fn legendRows(routes: bool) []const []const u8 {
+    return legend_rows[0..if (routes) legend_rows.len else 1];
+}
+
+/// What the map's marks and lines are, in `box` (`legendBox`).
+pub fn legend(list: *c.ImDrawList, box: [2]Vec2, routes: bool) void {
+    const min, const max = box;
     gui.rect(list, min, max, theme.fade(theme.bar, 0.9), 4);
     gui.outline(list, min, max, theme.border_off, 4);
-    for (rows[0..shown], 0..) |text, index| {
-        const middle = min.y + px(5) + row * (@as(f32, @floatFromInt(index)) + 0.5);
-        const left = min.x + px(10);
+    gui.sans(.regular, fonts.size.smaller);
+    defer gui.popFont();
+    const sample = px(legend_sample);
+    const left = min.x + px(legend_padding.x);
+    for (legendRows(routes), 0..) |text, index| {
+        const middle = min.y + px(legend_padding.y) + px(legend_row) * (@as(f32, @floatFromInt(index)) + 0.5);
         switch (index) {
             0 => thing(list, .{ .x = left + sample / 2, .y = middle }, .ship, null, fonts.size.icon_tiny, theme.text_menu),
             else => _ = leg(list, .{ .middle = .{ .x = left, .y = middle } }, .{ .middle = .{ .x = left + sample + px(4), .y = middle } }, .{
                 .way = if (index == 1) .fly else .jump,
                 .starts = false,
                 .color = theme.text_menu,
-            }, .{ min, max }),
+            }, box),
         }
-        gui.drawText(list, .{ .x = left + sample + px(7), .y = gui.textTop(middle) }, theme.text_menu, text);
+        gui.drawText(list, .{ .x = left + sample + px(legend_gap), .y = gui.textTop(middle) }, theme.text_menu, text);
     }
+}
+
+/// The scale's ticks, at its ends, and the gap between them and its length written above, in design
+/// pixels.
+const scale_tick = 6;
+const scale_gap = 3;
+
+/// Where the scale goes, its left end at `corner` (`scaleBar`): its bar, and its length written
+/// above it.
+pub fn scaleBox(corner: Vec2, cell: f64, scale: f32) [2]Vec2 {
+    gui.sans(.regular, fonts.size.note);
+    defer gui.popFont();
+    const length = @as(f32, @floatCast(cell)) * scale;
+    const top = corner.y - px(scale_tick + scale_gap) - c.ImGui_GetFontSize();
+    return .{ .{ .x = corner.x, .y = top }, .{ .x = corner.x + @max(length, gui.textSize(distance(cell)).x), .y = corner.y } };
 }
 
 /// The scale, a cell of the grid long, its left end at `corner`, at `scale` pixels to the game's
@@ -403,11 +461,68 @@ pub fn legend(list: *c.ImDrawList, corner: Vec2, routes: bool) void {
 pub fn scaleBar(list: *c.ImDrawList, corner: Vec2, cell: f64, scale: f32) void {
     const length = @as(f32, @floatCast(cell)) * scale;
     const bottom = corner.y;
-    var points = [_]Vec2{ .{ .x = corner.x, .y = bottom - px(6) }, .{ .x = corner.x, .y = bottom }, .{ .x = corner.x + length, .y = bottom }, .{ .x = corner.x + length, .y = bottom - px(6) } };
+    const tick = px(scale_tick);
+    var points = [_]Vec2{ .{ .x = corner.x, .y = bottom - tick }, .{ .x = corner.x, .y = bottom }, .{ .x = corner.x + length, .y = bottom }, .{ .x = corner.x + length, .y = bottom - tick } };
     c.ImDrawList_AddPolyline(list, &points, points.len, theme.text_muted, px(1), 0);
-    gui.sans(.regular, 11);
+    const box = scaleBox(corner, cell, scale);
+    gui.sans(.regular, fonts.size.note);
     defer gui.popFont();
-    gui.drawText(list, .{ .x = corner.x, .y = bottom - px(9) - c.ImGui_GetFontSize() }, theme.text_muted, distance(cell));
+    gui.drawText(list, box[0], theme.text_muted, distance(cell));
+}
+
+/// Where the note that says which way the axes point goes, in the map's bottom right corner.
+pub fn axesNoteBox(corners: [2]Vec2, text: []const u8) [2]Vec2 {
+    gui.sans(.regular, fonts.size.note);
+    defer gui.popFont();
+    const size = gui.textSize(text);
+    const max: Vec2 = .{ .x = corners[1].x - px(note_margin), .y = corners[1].y - px(note_margin) };
+    return .{ .{ .x = max.x - size.x, .y = max.y - c.ImGui_GetFontSize() }, max };
+}
+
+/// The note that says which way the axes point, `text`, in `box` (`axesNoteBox`).
+pub fn axesNote(list: *c.ImDrawList, box: [2]Vec2, text: []const u8) void {
+    gui.sans(.regular, fonts.size.note);
+    defer gui.popFont();
+    gui.drawText(list, box[0], theme.text_dim, text);
+}
+
+/// A note at the map's edge that points the way to something the map doesn't show, such as where
+/// the player starts.
+pub const Pill = struct {
+    box: [2]Vec2,
+    icon: Icon,
+    color: Color,
+    text: []const u8,
+
+    /// In design pixels: its height, then along it, its padding at each end, the icon's room, and
+    /// the gap between the icon and the text.
+    pub const height = 24;
+    const inset = 9;
+    const icon_room = 12;
+    const gap = 6;
+
+    /// How wide a pill with `text` is.
+    pub fn width(text: []const u8) f32 {
+        gui.sans(.regular, fonts.size.smaller);
+        defer gui.popFont();
+        return px(inset + icon_room + gap + inset) + gui.textSize(text).x;
+    }
+};
+
+/// Draws `shown` (`Pill`).
+pub fn pill(list: *c.ImDrawList, shown: Pill) void {
+    const min, const max = shown.box;
+    gui.rect(list, min, max, theme.fade(theme.bar, 0.9), Pill.height / 2);
+    gui.outline(list, min, max, theme.border_off, Pill.height / 2);
+    widgets.drawIconCentered(list, .{ .x = min.x + px(Pill.inset + Pill.icon_room / 2), .y = (min.y + max.y) / 2 }, shown.icon, fonts.size.icon_tiny, shown.color);
+    gui.sans(.regular, fonts.size.smaller);
+    defer gui.popFont();
+    gui.drawText(list, .{ .x = min.x + px(Pill.inset + Pill.icon_room + Pill.gap), .y = gui.textTop((min.y + max.y) / 2) }, shown.color, shown.text);
+}
+
+/// The box `box`, `by` pixels larger each way.
+pub fn grown(box: [2]Vec2, by: f32) [2]Vec2 {
+    return .{ .{ .x = box[0].x - by, .y = box[0].y - by }, .{ .x = box[1].x + by, .y = box[1].y + by } };
 }
 
 /// A distance as the map writes it: `4k` for 4000, `1.5k`, `2.5M` for 2,500,000, or `500`.
@@ -462,6 +577,11 @@ test Labels {
     try std.testing.expectEqual(right, labels.place(&.{ right, left }, size).?);
     // With both taken, the third goes without.
     try std.testing.expectEqual(null, labels.place(&.{ right, left }, size));
+}
+
+test grown {
+    const box: [2]Vec2 = .{ .{ .x = 10, .y = 20 }, .{ .x = 30, .y = 40 } };
+    try std.testing.expectEqual([2]Vec2{ .{ .x = 5, .y = 15 }, .{ .x = 35, .y = 45 } }, grown(box, 5));
 }
 
 test reachOf {

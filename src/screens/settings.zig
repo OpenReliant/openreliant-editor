@@ -312,7 +312,7 @@ fn portField(app: *App) void {
 
 /// The design's `.plan`: what's planned, in a small grey pill, its middle at the cursor.
 fn planTag(text: []const u8) void {
-    gui.sans(.semibold, 11);
+    gui.sans(.semibold, fonts.size.note);
     defer gui.popFont();
     const at = gui.cursor();
     const width = gui.textSize(text).x + px(7) * 2;
