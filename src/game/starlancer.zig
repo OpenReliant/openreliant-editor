@@ -696,7 +696,8 @@ fn scene(arena: Allocator, text: []const u8, known: game.Outline) Allocator.Erro
         .squads => try walk.squads.put(arena, record.name, {}),
         .triggers => if (std.meta.stringToEnum(dte.Condition, record.condition) == .ship_reached) {
             const subject = known.named(record.subject) orelse continue;
-            try ranges.append(arena, .{ .section = subject.section, .index = subject.index, .radius = reached_reach, .label = record.condition, .style = .trigger });
+            // As far as OpenReliant's mission events watch.
+            try ranges.append(arena, .{ .section = subject.section, .index = subject.index, .radius = game_mission.events.reached_reach, .label = record.condition, .style = .trigger });
         },
         .curves => try paths.append(arena, try curvePath(arena, record)),
         else => {},
@@ -1021,10 +1022,6 @@ fn isScenery(type_name: []const u8) bool {
     for (planets.original) |planet| if (planet.type == ship_type) return true;
     return ship_type == gameobj.Type.of(.sun_marker) or ship_type == gameobj.Type.of(.nebula_marker);
 }
-
-/// How far ShipReached's triggers look around a nav point or a waypoint, as OpenReliant's mission
-/// events watch (`reached_reach`, `0x0052A5D0`).
-const reached_reach = 4000;
 
 /// The points a curve's path passes on the map.
 const curve_points = 48;
