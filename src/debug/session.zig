@@ -241,8 +241,8 @@ pub const Session = struct {
                 session.forgetMission();
             },
             .state => session.takeState(message.payload),
-            // The editor's own requests, which the game doesn't send.
-            .get_mission, .get_state, _ => {},
+            // What only the editor sends.
+            .get_mission, .get_state, .console_line, _ => {},
         };
         if (message.tag == tags.stopped and message.payload.len >= @sizeOf(u32)) {
             session.hold(std.mem.readInt(u32, message.payload[0..4], .little), now_ms);
