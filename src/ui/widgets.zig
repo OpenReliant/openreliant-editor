@@ -388,8 +388,15 @@ pub const PanelTab = struct {
     pub fn width(tab: PanelTab) f32 {
         gui.sans(.regular, fonts.size.ui);
         defer gui.popFont();
-        var total = px(padding) * 2 + gui.spacedWidth(tab.label, 0) + px(1);
+        var total = px(padding) * 2 + gui.spacedWidth(tab.label, 0) + px(1) + tab.afterLabel();
         if (tab.icon != null) total += px(fonts.size.icon_small) + px(gap);
+        return total;
+    }
+
+    /// How wide what follows the label is: its detail, its dot and its pill. The tab's font is
+    /// pushed.
+    fn afterLabel(tab: PanelTab) f32 {
+        var total: f32 = 0;
         if (tab.detail) |detail| total += px(gap) + gui.spacedWidth(detail, 0);
         if (tab.dot) total += px(gap) + px(dot_size);
         if (tab.pill) |shown| total += px(gap) + pillWidth(shown.text);
@@ -397,8 +404,13 @@ pub const PanelTab = struct {
     }
 
     /// Draws it from `min` to `max`, the tab bar's line under it left out: in front, the panel's
-    /// colour with an orange line over it, and a line at its right.
+    /// colour with an orange line over it, and a line at its right. In a tab narrower than its
+    /// content, as ImGui makes a dock node's tabs where their bar is short of room, the label is
+    /// cut short with an ellipsis, so that what follows it stays a gap inside the tab's line.
     pub fn draw(tab: PanelTab, list: *c.ImDrawList, min: Vec2, max: Vec2, hovered: bool) void {
+        // Nothing reaches past the tab, however narrow it is: its box, out to whole pixels.
+        c.ImDrawList_PushClipRect(list, .{ .x = @floor(min.x), .y = @floor(min.y) }, .{ .x = @ceil(max.x), .y = @ceil(max.y) }, true);
+        defer c.ImDrawList_PopClipRect(list);
         const right = max.x - px(1);
         if (tab.on) {
             gui.rect(list, min, .{ .x = right, .y = max.y }, theme.panel, 0);
@@ -414,8 +426,15 @@ pub const PanelTab = struct {
         }
         gui.sans(.regular, fonts.size.ui);
         defer gui.popFont();
-        gui.drawText(list, .{ .x = x, .y = gui.textTop(middle) }, foreground, tab.label);
-        x += gui.spacedWidth(tab.label, 0);
+        const label_end = right - px(gap) - tab.afterLabel();
+        const label_width = gui.spacedWidth(tab.label, 0);
+        if (x + label_width <= label_end) {
+            gui.drawText(list, .{ .x = x, .y = gui.textTop(middle) }, foreground, tab.label);
+            x += label_width;
+        } else {
+            clippedText(list, .{ .x = x, .y = gui.textTop(middle) }, label_end, foreground, tab.label);
+            x = label_end;
+        }
         if (tab.detail) |detail| {
             x += px(gap);
             gui.drawText(list, .{ .x = x, .y = gui.textTop(middle) }, theme.text_faint, detail);
