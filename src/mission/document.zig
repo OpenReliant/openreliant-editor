@@ -73,6 +73,11 @@ pub const Document = struct {
     listing_fresh: bool = false,
     /// The line where the game holds the script, counting from 0, which the text tints.
     held_line: ?u32 = null,
+    /// The change to the text that the interface asked for during a frame, made once the frame is
+    /// drawn (`flush`): making it checks the text again, which replaces the outline the frame drew
+    /// from. Its strings are in `queue_arena`.
+    queued: ?Queued = null,
+    queue_arena: std.heap.ArenaAllocator,
 
     /// Opens the source file at `path`.
     pub fn open(gpa: Allocator, io: Io, path: []const u8, profile: *const game.Profile, language: ?text_editor.Language) !*Document {
@@ -98,6 +103,7 @@ pub const Document = struct {
             .check = .{ .arena = .init(gpa) },
             .good = .{ .arena = .init(gpa) },
             .listing_arena = .init(gpa),
+            .queue_arena = .init(gpa),
         };
         document.recheck() catch {};
         return document;
@@ -108,6 +114,7 @@ pub const Document = struct {
         document.check.deinit();
         document.good.deinit();
         document.listing_arena.deinit();
+        document.queue_arena.deinit();
         document.gpa.free(document.path);
         document.gpa.destroy(document);
     }
@@ -186,6 +193,83 @@ pub const Document = struct {
         document.check.deinit();
         document.check = check;
         document.mark();
+    }
+
+    /// A change to the text asked for during a frame.
+    pub const Queued = union(enum) {
+        /// An edit to the record at `index` among `section`'s.
+        edit: struct { section: game.Section, index: usize, edit: game.Edit },
+        /// A new record of `kind`, under `name` where one is given.
+        add: struct { kind: game.NewKind, name: ?[]const u8 },
+        /// Text in place of a span of the editor's text.
+        replace: struct { start: text_editor.Pos, end: text_editor.Pos, text: []const u8 },
+    };
+
+    /// What a queued change came to.
+    pub const Made = union(enum) {
+        none,
+        /// Whether an edit was made.
+        edited: bool,
+        /// The new record's section, and the line it starts on; null where it wasn't added.
+        added: struct { section: game.Section, line: ?u32 },
+    };
+
+    /// Asks for `change` to be made once the frame is drawn (`flush`), in place of any asked for
+    /// earlier in the frame. Its strings are copied.
+    pub fn queue(document: *Document, change: Queued) void {
+        _ = document.queue_arena.reset(.retain_capacity);
+        const arena = document.queue_arena.allocator();
+        document.queued = copyQueued(arena, change) catch null;
+    }
+
+    /// Makes the change asked for during the frame, if one was.
+    pub fn flush(document: *Document) Allocator.Error!Made {
+        const queued = document.queued orelse return .none;
+        document.queued = null;
+        switch (queued) {
+            .edit => |asked| return .{ .edited = try document.editRecord(asked.section, asked.index, asked.edit) },
+            .add => |asked| return .{ .added = .{ .section = asked.kind.section, .line = try document.addRecord(asked.kind, asked.name) } },
+            .replace => |asked| {
+                document.editor.replace(asked.start, asked.end, asked.text);
+                try document.recheck();
+                return .{ .edited = true };
+            },
+        }
+    }
+
+    /// Makes `edit` to the record at `index` among `section`'s, through the game's profile, as
+    /// one step of the editor's undo, and checks the text again at once, so that the outline and
+    /// the inspector show the change. Text typed since the last check is checked first. False
+    /// where the source can't take the edit: it doesn't parse, or the declaration has no place for
+    /// it.
+    fn editRecord(document: *Document, section: game.Section, index: usize, edit: game.Edit) Allocator.Error!bool {
+        if (document.checkPending()) try document.recheck();
+        if (document.outline_stale) return false;
+        const current = document.outline().nth(section, index) orelse return false;
+        var arena_state: std.heap.ArenaAllocator = .init(document.gpa);
+        defer arena_state.deinit();
+        const arena = arena_state.allocator();
+        const text = try arena.dupe(u8, document.editor.text());
+        const change = try document.profile.edit(arena, text, current.*, edit) orelse return false;
+        document.editor.replace(posAt(text, change.start), posAt(text, change.end), change.text);
+        try document.recheck();
+        return true;
+    }
+
+    /// Declares a new record of `kind` through the game's profile, as one step of the editor's
+    /// undo, under `name` where one is given. The line its declaration starts on; null where the
+    /// source doesn't parse, or `name` is taken.
+    fn addRecord(document: *Document, kind: game.NewKind, name: ?[]const u8) Allocator.Error!?u32 {
+        if (document.checkPending()) try document.recheck();
+        if (document.outline_stale) return null;
+        var arena_state: std.heap.ArenaAllocator = .init(document.gpa);
+        defer arena_state.deinit();
+        const arena = arena_state.allocator();
+        const text = try arena.dupe(u8, document.editor.text());
+        const added = try document.profile.addRecord(arena, text, document.outline(), kind, name) orelse return null;
+        document.editor.replace(posAt(text, added.change.start), posAt(text, added.change.end), added.change.text);
+        try document.recheck();
+        return added.line;
     }
 
     /// Tints the line where the game holds the script, or none.
@@ -277,11 +361,41 @@ pub const Document = struct {
     }
 };
 
+/// A copy of `change` in `arena`, with its strings.
+fn copyQueued(arena: Allocator, change: Document.Queued) Allocator.Error!Document.Queued {
+    return switch (change) {
+        .edit => |asked| .{ .edit = .{ .section = asked.section, .index = asked.index, .edit = switch (asked.edit) {
+            .field => |set| .{ .field = .{ .name = try arena.dupe(u8, set.name), .value = if (set.value) |value| try arena.dupe(u8, value) else null } },
+            .display => |text| .{ .display = try arena.dupe(u8, text) },
+            .subject => |text| .{ .subject = try arena.dupe(u8, text) },
+            .condition => |text| .{ .condition = try arena.dupe(u8, text) },
+            .value => |text| .{ .value = try arena.dupe(u8, text) },
+        } } },
+        .add => |asked| .{ .add = .{ .kind = asked.kind, .name = if (asked.name) |name| try arena.dupe(u8, name) else null } },
+        .replace => |asked| .{ .replace = .{ .start = asked.start, .end = asked.end, .text = try arena.dupe(u8, asked.text) } },
+    };
+}
+
+/// The text editor's place of byte `at` of `text`: its line, and its character on the line.
+fn posAt(text: []const u8, at: usize) text_editor.Pos {
+    const start = if (std.mem.findScalarLast(u8, text[0..at], '\n')) |newline| newline + 1 else 0;
+    const line = std.mem.count(u8, text[0..start], "\n");
+    const index = std.unicode.utf8CountCodepoints(text[start..at]) catch at - start;
+    return .{ .line = line, .index = index };
+}
+
+test posAt {
+    // `é` takes two bytes and is one character.
+    try std.testing.expectEqual(text_editor.Pos{ .line = 1, .index = 3 }, posAt("a\nNé b", 6));
+    try std.testing.expectEqual(text_editor.Pos{ .line = 0, .index = 0 }, posAt("abc", 0));
+}
+
 /// A copy of `outline` in `arena`, so that it outlives the check that read it.
 fn copyOutline(arena: Allocator, outline: game.Outline) Allocator.Error!game.Outline {
     const records = try arena.alloc(game.Record, outline.records.len);
     for (records, outline.records) |*copy, record| {
         copy.* = record;
+        copy.word = try arena.dupe(u8, record.word);
         copy.name = try arena.dupe(u8, record.name);
         copy.title = try arena.dupe(u8, record.title);
         copy.display = try arena.dupe(u8, record.display);
@@ -289,7 +403,7 @@ fn copyOutline(arena: Allocator, outline: game.Outline) Allocator.Error!game.Out
         copy.subject = try arena.dupe(u8, record.subject);
         copy.condition = try arena.dupe(u8, record.condition);
         const fields = try arena.alloc(game.Field, record.fields.len);
-        for (fields, record.fields) |*field, from| field.* = .{ .name = try arena.dupe(u8, from.name), .value = try arena.dupe(u8, from.value), .names_record = from.names_record };
+        for (fields, record.fields) |*field, from| field.* = .{ .name = try arena.dupe(u8, from.name), .source = try arena.dupe(u8, from.source), .value = try arena.dupe(u8, from.value), .names_record = from.names_record };
         copy.fields = fields;
     }
     return .{

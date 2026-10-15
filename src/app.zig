@@ -170,6 +170,11 @@ pub const App = struct {
     project: ?Project = null,
     document: ?*Document = null,
     selection: ?Selection = null,
+    /// Whether the menu of records to add opens on the next frame, as + and Add a record ask, and
+    /// the name a Problems card's Declare gives the new record, `declare_name[0..declare_length]`.
+    add_menu: bool = false,
+    declare_name: [128]u8 = undefined,
+    declare_length: ?usize = null,
     /// The word whose reference the Reference panel shows.
     reference_word: ?[]const u8 = null,
     reference_buffer: [64]u8 = undefined,
@@ -278,6 +283,7 @@ pub const App = struct {
         palette.draw(app);
         app.toasts.draw(app.window);
         app.drawCloseConfirmation();
+        app.makeQueued();
     }
 
     /// The shortcuts of the actions, run while the editor's windows have the keyboard.
@@ -311,7 +317,7 @@ pub const App = struct {
         if (commands.info(command).planned) |plan| return .{ .reason = gui.print("Planned · {f}", .{plan}) };
         const needs_document = "Open a mission first";
         return switch (command) {
-            .save, .build, .show_source, .show_listing, .toggle_breakpoint, .clear_breakpoints, .go_to_line, .comment_line, .find, .find_next, .replace, .undo, .redo, .cut, .copy, .paste, .select_all => if (app.document == null) .{ .reason = needs_document } else null,
+            .add_record, .save, .build, .show_source, .show_listing, .toggle_breakpoint, .clear_breakpoints, .go_to_line, .comment_line, .find, .find_next, .replace, .undo, .redo, .cut, .copy, .paste, .select_all => if (app.document == null) .{ .reason = needs_document } else null,
             .play, .play_from_part => if (app.document == null) .{ .reason = needs_document } else if (app.settings.game_folder == null) .{ .reason = "Set the game's folder in Game settings" } else null,
             .new_mission => if (app.settings.game_folder == null and app.project == null) .{ .reason = "Set the game's folder in Game settings" } else null,
             .edit_game_mission => if (app.settings.game_folder == null) .{ .reason = "Set the game's folder in Game settings" } else null,
@@ -380,7 +386,8 @@ pub const App = struct {
     /// Runs `command`.
     pub fn run(app: *App, command: Command) void {
         switch (command) {
-            .new_mod, .open_hog, .switch_mode, .layout_guided, .add_record => {},
+            .new_mod, .open_hog, .switch_mode, .layout_guided => {},
+            .add_record => app.askToAdd(null),
             .open_file => app.chooseFile(),
             .edit_game_mission => app.palette.show(.game_missions),
             .@"continue" => app.session.release(.run_on),
@@ -967,6 +974,47 @@ pub const App = struct {
         const selected = app.selection orelse return;
         const document = app.document orelse return;
         if (document.outline().find(selected.section, selected.line) == null) app.selection = null;
+    }
+
+    /// Opens the menu of records to add, which declares the record chosen under `name` where one
+    /// is given, as a Problems card's Declare asks.
+    pub fn askToAdd(app: *App, name: ?[]const u8) void {
+        app.add_menu = true;
+        app.declare_length = null;
+        const given = name orelse return;
+        if (given.len > app.declare_name.len) return;
+        @memcpy(app.declare_name[0..given.len], given);
+        app.declare_length = given.len;
+    }
+
+    /// The name the menu of records to add declares the new one under, where a Declare asked.
+    pub fn declaring(app: *const App) ?[]const u8 {
+        return app.declare_name[0 .. app.declare_length orelse return null];
+    }
+
+    /// Makes the change to the source that the interface asked for during the frame
+    /// (`Document.queue`), now that nothing drawn holds on to the outline it replaces: says where
+    /// it can't be made, and selects a record added.
+    fn makeQueued(app: *App) void {
+        const document = app.document orelse return;
+        const asked = document.queued orelse return;
+        const made = document.flush() catch {
+            app.toasts.push(.failure, "Can't change the source", "Out of memory");
+            return;
+        };
+        const reason = if (document.outline_stale) "Fix the source's problems first" else switch (asked) {
+            .add => "The name is taken",
+            else => "The declaration has no place for it",
+        };
+        switch (made) {
+            .none => {},
+            .edited => |done| if (!done) app.toasts.push(.info, "Can't change it here", reason),
+            .added => |added| {
+                const line = added.line orelse return app.toasts.push(.info, gui.print("Can't add {s}", .{asked.add.name orelse asked.add.kind.label}), reason);
+                app.selection = .{ .section = added.section, .line = line };
+                app.goTo(line, 0);
+            },
+        }
     }
 
     pub fn select(app: *App, record: game.Record) void {

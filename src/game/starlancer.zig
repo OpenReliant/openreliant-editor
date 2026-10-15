@@ -17,6 +17,7 @@ const vm = openreliant.engine.vm;
 const mission_editor = openreliant.engine.game.mission.editor;
 
 const game = @import("../game.zig");
+const source_edit = @import("../mission/edit.zig");
 
 pub const profile: game.Profile = .{
     .name = "StarLancer",
@@ -27,6 +28,11 @@ pub const profile: game.Profile = .{
     .language = language,
     .build = build,
     .outline = outline,
+    .edit = edit,
+    .fields = fieldForms,
+    .fieldKind = fieldKind,
+    .new_kinds = &new_kinds,
+    .addRecord = addRecord,
     .listing = listing,
     .missionNumber = missionNumber,
     // The game's missions don't use 90 and on, as the guide to writing missions says.
@@ -325,7 +331,7 @@ fn outline(arena: Allocator, text: []const u8) Allocator.Error!game.Outline {
                     else => continue,
                 };
                 const call = callOf(tree, assign.values[0]) orelse continue;
-                var record = try recordOf(arena, tree, call, name, &groups) orelse continue;
+                var record = try recordOf(arena, text, tree, call, name, &groups) orelse continue;
                 record.first_line = first;
                 record.last_line = last;
                 record.column = tree.at(statement).column;
@@ -348,14 +354,15 @@ fn outline(arena: Allocator, text: []const u8) Allocator.Error!game.Outline {
                     .string => |string| string,
                     else => "?",
                 };
-                const fields: ?syntax.Index = if (call.arguments.len > 2 and tree.get(call.arguments[2]) == .table) call.arguments[2] else null;
+                const fields = tableOf(tree, call);
                 try records.append(arena, .{
                     .section = .triggers,
+                    .word = "on",
                     .name = "",
                     .subject = subject,
                     .title = try arena.print("{s} · {s}", .{ subject, condition }),
                     .condition = condition,
-                    .fields = if (fields) |table| try fieldsOf(arena, tree, table) else &.{},
+                    .fields = if (fields) |table| try fieldsOf(arena, text, tree, table) else &.{},
                     .first_line = first,
                     .last_line = last,
                     .column = tree.at(statement).column,
@@ -373,8 +380,9 @@ fn outline(arena: Allocator, text: []const u8) Allocator.Error!game.Outline {
     return .{ .name = mission_name, .records = try records.toOwnedSlice(arena), .errors = errors };
 }
 
-/// The fields of the table at `table`, with their simple values as the source writes them.
-fn fieldsOf(arena: Allocator, tree: syntax.Tree, table: syntax.Index) Allocator.Error![]const game.Field {
+/// The fields of the table at `table` of `text`, with their simple values as the source writes
+/// them, and each value's own text.
+fn fieldsOf(arena: Allocator, text: []const u8, tree: syntax.Tree, table: syntax.Index) Allocator.Error![]const game.Field {
     const items = switch (tree.get(table)) {
         .table => |items| items,
         else => return &.{},
@@ -384,8 +392,10 @@ fn fieldsOf(arena: Allocator, tree: syntax.Tree, table: syntax.Index) Allocator.
         .item => |shown| switch (shown) {
             .record => |record| {
                 const value = tree.get(record.value);
+                const start, const end = source_edit.span(tree, text, record.value);
                 try found.append(arena, .{
                     .name = record.key,
+                    .source = text[start..end],
                     .value = switch (value) {
                         .global_name => |name| name,
                         .string => |string| try arena.print("\"{s}\"", .{string}),
@@ -403,6 +413,16 @@ fn fieldsOf(arena: Allocator, tree: syntax.Tree, table: syntax.Index) Allocator.
         else => {},
     };
     return found.toOwnedSlice(arena);
+}
+
+/// The table of fields of a declaration's call: a trigger's third argument where it's a table, or
+/// another declaration's first table.
+fn tableOf(tree: syntax.Tree, call: Call) ?syntax.Index {
+    if (std.mem.eql(u8, call.callee, "on")) {
+        return if (call.arguments.len > 2 and tree.get(call.arguments[2]) == .table) call.arguments[2] else null;
+    }
+    for (call.arguments) |argument| if (tree.get(argument) == .table) return argument;
+    return null;
 }
 
 /// A call by a name: the name, and its arguments.
@@ -425,16 +445,14 @@ fn callOf(tree: syntax.Tree, index: syntax.Index) ?Call {
 
 /// The record `name = constructor(...)` declares, without its lines, or null for a call that
 /// declares none.
-fn recordOf(arena: Allocator, tree: syntax.Tree, call: Call, name: []const u8, groups: *const std.StringHashMapUnmanaged(usize)) Allocator.Error!?game.Record {
+fn recordOf(arena: Allocator, text: []const u8, tree: syntax.Tree, call: Call, name: []const u8, groups: *const std.StringHashMapUnmanaged(usize)) Allocator.Error!?game.Record {
     const word = std.meta.stringToEnum(source.names.Word, call.callee) orelse return null;
     const display = if (call.arguments.len > 0) stringOf(tree, call.arguments[0]) else null;
-    const fields: ?syntax.Index = for (call.arguments) |argument| {
-        if (tree.get(argument) == .table) break argument;
-    } else null;
-    var record: game.Record = .{ .section = .ships, .name = name, .title = display orelse name, .display = display orelse "", .first_line = 0, .last_line = 0 };
+    const fields = tableOf(tree, call);
+    var record: game.Record = .{ .section = .ships, .word = call.callee, .name = name, .title = display orelse name, .display = display orelse "", .first_line = 0, .last_line = 0 };
     if (fields) |table| {
         if (globalField(tree, table, "group")) |group| record.group = groups.get(group);
-        record.fields = try fieldsOf(arena, tree, table);
+        record.fields = try fieldsOf(arena, text, tree, table);
     }
     switch (word) {
         .flight_group => {
@@ -485,6 +503,206 @@ fn recordOf(arena: Allocator, tree: syntax.Tree, call: Call, name: []const u8, g
         else => return null,
     }
     return record;
+}
+
+/// The change to `text` that makes `change` to `record`, through the declaration on the record's
+/// first line: its table's field, its display name, a trigger's subject or condition, or a
+/// global's value. A record without a table gets one where its declaration takes it: a trigger's
+/// after its condition, a part's after its code, and the others' after their display name.
+fn edit(arena: Allocator, text: []const u8, record: game.Record, change: game.Edit) Allocator.Error!?game.Change {
+    const tree = try source_parser.parse(arena, text);
+    const found = declarationAt(tree, record.first_line) orelse return null;
+    const arguments = found.call.arguments;
+    const trigger = std.mem.eql(u8, found.call.callee, "on");
+    switch (change) {
+        .field => |set| {
+            if (tableOf(tree, found.call)) |at| {
+                const value = set.value orelse return source_edit.removeField(tree, text, at, set.name);
+                return try source_edit.setField(arena, tree, text, at, set.name, value);
+            }
+            const value = set.value orelse return null;
+            if (std.mem.eql(u8, found.call.callee, "part")) {
+                return try source_edit.appendArgument(arena, tree, text, found.node, try arena.print("{{ {s} = {s} }}", .{ set.name, value }));
+            }
+            const after: usize = if (trigger) 1 else 0;
+            if (arguments.len <= after) return null;
+            return try source_edit.addTable(arena, tree, text, arguments[after], set.name, value);
+        },
+        .display => |name| {
+            if (trigger or arguments.len == 0 or tree.get(arguments[0]) != .string) return null;
+            return source_edit.replace(tree, text, arguments[0], try source_edit.string(arena, name));
+        },
+        .subject => |subject| {
+            if (!trigger or arguments.len == 0) return null;
+            return source_edit.replace(tree, text, arguments[0], subject);
+        },
+        .condition => |condition| {
+            if (!trigger or arguments.len < 2) return null;
+            return source_edit.replace(tree, text, arguments[1], try source_edit.string(arena, condition));
+        },
+        .value => |value| {
+            if (!std.mem.eql(u8, found.call.callee, "global") or arguments.len < 2) return null;
+            return source_edit.replace(tree, text, arguments[1], value);
+        },
+    }
+}
+
+/// The call that declares a record on `line`: `name = word(...)` or `on(...)`, with its node.
+fn declarationAt(tree: syntax.Tree, line: u32) ?struct { node: syntax.Index, call: Call } {
+    const statements = switch (tree.get(tree.root)) {
+        .block => |list| list,
+        else => return null,
+    };
+    for (statements) |statement| {
+        if (tree.at(statement).line != line) continue;
+        const node = switch (tree.get(statement)) {
+            .assign => |assign| if (assign.values.len == 1) assign.values[0] else return null,
+            .call_statement => |call| call,
+            else => return null,
+        };
+        return .{ .node = node, .call = callOf(tree, node) orelse return null };
+    }
+    return null;
+}
+
+/// The fields of a record's table, from OpenReliant's tables of the language.
+fn fieldForms(record: game.Record) []const game.FieldForm {
+    const word = std.meta.stringToEnum(source.names.Word, record.word) orelse return &.{};
+    return switch (word) {
+        .flight_group => &forms.flight_group,
+        .ship => &forms.ship,
+        .nav_point, .waypoint, .curve_point => &forms.marker,
+        .point => &forms.point,
+        .curve => &forms.curve,
+        .part => &forms.part,
+        .on => &forms.trigger,
+        else => &.{},
+    };
+}
+
+const forms = struct {
+    const flight_group = formsOf(source.language.flight_group_fields);
+    const ship = formsOf(source.language.ship_fields);
+    const marker = formsOf(source.language.marker_fields);
+    const point = formsOf(source.language.point_fields);
+    const curve = formsOf(source.language.curve_fields);
+    const part = formsOf(source.language.part_fields);
+    const trigger = formsOf(source.language.trigger_fields);
+};
+
+fn formsOf(comptime table: source.language.Table) [table.fields.len]game.FieldForm {
+    var made: [table.fields.len]game.FieldForm = undefined;
+    for (&made, table.fields) |*form, from| {
+        form.* = .{ .name = from.name, .about = from.about, .kind = fieldKind(from.type), .optional = std.mem.endsWith(u8, from.type, "?") };
+        for (hints) |hint| if (std.mem.eql(u8, hint.name, from.name)) {
+            form.label = hint.label;
+            form.heading = hint.heading;
+            form.row = hint.row;
+            form.letter = hint.letter;
+            form.note = hint.note;
+        };
+    }
+    return made;
+}
+
+/// How the inspector lays out a ship's and a marker's place: under a heading, with its angles on
+/// one row, and a short label for its place in a formation.
+const hints = [_]struct { name: []const u8, label: ?[]const u8 = null, heading: ?[]const u8 = null, row: ?[]const u8 = null, letter: []const u8 = "", note: ?[]const u8 = null }{
+    .{ .name = "formation_point", .label = "Formation" },
+    .{ .name = "position", .heading = "Place" },
+    .{ .name = "yaw", .row = "Angles", .letter = "Y" },
+    .{ .name = "pitch", .row = "Angles", .letter = "P" },
+    .{ .name = "roll", .row = "Angles", .letter = "R", .note = "degrees · Y down" },
+};
+
+/// The kind of value a type of mission source takes, as the language's tables write it: a record,
+/// a name of the game's values, a wing, a vector, a number, a boolean, or source for the rest.
+fn fieldKind(type_name: []const u8) game.FieldKind {
+    const bare = std.mem.trimEnd(u8, type_name, "?");
+    for (record_types) |entry| if (std.mem.eql(u8, bare, entry[0])) return .{ .record = entry[1] };
+    if (std.mem.eql(u8, bare, "Vector")) return .vector;
+    if (std.mem.eql(u8, bare, "number")) return .number;
+    if (std.mem.eql(u8, bare, "boolean")) return .boolean;
+    if (std.mem.eql(u8, bare, "Wing")) return .{ .strings = &wings };
+    inline for (comptime std.enums.values(source.vocabulary.Kind)) |kind| {
+        if (std.mem.eql(u8, bare, comptime kind.typeName())) return .{ .value = comptime kind.typeName() };
+    }
+    return .source;
+}
+
+/// The language's types of the mission's records, and the outline's sections that hold them.
+const record_types = [_]struct { []const u8, []const game.Section }{
+    .{ "FlightGroup", &.{.flight_groups} },
+    .{ source.language.mission_ship, &.{ .ships, .markers } },
+    .{ "Entity", &.{ .ships, .markers, .flight_groups, .squads } },
+    .{ "Squad", &.{.squads} },
+    .{ "Formation", &.{.formations} },
+    .{ "Curve", &.{.curves} },
+    .{ "Part", &.{.parts} },
+};
+
+/// A flight group's wings, as mission source names them.
+const wings = names: {
+    const all = @typeInfo(dte.FlightGroup.Wing).@"enum".field_names;
+    var list: [all.len][]const u8 = undefined;
+    for (&list, all) |*name, from| name.* = from;
+    const final = list;
+    break :names final;
+};
+
+/// The records the outline's + adds. Squads, formations and curves list other records, and are
+/// written in the source.
+const new_kinds = [_]game.NewKind{
+    .{ .word = "ship", .label = "Ship", .section = .ships },
+    .{ .word = "nav_point", .label = "Nav point", .section = .markers },
+    .{ .word = "waypoint", .label = "Waypoint", .section = .markers },
+    .{ .word = "flight_group", .label = "Flight group", .section = .flight_groups },
+    .{ .word = "part", .label = "Part", .section = .parts },
+    .{ .word = "on", .label = "Trigger", .section = .triggers, .named = false },
+    .{ .word = "global", .label = "Global", .section = .globals },
+};
+
+/// The condition a new trigger starts with: every ship has it. It watches nothing until a subject
+/// is chosen.
+const new_condition = "destroyed";
+
+/// Declares a record of `kind` after the last record of its section, or of the sections before
+/// it, or at the end of the file: `ship_1 = ship("Ship 1", { type = "predator" })` with the
+/// game's first ship type, a part and a trigger with code that does nothing yet, and StarLancer's
+/// tags on the display names of flight groups, parts and globals.
+fn addRecord(arena: Allocator, text: []const u8, known: game.Outline, kind: game.NewKind, given: ?[]const u8) Allocator.Error!?game.Added {
+    const stem = if (std.mem.eql(u8, kind.word, "nav_point")) "nav" else if (std.mem.eql(u8, kind.word, "flight_group")) "group" else kind.word;
+    var number: usize = 1;
+    const name = given orelse while (true) : (number += 1) {
+        const candidate = try arena.print("{s}_{d}", .{ stem, number });
+        if (known.named(candidate) == null) break candidate;
+    };
+    if (given != null and known.named(name) != null) return null;
+    const shown = if (given != null) name else try arena.print("{s} {d}", .{ kind.label, number });
+    const declaration = switch (std.meta.stringToEnum(source.names.Word, kind.word) orelse return null) {
+        .ship => try arena.print("{s} = ship({s}, {{ type = \"{s}\" }})", .{ name, try source_edit.string(arena, shown), source.vocabulary.name(.ship_type, 0) orelse "predator" }),
+        .flight_group => try arena.print("{s} = flight_group({s})", .{ name, try source_edit.string(arena, try arena.print("(FG){s}", .{shown})) }),
+        .part => try arena.print("{s} = part({s}, function()\n    return 1\nend)", .{ name, try source_edit.string(arena, try arena.print("(F){s}", .{shown})) }),
+        .on => "on(nil, \"" ++ new_condition ++ "\", function()\n    return 1\nend)",
+        .global => try arena.print("{s} = global({s}, 0)", .{ name, try source_edit.string(arena, try arena.print("(GV){s}", .{name})) }),
+        else => try arena.print("{s} = {s}({s})", .{ name, kind.word, try source_edit.string(arena, shown) }),
+    };
+    // After the last record of its section, or of the nearest section before it.
+    var anchor: ?game.Record = null;
+    for (std.enums.values(game.Section)) |section| {
+        for (known.records) |record| if (record.section == section) {
+            anchor = record;
+        };
+        if (section == kind.section) break;
+    }
+    if (anchor) |after| {
+        const start = source_edit.offset(text, .{ .line = after.last_line, .column = 0 });
+        const end = std.mem.findScalarPos(u8, text, start, '\n') orelse text.len;
+        return .{ .change = .{ .start = end, .end = end, .text = try arena.print("\n{s}", .{declaration}) }, .line = after.last_line + 1 };
+    }
+    const lines: u32 = @intCast(std.mem.count(u8, text, "\n"));
+    if (text.len == 0 or text[text.len - 1] == '\n') return .{ .change = .{ .start = text.len, .end = text.len, .text = try arena.print("{s}\n", .{declaration}) }, .line = lines };
+    return .{ .change = .{ .start = text.len, .end = text.len, .text = try arena.print("\n{s}\n", .{declaration}) }, .line = lines + 1 };
 }
 
 /// A list of up to four numbers as the source writes it, such as a place, `{ 0, 0, 40000 }`; "…"
@@ -746,6 +964,80 @@ pub const first_mission =
     \\end)
     \\
 ;
+
+test edit {
+    var arena_state: std.heap.ArenaAllocator = .init(std.testing.allocator);
+    defer arena_state.deinit();
+    const arena = arena_state.allocator();
+    const made = try outline(arena, first_mission);
+    const Case = struct { record: []const u8, edit: game.Edit, from: []const u8, to: []const u8 };
+    const cases = [_]Case{
+        // A field replaced, in a table of a line to an item.
+        .{ .record = "sabre_1", .edit = .{ .field = .{ .name = "position", .value = "{ -1500, 0, 41000 }" } }, .from = "    position = { -2000, 0, 42000 },\n    yaw = 180,\n})\nsabre_2", .to = "    position = { -1500, 0, 41000 },\n    yaw = 180,\n})\nsabre_2" },
+        // Added to a table on one line.
+        .{ .record = "player", .edit = .{ .field = .{ .name = "pilot", .value = "\"bandit_tigers_leader\"" } }, .from = "{ type = \"predator\", group = alpha }", .to = "{ type = \"predator\", group = alpha, pilot = \"bandit_tigers_leader\" }" },
+        // A table where there was none.
+        .{ .record = "navs", .edit = .{ .field = .{ .name = "wing", .value = "\"second\"" } }, .from = "flight_group(\"(FG)Nav points\")", .to = "flight_group(\"(FG)Nav points\", { wing = \"second\" })" },
+        // The display name.
+        .{ .record = "nav", .edit = .{ .display = "Nav \"A\"" }, .from = "nav_point(\"Nav 1\",", .to = "nav_point(\"Nav \\\"A\\\"\"," },
+        // A part's field taken out.
+        .{ .record = "start", .edit = .{ .field = .{ .name = "start", .value = null } }, .from = "end, { start = true })", .to = "end, {})" },
+    };
+    for (cases) |case| {
+        const record = made.named(case.record).?;
+        const change = (try edit(arena, first_mission, record.*, case.edit)).?;
+        const changed = try source_edit.testing.applied(arena, first_mission, change);
+        try std.testing.expectEqualStrings(try std.mem.replaceOwned(u8, arena, first_mission, case.from, case.to), changed);
+        // The mission still builds.
+        try std.testing.expect(try build(arena, changed) == .mission);
+    }
+    // A trigger's condition, and a table for the one that has none, before its code.
+    const destroyed = made.records[made.records.len - 1];
+    const repeats = (try edit(arena, first_mission, destroyed, .{ .field = .{ .name = "repeats", .value = "\"always\"" } })).?;
+    try std.testing.expect(std.mem.find(u8, try source_edit.testing.applied(arena, first_mission, repeats), "on(enemies, \"destroyed\", { repeats = \"always\" }, function(killer, victim)") != null);
+    const reached = made.records[made.records.len - 2];
+    const condition = (try edit(arena, first_mission, reached, .{ .condition = "destroyed" })).?;
+    try std.testing.expect(std.mem.find(u8, try source_edit.testing.applied(arena, first_mission, condition), "on(nav, \"destroyed\", {") != null);
+    // A field taken out that isn't there changes nothing.
+    try std.testing.expectEqual(null, try edit(arena, first_mission, made.named("navs").?.*, .{ .field = .{ .name = "wing", .value = null } }));
+}
+
+test addRecord {
+    var arena_state: std.heap.ArenaAllocator = .init(std.testing.allocator);
+    defer arena_state.deinit();
+    const arena = arena_state.allocator();
+    const made = try outline(arena, first_mission);
+    // A ship goes after the last ship, under the first free name, and the mission still builds.
+    const ship = (try addRecord(arena, first_mission, made, new_kinds[0], null)).?;
+    const with_ship = try source_edit.testing.applied(arena, first_mission, ship.change);
+    try std.testing.expect(std.mem.find(u8, with_ship, "    yaw = 180,\n})\nship_1 = ship(\"Ship 1\", { type = \"predator\" })\n") != null);
+    const again = try outline(arena, with_ship);
+    try std.testing.expectEqualStrings("ship_1", again.find(.ships, ship.line).?.name);
+    try std.testing.expect(try build(arena, with_ship) == .mission);
+    // A name the source uses without declaring it, as a global; a name taken is refused.
+    const global = (try addRecord(arena, first_mission, made, new_kinds[6], "convoykilled")).?;
+    try std.testing.expect(std.mem.find(u8, try source_edit.testing.applied(arena, first_mission, global.change), "convoykilled = global(\"(GV)convoykilled\", 0)") != null);
+    try std.testing.expectEqual(null, try addRecord(arena, first_mission, made, new_kinds[0], "player"));
+    // Each kind builds.
+    for (new_kinds) |kind| {
+        const added = (try addRecord(arena, first_mission, made, kind, null)).?;
+        try std.testing.expect(try build(arena, try source_edit.testing.applied(arena, first_mission, added.change)) == .mission);
+    }
+    try std.testing.expect(source.vocabulary.value(.condition, new_condition) != null);
+}
+
+test fieldForms {
+    var arena: std.heap.ArenaAllocator = .init(std.testing.allocator);
+    defer arena.deinit();
+    const made = try outline(arena.allocator(), first_mission);
+    const ship_forms = fieldForms(made.named("sabre_1").?.*);
+    try std.testing.expectEqualStrings("type", ship_forms[0].name);
+    try std.testing.expectEqualStrings("ShipType", ship_forms[0].kind.value);
+    try std.testing.expectEqual(game.Section.flight_groups, ship_forms[1].kind.record[0]);
+    try std.testing.expect(fieldKind("Vector?") == .vector);
+    try std.testing.expectEqualStrings("player", fieldKind("Wing?").strings[0]);
+    try std.testing.expect(fieldKind("Launch?") == .source);
+}
 
 test "the first mission's outline" {
     var arena: std.heap.ArenaAllocator = .init(std.testing.allocator);

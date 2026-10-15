@@ -203,7 +203,6 @@ pub const plans = struct {
     pub const live_changes: Plan = .{ .issue = 22 };
     pub const guided: Plan = .{ .issue = 6 };
     pub const templates: Plan = .{ .issue = 7 };
-    pub const records: Plan = .{ .issue = 8 };
     pub const hogs: Plan = .{ .issue = 9 };
     pub const settings: Plan = .{ .issue = 10 };
     pub const live_scene: Plan = .{ .issue = 21 };
@@ -249,7 +248,7 @@ pub fn info(command: Command) Info {
         .full_screen => .{ .label = "Full screen", .icon = .maximize, .when = .not_held, .keys = defaults(&.{"F11"}, &.{"Ctrl+Cmd+F"}), .key_group = .general },
 
         .build => .{ .label = "Build", .icon = .hammer, .keys = defaults(&.{"Ctrl+B"}, &.{"Cmd+B"}), .key_group = .build_and_play },
-        .add_record => .{ .label = "Add a record", .icon = .plus, .planned = plans.records },
+        .add_record => .{ .label = "Add a record", .icon = .plus },
         .show_source => .{ .label = "Mission source", .icon = .file_code },
         .show_listing => .{ .label = "Script listing", .icon = .list },
 

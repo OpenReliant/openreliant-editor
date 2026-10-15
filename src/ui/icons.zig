@@ -8,6 +8,7 @@ const std = @import("std");
 pub const Icon = enum(u21) {
     archive = 0xe041,
     arrow_down_to_dot = 0xe44d,
+    arrow_left = 0xe048,
     arrow_right_to_line = 0xe459,
     audio_waveform = 0xe55b,
     blocks = 0xe4fa,

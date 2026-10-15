@@ -92,6 +92,12 @@ pub const on_accent = rgb(0x170b02);
 pub const accent_hover = rgb(0xf6a259);
 pub const accent_key = rgb(0xc96d1c);
 pub const on_accent_key = rgb(0x1d0e03);
+/// A vector's axes in the inspector: X, Y and Z, their letters, and the box of an angle's letter.
+pub const axis_x = rgb(0xf2767a);
+pub const axis_y = rgb(0x8fd18a);
+pub const axis_z = rgb(0x6ba8ff);
+pub const on_axis = rgb(0x0b0d12);
+pub const axis_off = rgb(0x3a4256);
 pub const link_text = rgb(0xf6a259);
 pub const selected = rgb(0x3b2412);
 pub const selected_text = rgb(0xffe2c4);

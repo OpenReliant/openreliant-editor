@@ -15,12 +15,14 @@ own library, which `build.zig.zon` pins, so it reads every mission exactly as th
 | [`game.zig`](../src/game.zig) | What the editor asks of a game: the profile |
 | [`game/starlancer.zig`](../src/game/starlancer.zig) | StarLancer's profile, on OpenReliant's tables and compiler |
 | [`project.zig`](../src/project.zig) | A mod folder and its missions, and the mods of a game folder |
-| [`mission/document.zig`](../src/mission/document.zig) | An open mission: its source, its checks, its build and its breakpoints |
+| [`mission/document.zig`](../src/mission/document.zig) | An open mission: its source, its checks, its build and its breakpoints, and the changes the interface asks for |
+| [`mission/edit.zig`](../src/mission/edit.zig) | Changes to spans of mission source: a field of a record's table set, added or taken out, an argument replaced |
 | [`link/connection.zig`](../src/link/connection.zig) | The editor link's connection to the game, on a task of its own |
 | [`debug/session.zig`](../src/debug/session.zig) | The debugger: the link's state, the game's mission matched with the build, the holds, the state and the actions |
 | [`debug/breakpoints.zig`](../src/debug/breakpoints.zig) | Where each breakpoint holds the script, and each source file's breakpoints kept in the settings folder |
 | [`shell.zig`](../src/shell.zig) | The workspace's menu bar, toolbar, dock space and status bar |
 | [`panels.zig`](../src/panels.zig) | The dockable panels: the outline, problems, the inspector and the others |
+| [`forms.zig`](../src/forms.zig) | The inspector's forms: a record's fields as controls that write the source |
 | [`views/script.zig`](../src/views/script.zig) | The Script view: the source, its gutter, help and completion, and the listing |
 | [`palette.zig`](../src/palette.zig) | The command palette, Play from part, and the game's missions |
 | [`screens/`](../src/screens) | The start screen and the settings |
@@ -37,7 +39,8 @@ profile, a `game.Profile`:
 - the words of mission source, from the game's own tables: the language's keywords, mission
   source's declarations, the game's commands and conditions with their descriptions and
   parameters, the game's variables, and the names of its values;
-- the records a mission's source declares, for the outline and the inspector;
+- the records a mission's source declares, for the outline and the inspector, the fields each
+  record's table can give, and the changes that edit them or declare a new record;
 - building source into a mission file, with the map of its script's statements to the source's
   lines, decompiling a mission file into source, and comparing two missions and their scripts;
 - the game's messages on the editor link, and the script's flags for a set of offsets;
@@ -59,6 +62,23 @@ The source is checked as it's typed: once the text rests for a moment, the profi
 and builds it in memory, and the problems show in the gutter, under the text and in the Problems
 panel. While the source doesn't parse, the outline is the last one that did. Build writes the
 mission file beside the source and keeps its script's listing.
+
+## Editing records
+
+The inspector shows the selected record as a form ([Editing records](editing.md)). The profile gives
+the fields each record's table can give, from OpenReliant's tables of the language
+(`dte.source.language`), each with its kind, which picks its control: a list of the mission's
+records or of the game's values, X, Y and Z for a vector, a box for a number, a checkbox, or the
+value's source for the rest. A few hints lay out a ship's place as the design does, under a heading
+with its angles on one row.
+
+A change, from a form, the outline's + or a Problems card's fix, is a change to one span of the
+source, made as one step of the editor's undo. OpenReliant's syntax tree gives where each node
+starts; `mission/edit.zig` reads the text from there for where the value ends, and sets, adds or
+takes out a field in the table's own layout: on its line, or on a line of its own where the items
+are each on one. While drawing, the interface only queues the change (`Document.queue`). The app
+makes it once the frame is drawn, since making it checks the text again, which replaces the outline
+the frame drew from.
 
 ## The debugger
 
@@ -90,8 +110,6 @@ Each shows in the interface, greyed out, with its issue:
   ([#22](https://github.com/OpenReliant/openreliant-editor/issues/22));
 - the guided first mission ([#6](https://github.com/OpenReliant/openreliant-editor/issues/6));
 - new mods from templates ([#7](https://github.com/OpenReliant/openreliant-editor/issues/7));
-- adding and editing records with forms
-  ([#8](https://github.com/OpenReliant/openreliant-editor/issues/8));
 - opening `.hog` mods ([#9](https://github.com/OpenReliant/openreliant-editor/issues/9));
 - the General and Appearance settings
   ([#10](https://github.com/OpenReliant/openreliant-editor/issues/10)).
