@@ -221,6 +221,9 @@ pub fn apply(scale: f32) void {
     style.*.TabBorderSize = 0;
     style.*.TabBarBorderSize = 0;
     style.*.TabBarOverlineSize = 0;
+    // A bar too narrow for its tabs shrinks them as far as it needs, rather than scroll them, since
+    // the editor shows none of ImGui's scroll arrows.
+    style.*.TabMinWidthShrink = 1;
     style.*.SeparatorTextBorderSize = 1;
     // Between two dock nodes, the panels' lines and the gap between them.
     style.*.DockingSeparatorSize = panel_gap + panel_line * 2;
