@@ -48,7 +48,8 @@ inspector names its thread.
 | Pause | F6 | F8 | Pauses the whole mission, ships and all, or lets it go on |
 
 - **Threads** lists the script's threads: where each one is, what started it, its call depth and
-  what it waits for. A double click goes to a thread's line.
+  what it waits for. Where shows a thread's line, and its offset too where the column has room. A
+  double click goes to a thread's line.
 - **Variables** shows the game's variables that the source uses and the mission's globals, with
   their values in the game. A value that changed since the last hold is orange. While the script
   runs, the editor polls the game for them, 4 times a second by default (Settings · Editor link ·

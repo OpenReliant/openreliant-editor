@@ -125,8 +125,10 @@ const Map = struct {
     var pointer: ?[2]f64 = null;
 };
 
-/// The pixels around a marker's middle that the pointer takes it by.
+/// The pixels around a marker's middle that the pointer takes it by, and how far past a selected
+/// marker its brackets reach.
 const grab_radius = 11;
+const bracket_reach = 5;
 /// The marks' sizes, in design pixels: a ship's or a marker's, the player's, a camera point's and a
 /// planet's (a cluster's is `drawing.cluster_size`).
 const marker_size = 18;
@@ -340,17 +342,33 @@ fn map(app: *App, document: *Document, scene: game.Scene) void {
         drawing.thing(list, mark.middle, thing.kind, if (thing.heading) |heading| projection.project(heading) else null, mark.size, color);
     }
 
+    // The notes over the map, which the names keep off: the legend, the scale, the axes' note, the
+    // player's start where the map doesn't show it, and the selection's brackets and place.
+    const routes_shown = Map.routes and scene.routes.len > 0;
+    const legend_box = drawing.legendBox(corners[0], routes_shown);
+    const scale_at: Vec2 = .{ .x = corners[0].x + px(12), .y = corners[1].y - px(12) };
+    const note = projection.note();
+    const note_box = drawing.axesNoteBox(corners, note);
+    const start: ?drawing.Pill = if (scene.player) |player| startPill(corners, shown, projection, scene.things[player], known) else null;
+    const chosen: ?Mark = for (gathered.marks) |mark| {
+        if (mark.count == 1 and selected != null and selected.?.eql(Ref.of(scene.things[mark.first]))) break mark;
+    } else null;
+    const place_note: ?drawing.PlaceNote = if (chosen) |mark| placeNoteOf(scene, projection, mark) else null;
     var labels: drawing.Labels = .{ .corners = corners, .lines = lines };
     for (gathered.marks) |mark| labels.take(mark.box());
+    for ([_]?[2]Vec2{
+        legend_box,
+        drawing.scaleBox(scale_at, cell, scale),
+        note_box,
+        if (start) |pill| pill.box else null,
+        if (chosen) |mark| drawing.grown(mark.box(), px(bracket_reach)) else null,
+        if (place_note) |placed| placed.box else null,
+    }) |taken| if (taken) |box| labels.take(box);
     const named = nameMarks(list, &labels, scene, known, gathered.marks);
     for (rings) |ring| nameRing(list, &labels, ring);
-    for (gathered.marks) |mark| {
-        const thing = scene.things[mark.first];
-        if (mark.count > 1 or selected == null or !selected.?.eql(Ref.of(thing))) continue;
-        const place = placeOf(thing);
-        const axes = projection.axes();
-        drawing.brackets(list, mark.middle, px(mark.size) / 2 + px(5));
-        drawing.placeNote(list, mark.middle, axisNames(projection), .{ place[axes[0]], place[axes[1]] });
+    if (chosen) |mark| {
+        drawing.brackets(list, mark.middle, px(mark.size) / 2 + px(bracket_reach));
+        drawing.placeNote(list, place_note.?);
     }
     if (hovered) |which| {
         const mark = gathered.marks[which];
@@ -371,16 +389,10 @@ fn map(app: *App, document: *Document, scene: game.Scene) void {
     const settled = c.ImGui_GetTime() - Map.zoomed_at > c.ImGui_GetIO().*.MouseDoubleClickTime;
     if (pointer != null and hovered == null and settled and c.ImGui_IsMouseDoubleClicked(0)) Map.fit = true;
 
-    drawing.legend(list, corners[0], Map.routes and scene.routes.len > 0);
-    drawing.scaleBar(list, .{ .x = corners[0].x + px(12), .y = corners[1].y - px(12) }, cell, scale);
-    gui.sans(.regular, 11);
-    const note = projection.note();
-    gui.drawText(list, .{ .x = corners[1].x - px(12) - gui.textSize(note).x, .y = corners[1].y - px(12) - c.ImGui_GetFontSize() }, theme.text_dim, note);
-    gui.popFont();
-    if (scene.player) |player| {
-        const thing = scene.things[player];
-        if (known.nth(thing.section, thing.index)) |record| drawStartOffMap(list, corners, shown, projection, thing, record.*);
-    }
+    drawing.legend(list, legend_box, routes_shown);
+    drawing.scaleBar(list, scale_at, cell, scale);
+    drawing.axesNote(list, note_box, note);
+    if (start) |pill| drawing.pill(list, pill);
     Map.pointer = if (pointer) |at| plot.fromPixels(at) else null;
 }
 
@@ -774,6 +786,8 @@ fn drawRoutes(list: *c.ImDrawList, scene: game.Scene, gathered: Gathered, projec
         .ships, .flight_groups => record.group,
         else => null,
     } else null;
+    // The selection's routes stand out where it's on any; otherwise every route shows alike.
+    const focused = isOnAnyRoute(scene.routes, selected, selected_group);
     const Drawn = struct { from: usize, to: usize, way: game.Way, color: Color };
     var drawn: std.AutoHashMapUnmanaged(Drawn, void) = .empty;
     for (scene.routes) |route| {
@@ -782,7 +796,7 @@ fn drawRoutes(list: *c.ImDrawList, scene: game.Scene, gathered: Gathered, projec
             const from = endOf(scene, gathered, projection, leg.from);
             const to = endOf(scene, gathered, projection, leg.to);
             if (from.mark != null and from.mark == to.mark) continue;
-            const focus: f32 = if (inspected == null) 0.75 else if (isOnRoute(route, leg, selected, selected_group)) 1 else 0.3;
+            const focus: f32 = if (!focused) 0.75 else if (isOnRoute(route, leg, selected, selected_group)) 1 else 0.3;
             const color = theme.fade(base, focus);
             const key: Drawn = .{ .from = from.key(leg.from), .to = to.key(leg.to), .way = leg.way, .color = color };
             const seen = drawn.getOrPut(gui.frameAllocator(), key) catch return lines.items;
@@ -792,6 +806,12 @@ fn drawRoutes(list: *c.ImDrawList, scene: game.Scene, gathered: Gathered, projec
         }
     }
     return lines.items;
+}
+
+/// Whether any leg of `routes` is on the selection (`isOnRoute`).
+fn isOnAnyRoute(routes: []const game.Route, selected: ?usize, selected_group: ?usize) bool {
+    for (routes) |route| for (route.legs) |leg| if (isOnRoute(route, leg, selected, selected_group)) return true;
+    return false;
 }
 
 /// Whether a leg of `route` is on the selection: the selected ship's route, its group's, or a leg
@@ -814,11 +834,12 @@ fn endOf(scene: game.Scene, gathered: Gathered, projection: Projection, thing: u
     return .{ .middle = plot.toPixels(projection.project(placeOf(scene.things[thing]))) };
 }
 
-/// Where the player starts, at the map's edge, where the map doesn't show it: the way to it, and
-/// how far it is from the map's middle.
-fn drawStartOffMap(list: *c.ImDrawList, corners: [2]Vec2, shown: plot.Rect, projection: Projection, player: game.Thing, record: game.Record) void {
+/// The note at the map's edge that points the way to where the player starts, where the map
+/// doesn't show it, with how far that is from the map's middle.
+fn startPill(corners: [2]Vec2, shown: plot.Rect, projection: Projection, player: game.Thing, known: game.Outline) ?drawing.Pill {
+    const record = known.nth(player.section, player.index) orelse return null;
     const at = projection.project(placeOf(player));
-    if (at[0] >= shown.x_min and at[0] <= shown.x_max and at[1] >= shown.y_min and at[1] <= shown.y_max) return;
+    if (at[0] >= shown.x_min and at[0] <= shown.x_max and at[1] >= shown.y_min and at[1] <= shown.y_max) return null;
     const middle: [2]f64 = .{ (shown.x_min + shown.x_max) / 2, (shown.y_min + shown.y_max) / 2 };
     const across = at[0] - middle[0];
     const up = at[1] - middle[1];
@@ -826,23 +847,42 @@ fn drawStartOffMap(list: *c.ImDrawList, corners: [2]Vec2, shown: plot.Rect, proj
     // The edge the player is beyond, by which way it is most.
     const ratio = (shown.x_max - shown.x_min) / (shown.y_max - shown.y_min);
     const sideways = @abs(across) > @abs(up) * ratio;
-    const icon: Icon = if (sideways) (if (across > 0) .arrow_right else .arrow_left) else (if (up > 0) .arrow_up else .arrow_down);
-    const color = theme.lighten(panels.groupColor(record), player_tint);
-    gui.sans(.regular, fonts.size.smaller);
-    defer gui.popFont();
     const text = gui.print("{s} start · {s}", .{ record.title, drawing.distance(far) });
-    const width = px(9 + 12 + 6 + 9) + gui.textSize(text).x;
+    const width = drawing.Pill.width(text);
     const height = px(24);
     const centre: Vec2 = .{ .x = (corners[0].x + corners[1].x) / 2, .y = (corners[0].y + corners[1].y) / 2 };
     const min: Vec2 = if (sideways)
         .{ .x = if (across > 0) corners[1].x - px(10) - width else corners[0].x + px(10), .y = centre.y - height / 2 }
     else
         .{ .x = centre.x - width / 2, .y = if (up > 0) corners[0].y + px(10) else corners[1].y - px(10) - height };
-    const max: Vec2 = .{ .x = min.x + width, .y = min.y + height };
-    gui.rect(list, min, max, theme.fade(theme.bar, 0.9), height / 2);
-    gui.outline(list, min, max, theme.border_off, height / 2);
-    widgets.drawIconCentered(list, .{ .x = min.x + px(9 + 6), .y = (min.y + max.y) / 2 }, icon, fonts.size.icon_tiny, color);
-    gui.drawText(list, .{ .x = min.x + px(9 + 12 + 6), .y = gui.textTop((min.y + max.y) / 2) }, color, text);
+    return .{
+        .box = .{ min, .{ .x = min.x + width, .y = min.y + height } },
+        .icon = if (sideways) (if (across > 0) .arrow_right else .arrow_left) else (if (up > 0) .arrow_up else .arrow_down),
+        .color = theme.lighten(panels.groupColor(record.*), player_tint),
+        .text = text,
+    };
+}
+
+/// The note by the selected mark: where its thing is on the map's axes.
+fn placeNoteOf(scene: game.Scene, projection: Projection, mark: Mark) drawing.PlaceNote {
+    const place = placeOf(scene.things[mark.first]);
+    const axes = projection.axes();
+    return .at(mark.middle, axisNames(projection), .{ place[axes[0]], place[axes[1]] });
+}
+
+test isOnAnyRoute {
+    const legs = [_]game.Leg{.{ .from = 0, .to = 1, .way = .fly }};
+    const routes = [_]game.Route{
+        .{ .ship = 2, .group = 0, .legs = &legs },
+        .{ .ship = null, .group = 3, .legs = &legs },
+    };
+    // With nothing selected, or a record no route takes, the routes show alike.
+    try std.testing.expect(!isOnAnyRoute(&routes, null, null));
+    try std.testing.expect(!isOnAnyRoute(&routes, 5, 4));
+    // A route's ship, a marker a route passes, or a group with a route of its own.
+    try std.testing.expect(isOnAnyRoute(&routes, 2, null));
+    try std.testing.expect(isOnAnyRoute(&routes, 1, null));
+    try std.testing.expect(isOnAnyRoute(&routes, null, 3));
 }
 
 test Projection {

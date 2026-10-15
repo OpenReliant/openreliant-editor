@@ -50,8 +50,9 @@ holds, named after its most important thing.
   click on an empty part of the map, shows the whole mission again.
 - Point at a numbered mark to list what it holds, and click it to zoom in to them. Where its
   things lie on the same spot, the click lists them instead, to pick one.
-- Names go where they have room, the selection's and the player's first, and keep off the routes
-  where they can. Point at a mark to see a name that has no room.
+- Names go where they have room, the selection's and the player's first, never under the legend,
+  the scale or the map's notes, and off the routes where they can. Point at a mark to see a name
+  that has no room.
 - Click a ship or a marker to select it: the inspector shows it, and the map marks it with its
   place. Drag it to move where it starts: its `position` changes in the source when you let go, as
   one step of Undo. Hold Shift to snap to 100. A click on an empty part of the map clears the

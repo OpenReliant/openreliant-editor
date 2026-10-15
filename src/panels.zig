@@ -367,7 +367,7 @@ fn tableHeader(columns: []const []const u8, widths: []const f32) void {
     gui.rect(list, at, .{ .x = at.x + width, .y = at.y + height }, theme.table_head, 0);
     gui.rect(list, .{ .x = at.x, .y = at.y + height - px(1) }, .{ .x = at.x + width, .y = at.y + height }, theme.table_head_line, 0);
     gui.sans(.medium, fonts.size.ui);
-    var x = at.x + px(12);
+    var x = at.x + px(table_inset);
     for (columns, widths) |column, column_width| {
         gui.drawText(list, .{ .x = x, .y = gui.textTop(at.y + height / 2) }, theme.text_dim, column);
         x += px(column_width);
@@ -379,6 +379,10 @@ fn tableHeader(columns: []const []const u8, widths: []const f32) void {
 /// The threads' columns: their names and widths.
 const thread_columns = [_][]const u8{ "Slot", "State", "Where", "Started by", "Depth", "Waits for" };
 const thread_widths = [_]f32{ 46, 64, 136, 196, 58, 80 };
+/// Where a table's first column starts, and the room a cell's text leaves before the next column,
+/// in design pixels: a cell's text is cut with an ellipsis where it would come closer.
+const table_inset = 12;
+const cell_gap = 8;
 
 fn threads(app: *App) void {
     tableHeader(&thread_columns, &thread_widths);
@@ -412,7 +416,7 @@ fn threadRow(app: *App, state: State, thread: State.Thread) void {
     if (held) gui.rect(list, at, .{ .x = at.x + width, .y = at.y + height }, theme.held_row, 0) else if (gui.hovered()) gui.rect(list, at, .{ .x = at.x + width, .y = at.y + height }, theme.row_hover, 0);
     gui.rect(list, .{ .x = at.x, .y = at.y + height - px(1) }, .{ .x = at.x + width, .y = at.y + height }, theme.table_line, 0);
     const middle = at.y + height / 2;
-    var x = at.x + px(12);
+    var x = at.x + px(table_inset);
     gui.mono(.regular, fonts.size.ui);
     gui.drawText(list, .{ .x = x, .y = gui.textTop(middle) }, theme.text_row, gui.print("{d}", .{thread.slot}));
     gui.popFont();
@@ -426,30 +430,33 @@ fn threadRow(app: *App, state: State, thread: State.Thread) void {
         gui.popFont();
     }
     x += px(thread_widths[1]);
-    // Where: its line, from the build's map, and its offset.
+    // Where: its line, from the build's map, and its offset after it where the column has room.
+    const where_limit = x + px(thread_widths[2] - cell_gap);
     const line = if (thread.at) |offset| session.lineOf(offset) else null;
     var where_x = x;
     if (line) |found| {
         gui.mono(.regular, fonts.size.ui);
         const text = gui.print("line {d}", .{found + 1});
-        gui.drawText(list, .{ .x = where_x, .y = gui.textTop(middle) }, if (held) theme.held_text else theme.text_row, text);
+        widgets.clippedText(list, .{ .x = where_x, .y = gui.textTop(middle) }, where_limit, if (held) theme.held_text else theme.text_row, text);
         where_x += gui.textSize(text).x;
         gui.popFont();
     }
     gui.sans(.regular, fonts.size.ui);
     const offset_text = if (thread.at) |offset| gui.print("{s}offset {d}", .{ if (line != null) " · " else "", offset }) else "outside the script";
-    gui.drawText(list, .{ .x = where_x, .y = gui.textTop(middle) }, theme.text_dim, offset_text);
+    if (line == null or where_x + gui.textSize(offset_text).x <= where_limit) {
+        widgets.clippedText(list, .{ .x = where_x, .y = gui.textTop(middle) }, where_limit, theme.text_dim, offset_text);
+    }
     gui.popFont();
     x += px(thread_widths[2]);
     gui.mono(.regular, fonts.size.ui);
-    gui.drawText(list, .{ .x = x, .y = gui.textTop(middle) }, theme.text_row, startedBy(app, thread, line));
+    widgets.clippedText(list, .{ .x = x, .y = gui.textTop(middle) }, x + px(thread_widths[3] - cell_gap), theme.text_row, startedBy(app, thread, line));
     x += px(thread_widths[3]);
     gui.drawText(list, .{ .x = x, .y = gui.textTop(middle) }, theme.text_row, gui.print("{d}", .{thread.depth}));
     gui.popFont();
     x += px(thread_widths[4]);
     gui.sans(.regular, fonts.size.ui);
     const waits_for = if (thread.interrupted) "its trigger" else if (thread.wake != 0) gui.print("clock {d} s", .{thread.wake}) else "nothing";
-    gui.drawText(list, .{ .x = x, .y = gui.textTop(middle) }, theme.text_dim, waits_for);
+    widgets.clippedText(list, .{ .x = x, .y = gui.textTop(middle) }, at.x + width - px(cell_gap), theme.text_dim, waits_for);
     gui.popFont();
     if (double_clicked) if (line) |found| app.goTo(found, 0);
 }
@@ -478,6 +485,9 @@ fn startedBy(app: *App, thread: State.Thread, line: ?u32) []const u8 {
     return "a part";
 }
 
+const breakpoint_columns = [_][]const u8{ "Line", "Statement", "In" };
+const breakpoint_widths = [_]f32{ 64, 330, 160 };
+
 fn breakpoints(app: *App) void {
     const document = app.document orelse return waiting(.circle_dot, "No mission open", null);
     var buffer: [@import("mission/document.zig").max_breakpoints]usize = undefined;
@@ -486,7 +496,7 @@ fn breakpoints(app: *App) void {
         waiting(.circle_dot, gui.print("No breakpoints · {s} or a click in the margin sets one", .{app.keyText(.toggle_breakpoint) orelse "F9"}), null);
         return;
     }
-    tableHeader(&.{ "Line", "Statement", "In" }, &.{ 64, 330, 160 });
+    tableHeader(&breakpoint_columns, &breakpoint_widths);
     const known = document.outline();
     for (lines) |line| {
         gui.pushIdInt(line);
@@ -504,11 +514,13 @@ fn breakpoints(app: *App) void {
         if (app.session.mapped()) gui.dot(list, .{ .x = at.x + px(17), .y = middle }, 4.5, theme.breakpoint) else gui.ring(list, .{ .x = at.x + px(17), .y = middle }, 3.75, 1.5, theme.breakpoint);
         gui.mono(.regular, fonts.size.ui);
         gui.drawText(list, .{ .x = at.x + px(28), .y = gui.textTop(middle) }, theme.text_row, gui.print("{d}", .{line + 1}));
-        gui.drawText(list, .{ .x = at.x + px(76), .y = gui.textTop(middle) }, theme.syntax.name, statement[0..@min(statement.len, 48)]);
+        const statement_x = at.x + px(table_inset + breakpoint_widths[0]);
+        const record_x = statement_x + px(breakpoint_widths[1]);
+        widgets.clippedText(list, .{ .x = statement_x, .y = gui.textTop(middle) }, record_x - px(cell_gap), theme.syntax.name, statement);
         gui.popFont();
         if (record) |found| {
             gui.mono(.regular, fonts.size.ui);
-            gui.drawText(list, .{ .x = at.x + px(406), .y = gui.textTop(middle) }, theme.text_dim, found.title);
+            widgets.clippedText(list, .{ .x = record_x, .y = gui.textTop(middle) }, at.x + width - px(cell_gap), theme.text_dim, found.title);
             gui.popFont();
         }
         if (clicked) app.goTo(@intCast(line), 0);
