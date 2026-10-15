@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.2.1](https://github.com/OpenReliant/openreliant-editor/compare/v0.2.0...v0.2.1) (2026-10-15)
+
+
+### Fixes
+
+* panel tabs stay inside their bar in narrow windows ([#36](https://github.com/OpenReliant/openreliant-editor/issues/36)) ([74125a9](https://github.com/OpenReliant/openreliant-editor/commit/74125a9e55da3dea1b19b02a67c7d2dd98c1f450))
+* the map's names and routes, and long text in the panels ([#33](https://github.com/OpenReliant/openreliant-editor/issues/33)) ([dc1f6e3](https://github.com/OpenReliant/openreliant-editor/commit/dc1f6e3c2a232ae2f60c5117abadb2792d4cf29b))
+* the map's toolbar fits narrow windows ([#35](https://github.com/OpenReliant/openreliant-editor/issues/35)) ([7ea8701](https://github.com/OpenReliant/openreliant-editor/commit/7ea8701fdb880e9f870313c23cb94157d13dfd81))
+
 ## [0.2.0](https://github.com/OpenReliant/openreliant-editor/compare/v0.1.1...v0.2.0) (2026-10-15)
 
 
