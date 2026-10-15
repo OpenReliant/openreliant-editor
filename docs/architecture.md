@@ -81,7 +81,8 @@ Each shows in the interface, greyed out, with its issue:
 
 - the Scene view ([#2](https://github.com/OpenReliant/openreliant-editor/issues/2)) and the Blocks
   view ([#3](https://github.com/OpenReliant/openreliant-editor/issues/3));
-- Mod mode ([#4](https://github.com/OpenReliant/openreliant-editor/issues/4));
+- Mod mode, with Reload scripts and Play with this mod only
+  ([#4](https://github.com/OpenReliant/openreliant-editor/issues/4));
 - the debugger's conditions, log points, Watch, values inline and Debugging screen
   ([#19](https://github.com/OpenReliant/openreliant-editor/issues/19)), its timeline
   ([#20](https://github.com/OpenReliant/openreliant-editor/issues/20)), the live scene

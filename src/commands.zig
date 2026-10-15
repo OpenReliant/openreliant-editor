@@ -195,6 +195,7 @@ fn defaults(comptime windows_linux: []const []const u8, comptime macos: []const 
 pub const plans = struct {
     pub const scene: Plan = .{ .issue = 2 };
     pub const blocks: Plan = .{ .issue = 3 };
+    /// Mod mode's views, Reload scripts, and Play with this mod only.
     pub const mod_mode: Plan = .{ .issue = 4 };
     /// Conditions, log points, Watch, the values inline, the Debugging screen and offsets.
     pub const watches: Plan = .{ .issue = 19 };
@@ -207,8 +208,6 @@ pub const plans = struct {
     pub const settings: Plan = .{ .issue = 10 };
     pub const live_scene: Plan = .{ .issue = 21 };
     pub const play_from_part: Plan = .{ .issue = 577, .repository = .openreliant };
-    pub const chosen_mods: Plan = .{ .issue = 1202, .repository = .openreliant };
-    pub const reload_scripts: Plan = .{ .issue = 1201, .repository = .openreliant };
 };
 
 pub fn info(command: Command) Info {
@@ -265,8 +264,8 @@ pub fn info(command: Command) Info {
 
         .play => .{ .label = "Play in game", .icon = .play, .when = .not_held, .keys = defaults(&.{"F5"}, &.{"Cmd+R"}), .key_group = .build_and_play },
         .play_from_part => .{ .label = "Play from part…", .icon = .play, .keys = defaults(&.{"Ctrl+F5"}, &.{"Ctrl+Cmd+R"}), .key_group = .build_and_play },
-        .play_mod_only => .{ .label = "Play with this mod only", .icon = .play, .planned = plans.chosen_mods },
-        .reload_scripts => .{ .label = "Reload scripts", .icon = .refresh_cw, .keys = defaults(&.{"Ctrl+R"}, &.{"Cmd+Shift+R"}), .key_group = .build_and_play, .planned = plans.reload_scripts },
+        .play_mod_only => .{ .label = "Play with this mod only", .icon = .play, .planned = plans.mod_mode },
+        .reload_scripts => .{ .label = "Reload scripts", .icon = .refresh_cw, .keys = defaults(&.{"Ctrl+R"}, &.{"Cmd+Shift+R"}), .key_group = .build_and_play, .planned = plans.mod_mode },
         .link => .{ .label = "Link to game", .icon = .cable },
         .game_settings => .{ .label = "Game settings", .icon = .sliders_horizontal },
 

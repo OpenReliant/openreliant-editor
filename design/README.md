@@ -206,14 +206,27 @@ make it in.
 | Icons | Lucide, through IconFontCppHeaders |
 | Blocks | ImGui's draw lists and drag and drop |
 
-## What the screens need from OpenReliant
+## What the screens use from OpenReliant
 
-- The live scene: [#1059](https://github.com/OpenReliant/openreliant/issues/1059)
+The screens talk to the game over OpenReliant's editor link
+([The editor link](https://github.com/OpenReliant/openreliant/blob/main/docs/engine/editor-link.md)),
+and start it with its options. From OpenReliant 0.16.0, the link carries what the live scene, the
+timeline and the console need:
+
+| Screen | From OpenReliant |
+|---|---|
+| The live scene, and the Scene view's ships where they are now | `Mission file`, which the editor asks for with `Get mission`: the game keeps each ship's place and heading in the mission's records, and marks a destroyed ship. `State` gives each ship's order and target |
+| The Debugging screen's timeline | `State`: the triggers fired and the commands run since the last state, each with its time on the script's clock. The holds are the editor's own |
+| The Code view's console | `Console line` runs a line in the game's console, and the answers come from the game's log, `openreliant.log`. The console needs `--developer-mode` and a mod with scripts |
+| Reload scripts | The console line `reload`. With `--developer-mode`, a folder mod's scripts also reload when they're saved |
+| Play with this mod only, and trying a packed `.hog` | `--mods` with the mod's folder or `.hog` |
+
+The Share view's export for the catalogue is the editor's own work.
+
+Still to come in OpenReliant:
+
 - The editor's live changes to the mission: [#1057](https://github.com/OpenReliant/openreliant/issues/1057)
-- Playing a mission from a part: [#577](https://github.com/OpenReliant/openreliant/issues/577)
-- The game's console and reloading mods' scripts: [#1201](https://github.com/OpenReliant/openreliant/issues/1201)
-- Starting with a chosen set of mods: [#1202](https://github.com/OpenReliant/openreliant/issues/1202)
-- Exporting a mod for the catalogue: [#1203](https://github.com/OpenReliant/openreliant/issues/1203)
+- Playing from a part with the variables the earlier parts set: [#577](https://github.com/OpenReliant/openreliant/issues/577)
 
 ## Changing the design
 
