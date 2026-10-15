@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/OpenReliant/openreliant-editor/compare/v0.1.0...v0.1.1) (2026-10-15)
+
+
+### Fixes
+
+* OpenReliant 0.16.0 links without a protocol failure ([#25](https://github.com/OpenReliant/openreliant-editor/issues/25)) ([c437e0e](https://github.com/OpenReliant/openreliant-editor/commit/c437e0ebfd745d5660161da4a419a60d3f8cca5f))
+
 ## [0.1.0](https://github.com/OpenReliant/openreliant-editor/compare/v0.0.1...v0.1.0) (2026-10-14)
 
 
