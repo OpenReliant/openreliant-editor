@@ -10,6 +10,7 @@ const App = app_mod.App;
 const commands = @import("commands.zig");
 const Command = commands.Command;
 const game = @import("game.zig");
+const panels = @import("panels.zig");
 const ui = @import("ui.zig");
 const fonts = ui.fonts;
 const gui = ui.gui;
@@ -282,7 +283,7 @@ fn playForm(app: *App) void {
     const watched = if (state.watch) |index| if (index < found_ships.len) found_ships[index] else null else null;
     if (widgets.frame("watch", .{
         .label = if (watched) |ship| ship.title else "The player's ship",
-        .mark = if (watched) |ship| .{ .icon = .{ .icon = .navigation_2, .color = if (ship.group) |group| theme.groups[group % theme.groups.len] else theme.text_menu } } else .none,
+        .mark = if (watched) |ship| .{ .icon = .{ .icon = .navigation_2, .color = panels.groupColor(ship.*) } } else .none,
     })) _ = c.ImGui_OpenPopup("ships", 0);
     if (c.ImGui_BeginPopup("ships", 0)) {
         if (c.ImGui_MenuItemEx("The player's ship", null, state.watch == null, true)) state.watch = null;

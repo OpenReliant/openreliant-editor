@@ -107,11 +107,11 @@ the whole script.
 The map fits the mission without its scenery, which lies far off. Each frame it gathers the things
 that would overlap on the screen into one mark, the most important first: the selection, the player,
 the ships, the markers, the camera's points and the scenery. Names then go in the same order, each
-on the first side of its mark where it covers no mark, no name and none of the notes drawn over the
-map, such as the legend and the scale, and crosses no route where a side is free. The map draws its
-own grid, so that its scale is always a cell, and draws only the part of a range's ring or a route's
-leg that shows. A dragged ship or marker is queued as an edit of its place, as the forms' edits are,
-when it's let go.
+on the first side of its mark where it covers no mark, no name and none of the notes over the map,
+such as the legend and the scale. A side where the name also crosses no route comes first. The map
+draws its own grid, so that its scale is always a cell, and draws only the part of a range's ring or
+a route's leg that shows. A dragged ship or marker is queued as an edit of its place, as the forms'
+edits are, when it's let go.
 
 ## The debugger
 

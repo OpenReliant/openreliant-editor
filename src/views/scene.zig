@@ -145,7 +145,7 @@ const least_opened = 400;
 /// list of things too close together to show apart.
 const most_listed = 12;
 const list_width = 200;
-/// How much lighter than its group's colour the player's name is.
+/// How much lighter than its group's colour the player's name is (`playerColor`).
 const player_tint = 0.47;
 /// How much a notch of the wheel zooms, and how far in and out the map goes, in the game's
 /// units across.
@@ -346,7 +346,7 @@ fn map(app: *App, document: *Document, scene: game.Scene) void {
     // player's start where the map doesn't show it, and the selection's brackets and place.
     const routes_shown = Map.routes and scene.routes.len > 0;
     const legend_box = drawing.legendBox(corners[0], routes_shown);
-    const scale_at: Vec2 = .{ .x = corners[0].x + px(12), .y = corners[1].y - px(12) };
+    const scale_at: Vec2 = .{ .x = corners[0].x + px(drawing.note_margin), .y = corners[1].y - px(drawing.note_margin) };
     const note = projection.note();
     const note_box = drawing.axesNoteBox(corners, note);
     const start: ?drawing.Pill = if (scene.player) |player| startPill(corners, shown, projection, scene.things[player], known) else null;
@@ -689,9 +689,7 @@ fn nameMarks(list: *c.ImDrawList, labels: *drawing.Labels, scene: game.Scene, kn
         const thing = scene.things[mark.first];
         const record = known.nth(thing.section, thing.index) orelse continue;
         const text = if (mark.count > 1) gui.print("{s} +{d}", .{ record.title, mark.count - 1 }) else record.title;
-        const color = if (scene.player == mark.first)
-            theme.lighten(panels.groupColor(record.*), player_tint)
-        else switch (thing.kind) {
+        const color = if (scene.player == mark.first) playerColor(record.*) else switch (thing.kind) {
             .ship, .marker => theme.text,
             .camera, .scenery => theme.text_dim,
         };
@@ -750,7 +748,7 @@ fn drawRanges(list: *c.ImDrawList, scene: game.Scene, projection: Projection, sc
 /// A ring's label, inside it at its top or else at its bottom, where the ring is wide enough to
 /// hold it and the label covers no mark and no name.
 fn nameRing(list: *c.ImDrawList, labels: *drawing.Labels, ring: Ring) void {
-    gui.sans(.regular, 11);
+    gui.sans(.regular, fonts.size.note);
     defer gui.popFont();
     const text = gui.print("{s} · {s}", .{ ring.range.label, drawing.distance(ring.range.radius) });
     const size = gui.textSize(text);
@@ -791,7 +789,7 @@ fn drawRoutes(list: *c.ImDrawList, scene: game.Scene, gathered: Gathered, projec
     const Drawn = struct { from: usize, to: usize, way: game.Way, color: Color };
     var drawn: std.AutoHashMapUnmanaged(Drawn, void) = .empty;
     for (scene.routes) |route| {
-        const base = if (route.group) |group| theme.groups[group % theme.groups.len] else theme.text_dim;
+        const base = if (route.group) |group| theme.group(group) else theme.text_dim;
         for (route.legs) |leg| {
             const from = endOf(scene, gathered, projection, leg.from);
             const to = endOf(scene, gathered, projection, leg.to);
@@ -849,18 +847,25 @@ fn startPill(corners: [2]Vec2, shown: plot.Rect, projection: Projection, player:
     const sideways = @abs(across) > @abs(up) * ratio;
     const text = gui.print("{s} start · {s}", .{ record.title, drawing.distance(far) });
     const width = drawing.Pill.width(text);
-    const height = px(24);
+    const height = px(drawing.Pill.height);
+    const margin = px(drawing.box_margin);
     const centre: Vec2 = .{ .x = (corners[0].x + corners[1].x) / 2, .y = (corners[0].y + corners[1].y) / 2 };
     const min: Vec2 = if (sideways)
-        .{ .x = if (across > 0) corners[1].x - px(10) - width else corners[0].x + px(10), .y = centre.y - height / 2 }
+        .{ .x = if (across > 0) corners[1].x - margin - width else corners[0].x + margin, .y = centre.y - height / 2 }
     else
-        .{ .x = centre.x - width / 2, .y = if (up > 0) corners[0].y + px(10) else corners[1].y - px(10) - height };
+        .{ .x = centre.x - width / 2, .y = if (up > 0) corners[0].y + margin else corners[1].y - margin - height };
     return .{
         .box = .{ min, .{ .x = min.x + width, .y = min.y + height } },
         .icon = if (sideways) (if (across > 0) .arrow_right else .arrow_left) else (if (up > 0) .arrow_up else .arrow_down),
-        .color = theme.lighten(panels.groupColor(record.*), player_tint),
+        .color = playerColor(record.*),
         .text = text,
     };
+}
+
+/// The colour of the player's name and of the note that points to its start: its group's,
+/// lighter.
+fn playerColor(record: game.Record) Color {
+    return theme.lighten(panels.groupColor(record), player_tint);
 }
 
 /// The note by the selected mark: where its thing is on the map's axes.

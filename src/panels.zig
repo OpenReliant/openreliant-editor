@@ -13,7 +13,8 @@ const App = app_mod.App;
 const Panel = app_mod.Panel;
 const commands = @import("commands.zig");
 const game = @import("game.zig");
-const Document = @import("mission/document.zig").Document;
+const document_mod = @import("mission/document.zig");
+const Document = document_mod.Document;
 const forms = @import("forms.zig");
 const scene_view = @import("views/scene.zig");
 const script_view = @import("views/script.zig");
@@ -139,7 +140,7 @@ fn tabCount(app: *App, panel: Panel) ?widgets.Pill {
             break :blk .{ .text = gui.print("{d}", .{found}), .style = if (found > 0) .err else .normal };
         },
         .breakpoints => blk: {
-            var buffer: [@import("mission/document.zig").max_breakpoints]usize = undefined;
+            var buffer: [document_mod.max_breakpoints]usize = undefined;
             break :blk .{ .text = gui.print("{d}", .{document.breakpoints(&buffer).len}) };
         },
         else => null,
@@ -175,10 +176,13 @@ fn padded(x: f32, y: f32) void {
     gui.setCursor(gui.add(gui.cursor(), .{ .x = px(x), .y = px(y) }));
 }
 
-/// A line that says the panel needs something the editor doesn't have yet.
+/// A line that says the panel needs something the editor doesn't have yet, wrapped at the
+/// panel's edge.
 fn waiting(icon: Icon, text: []const u8, plan: ?commands.Plan) void {
     padded(12, 12);
     const at = gui.cursor();
+    gui.wrapAt(at.x + gui.available().x - px(12));
+    defer c.ImGui_PopTextWrapPos();
     widgets.iconItem(icon, fonts.size.icon_small, theme.text_off);
     gui.setCursor(.{ .x = at.x + px(22), .y = at.y - px(1) });
     widgets.caption(text, theme.text_dim, fonts.size.small, .regular);
@@ -278,7 +282,7 @@ fn outline(app: *App) void {
 
 /// How the outline shows `record`.
 fn recordRow(document: *const Document, record: game.Record, selected: bool, failed: bool) widgets.Row {
-    const group_color = if (record.group) |group| theme.groups[group % theme.groups.len] else theme.text_menu;
+    const group_color = groupColor(record);
     var shown: widgets.Row = .{ .label = record.title, .indent = 52, .selected = selected, .failed = failed };
     shown.mark = switch (record.section) {
         .flight_groups => .{ .swatch = group_color },
@@ -324,6 +328,9 @@ const Find = struct {
     var query: [128:0]u8 = @splat(0);
 };
 
+/// The most lines Find lists.
+const most_found = 500;
+
 fn find(app: *App) void {
     const document = app.document orelse return waiting(.search, "No mission open", null);
     padded(8, 8);
@@ -342,14 +349,13 @@ fn find(app: *App) void {
         found += 1;
         gui.pushIdInt(line);
         defer gui.popId();
-        const shown = std.mem.trim(u8, text, " \t");
         const result = widgets.row("line", .{
-            .label = gui.z(shown[0..@min(shown.len, 60)]),
+            .label = std.mem.trim(u8, text, " \t"),
             .mono_label = true,
             .end = .{ .text = .{ .text = gui.print("{d}", .{line + 1}) } },
         });
         if (result.clicked) app.goTo(@intCast(line), @intCast(column));
-        if (found >= 500) break;
+        if (found >= most_found) break;
     }
     if (found == 0) {
         padded(10, 6);
@@ -358,6 +364,11 @@ fn find(app: *App) void {
 }
 
 // The debugging panels, which need the game linked.
+
+/// Where a table's first column starts, and the room a cell's text leaves before what follows it,
+/// in design pixels: text that would come closer is cut with an ellipsis.
+const table_inset = 12;
+const cell_gap = 8;
 
 fn tableHeader(columns: []const []const u8, widths: []const f32) void {
     const at = gui.cursor();
@@ -379,10 +390,6 @@ fn tableHeader(columns: []const []const u8, widths: []const f32) void {
 /// The threads' columns: their names and widths.
 const thread_columns = [_][]const u8{ "Slot", "State", "Where", "Started by", "Depth", "Waits for" };
 const thread_widths = [_]f32{ 46, 64, 136, 196, 58, 80 };
-/// Where a table's first column starts, and the room a cell's text leaves before the next column,
-/// in design pixels: a cell's text is cut with an ellipsis where it would come closer.
-const table_inset = 12;
-const cell_gap = 8;
 
 fn threads(app: *App) void {
     tableHeader(&thread_columns, &thread_widths);
@@ -463,7 +470,7 @@ fn threadRow(app: *App, state: State, thread: State.Thread) void {
 
 /// The design's tag of the thread the game holds: the state on the accent, 7 pixels to each side.
 fn stateTag(list: *c.ImDrawList, left: f32, middle: f32, text: []const u8) void {
-    gui.sans(.semibold, 11);
+    gui.sans(.semibold, fonts.size.note);
     defer gui.popFont();
     const height = px(17);
     const max = gui.vec2(left + gui.textSize(text).x + px(7) * 2, middle + height / 2);
@@ -476,13 +483,16 @@ fn startedBy(app: *App, thread: State.Thread, line: ?u32) []const u8 {
     const document = app.document orelse return "";
     const known = document.outline();
     if (thread.trigger) |index| {
-        for (known.records) |record| {
-            if (record.section == .triggers and record.index == index) return gui.print("on({s}, \"{s}\")", .{ record.subject, record.condition });
-        }
+        if (known.nth(.triggers, index)) |record| return triggerName(record.*);
         return gui.print("trigger {d}", .{index});
     }
     if (thread.depth == 0) if (line) |found| if (known.at(found)) |record| if (record.section == .parts) return record.title;
     return "a part";
+}
+
+/// A trigger as the source writes it: `on(subject, "condition")`.
+fn triggerName(record: game.Record) [:0]const u8 {
+    return gui.print("on({s}, \"{s}\")", .{ record.subject, record.condition });
 }
 
 const breakpoint_columns = [_][]const u8{ "Line", "Statement", "In" };
@@ -490,7 +500,7 @@ const breakpoint_widths = [_]f32{ 64, 330, 160 };
 
 fn breakpoints(app: *App) void {
     const document = app.document orelse return waiting(.circle_dot, "No mission open", null);
-    var buffer: [@import("mission/document.zig").max_breakpoints]usize = undefined;
+    var buffer: [document_mod.max_breakpoints]usize = undefined;
     const lines = document.breakpoints(&buffer);
     if (lines.len == 0) {
         waiting(.circle_dot, gui.print("No breakpoints · {s} or a click in the margin sets one", .{app.keyText(.toggle_breakpoint) orelse "F9"}), null);
@@ -725,8 +735,8 @@ fn usedIn(document: ?*Document, under: []const u8, name: []const u8) bool {
     return false;
 }
 
-/// A variable's line, as the design's `.vr`: its name in the code font, its value at the end, in
-/// orange where it changed since the last hold.
+/// A variable's line, as the design's `.vr`: its name in the code font, cut short of its value,
+/// and its value at the end, in orange where it changed since the last hold.
 fn variableRow(name: []const u8, value: []const u8, color: theme.Color, changed: bool) void {
     const at = gui.cursor();
     const width = gui.available().x;
@@ -735,8 +745,9 @@ fn variableRow(name: []const u8, value: []const u8, color: theme.Color, changed:
     const list = gui.drawList();
     gui.mono(.regular, fonts.size.ui);
     const y = gui.textTop(at.y + height / 2);
-    gui.drawText(list, .{ .x = at.x + px(34), .y = y }, color, name);
-    gui.drawText(list, .{ .x = at.x + width - px(12) - gui.textSize(value).x, .y = y }, if (changed) theme.accent else theme.text_row, value);
+    const value_x = at.x + width - px(12) - gui.textSize(value).x;
+    widgets.clippedText(list, .{ .x = at.x + px(34), .y = y }, value_x - px(cell_gap), color, name);
+    gui.drawText(list, .{ .x = value_x, .y = y }, if (changed) theme.accent else theme.text_row, value);
     gui.popFont();
 }
 
@@ -772,7 +783,7 @@ fn inspector(app: *App) void {
     gui.setCursor(.{ .x = at.x + px(44), .y = at.y });
     c.ImGui_BeginGroup();
     const heading = switch (record.section) {
-        .triggers => gui.print("on({s}, \"{s}\")", .{ record.subject, record.condition }),
+        .triggers => triggerName(record.*),
         else => gui.z(record.title),
     };
     widgets.monoCaption(heading, theme.text_strong, 13.5, .semibold);
@@ -847,8 +858,9 @@ pub fn capitalNoun(section: game.Section) []const u8 {
     };
 }
 
+/// The colour of `record`'s flight group, for its icon in the outline and its mark on the map.
 pub fn groupColor(record: game.Record) theme.Color {
-    return if (record.group) |group| theme.groups[group % theme.groups.len] else theme.text_menu;
+    return if (record.group) |group| theme.group(group) else theme.text_menu;
 }
 
 /// The first lines of a record's code, in a small code view with their numbers.
@@ -881,8 +893,8 @@ fn codeExcerpt(document: *Document, record: game.Record, width: f32) void {
 // The reference: what the word at the cursor is, from the game's catalogues.
 
 fn reference(app: *App) void {
-    const word_name = app.reference_word orelse return waiting(.book_open, "Put the cursor on a command or a word of mission source", null);
-    const word = app.language.find(word_name) orelse return waiting(.book_open, "Put the cursor on a command or a word of mission source", null);
+    const word = (if (app.reference_word) |name| app.language.find(name) else null) orelse
+        return waiting(.book_open, "Put the cursor on a command or a word of mission source", null);
     gui.pushVar2(c.ImGuiStyleVar_WindowPadding, .{ .x = px(12), .y = px(12) });
     _ = c.ImGui_BeginChild("reference", .{ .x = 0, .y = 0 }, c.ImGuiChildFlags_AlwaysUseWindowPadding, 0);
     gui.popVar(1);

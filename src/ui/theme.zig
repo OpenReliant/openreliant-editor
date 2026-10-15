@@ -183,6 +183,11 @@ pub const groups = [_]Color{
     rgb(0x5aa9ff), rgb(0xc9cfdb), rgb(0xff7a6b), rgb(0x8fd18a), rgb(0xc4a7ff), rgb(0xe7c06b), rgb(0x63d1c0), rgb(0xf4b27a),
 };
 
+/// The colour of the flight group at `index` (`groups`).
+pub fn group(index: usize) Color {
+    return groups[index % groups.len];
+}
+
 /// The design's panels: 3 pixels apart and 3 pixels inside the area they fill, each in a line of 1
 /// pixel with corners of 3. The editor draws the line around each dock node, so the nodes are the
 /// panels' insides.
@@ -291,4 +296,10 @@ test lighten {
     try std.testing.expectEqual(rgb(0xa8d1ff), lighten(rgb(0x5aa9ff), 0.47));
     try std.testing.expectEqual(rgb(0x5aa9ff), lighten(rgb(0x5aa9ff), 0));
     try std.testing.expectEqual(rgb(0xffffff), lighten(rgb(0x5aa9ff), 1));
+}
+
+test group {
+    // The player's wing is the first group, and the colours start again after the last.
+    try std.testing.expectEqual(rgb(0x5aa9ff), group(0));
+    try std.testing.expectEqual(group(1), group(groups.len + 1));
 }

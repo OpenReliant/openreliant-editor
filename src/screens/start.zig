@@ -395,7 +395,7 @@ fn yourMods(app: *App, width: f32) void {
 
 /// The design's `.tag`: a small rounded label, right-aligned at `right`.
 fn tag(list: *c.ImDrawList, right_middle: gui.Vec2, text: []const u8, background: theme.Color, foreground: theme.Color) void {
-    gui.sans(.semibold, 11);
+    gui.sans(.semibold, fonts.size.note);
     defer gui.popFont();
     const width = gui.spacedWidth(text, 0.33) + px(7) * 2;
     const height = px(20);

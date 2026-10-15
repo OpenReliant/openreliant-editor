@@ -23,6 +23,8 @@ pub const size = struct {
     pub const small: f32 = 12;
     /// The status bar, counts and file paths.
     pub const smaller: f32 = 11.5;
+    /// Tags, such as Held, and the notes over the map.
+    pub const note: f32 = 11;
     /// Key chips, pills, badges and section headings.
     pub const tiny: f32 = 10.5;
     /// Icons in buttons, and the larger icons beside text.
