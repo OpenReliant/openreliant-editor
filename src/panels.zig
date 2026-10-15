@@ -757,7 +757,7 @@ fn inspector(app: *App) void {
     const at = gui.cursor();
     const list = gui.drawList();
     gui.rect(list, at, .{ .x = at.x + px(34), .y = at.y + px(34) }, theme.held, 6);
-    widgets.drawIcon(list, .{ .x = at.x + px(9), .y = at.y + px(17) }, sectionIcon(record.section), fonts.size.icon, theme.accent);
+    widgets.drawIconCentered(list, .{ .x = at.x + px(17), .y = at.y + px(17) }, sectionIcon(record.section), fonts.size.icon, theme.accent);
     gui.setCursor(.{ .x = at.x + px(44), .y = at.y });
     c.ImGui_BeginGroup();
     const heading = switch (record.section) {
