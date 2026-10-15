@@ -14,6 +14,7 @@ const Panel = app_mod.Panel;
 const commands = @import("commands.zig");
 const game = @import("game.zig");
 const Document = @import("mission/document.zig").Document;
+const forms = @import("forms.zig");
 const script_view = @import("views/script.zig");
 const ui = @import("ui.zig");
 const fonts = ui.fonts;
@@ -45,6 +46,31 @@ pub fn draw(app: *App) void {
             .inspector => inspector(app),
             .reference => reference(app),
             .live_scene => liveScene(),
+        }
+    }
+    addMenu(app);
+}
+
+/// The menu of records to add, next to the pointer, as + and Add a record open it, or Declare with
+/// the name it declares.
+fn addMenu(app: *App) void {
+    if (app.add_menu) {
+        _ = c.ImGui_OpenPopup("add record", 0);
+        app.add_menu = false;
+    }
+    c.ImGui_SetNextWindowSizeConstraints(.{ .x = px(200), .y = 0 }, .{ .x = px(320), .y = px(400) }, null, null);
+    if (!c.ImGui_BeginPopup("add record", 0)) return;
+    defer c.ImGui_EndPopup();
+    const name = app.declaring();
+    widgets.caption(if (name) |given| gui.print("Declare {s} as", .{given}) else "Add", theme.text_dim, fonts.size.small, .regular);
+    gui.space(4);
+    for (app.profile.new_kinds, 0..) |kind, index| {
+        if (name != null and !kind.named) continue;
+        gui.pushIdInt(index);
+        defer gui.popId();
+        if (widgets.choiceRow(.{ .label = kind.label, .mark = .{ .icon = .{ .icon = sectionIcon(kind.section), .color = theme.text_dim } } })) {
+            c.ImGui_CloseCurrentPopup();
+            if (app.document) |document| document.queue(.{ .add = .{ .kind = kind, .name = name } });
         }
     }
 }
@@ -160,7 +186,7 @@ fn waiting(icon: Icon, text: []const u8, plan: ?commands.Plan) void {
 
 // The outline.
 
-fn sectionIcon(section: game.Section) Icon {
+pub fn sectionIcon(section: game.Section) Icon {
     return switch (section) {
         .flight_groups => .layers,
         .ships => .navigation_2,
@@ -566,15 +592,14 @@ fn problemCard(app: *App, document: *Document, problem: game.Problem) void {
         const declare_width = buttonWidth(declare_label);
         x -= declare_width;
         gui.setCursor(.{ .x = x, .y = fix_y });
-        if (widgets.toolButton("declare", .{ .label = declare_label, .disabled = app.unavailable(.add_record) })) {}
+        if (widgets.toolButton("declare", .{ .label = declare_label, .disabled = app.unavailable(.add_record) })) app.askToAdd(name);
         if (closest) |record| {
             const use_label = gui.print("Use {s}", .{record.name});
             x -= px(6) + buttonWidth(use_label);
             gui.setCursor(.{ .x = x, .y = fix_y });
             if (widgets.toolButton("use", .{ .label = use_label, .style = .primary, .weight = .semibold })) {
                 const start: ui.text_editor.Pos = .{ .line = problem.at.line, .index = problem.at.column };
-                document.editor.replace(start, .{ .line = start.line, .index = start.index + name.len }, record.name);
-                document.recheck() catch {};
+                document.queue(.{ .replace = .{ .start = start, .end = .{ .line = start.line, .index = start.index + name.len }, .text = record.name } });
             }
         }
     }
@@ -719,7 +744,8 @@ fn inspector(app: *App) void {
     };
     const record = known.find(chosen.section, chosen.line) orelse return waiting(.sliders_horizontal, "Select a record in the outline or the source", null);
     gui.pushVar2(c.ImGuiStyleVar_WindowPadding, .{ .x = px(12), .y = px(14) });
-    _ = c.ImGui_BeginChild("inspector", .{ .x = 0, .y = 0 }, c.ImGuiChildFlags_AlwaysUseWindowPadding, 0);
+    // The forms take the panel's whole width, as the design's do: it scrolls without a bar.
+    _ = c.ImGui_BeginChild("inspector", .{ .x = 0, .y = 0 }, c.ImGuiChildFlags_AlwaysUseWindowPadding, c.ImGuiWindowFlags_NoScrollbar);
     gui.popVar(1);
     defer c.ImGui_EndChild();
     const left = gui.cursor().x;
@@ -748,10 +774,11 @@ fn inspector(app: *App) void {
         gui.setCursor(.{ .x = left, .y = gui.cursor().y + px(18) });
     }
 
-    const edit_off = app.unavailable(.add_record);
+    // The forms write the source, which they can only do while it parses.
+    const off: ?widgets.Disabled = if (document.outline_stale) .{ .reason = "Fix the source's problems first" } else null;
     switch (record.section) {
-        .triggers => triggerFields(app, known, record.*, edit_off),
-        else => recordFields(known, record.*, edit_off),
+        .triggers => forms.trigger(app, document, known, record.*, off),
+        else => forms.record(app, document, known, record.*, off),
     }
 
     // The code the declaration holds.
@@ -795,7 +822,7 @@ fn heldSlot(app: *App) ?u32 {
     return null;
 }
 
-fn capitalNoun(section: game.Section) []const u8 {
+pub fn capitalNoun(section: game.Section) []const u8 {
     return switch (section) {
         .flight_groups => "Flight group",
         .ships => "Ship",
@@ -809,77 +836,7 @@ fn capitalNoun(section: game.Section) []const u8 {
     };
 }
 
-fn triggerFields(app: *App, known: game.Outline, record: game.Record, edit_off: ?widgets.Disabled) void {
-    widgets.sectionHeading("Trigger");
-    gui.space(9);
-    const subject = known.named(record.subject);
-    widgets.fieldLabel("Watches", false);
-    _ = widgets.frame("watches", .{
-        .label = if (subject) |found| found.title else record.subject,
-        .detail = if (subject != null) record.subject else null,
-        .mono_label = subject == null,
-        .mark = if (subject) |found| .{ .icon = .{ .icon = sectionIcon(found.section), .color = groupColor(found.*) } } else .none,
-        .disabled = edit_off,
-    });
-    widgets.fieldLabel("Condition", false);
-    _ = widgets.frame("condition", .{ .label = record.condition, .mono_label = true, .disabled = edit_off });
-    if (app.language.find(record.condition)) |word| {
-        const left = gui.cursor().x;
-        gui.setCursor(.{ .x = left + px(104), .y = gui.cursor().y });
-        widgets.caption(gui.print("{s} · {s}", .{ word.source, word.about }), theme.text_dim, fonts.size.small, .regular);
-        gui.setCursor(.{ .x = left, .y = gui.cursor().y + px(3) });
-        // The values the condition checks that the trigger gives.
-        for (word.parameters) |parameter| {
-            const given = for (record.fields) |field| {
-                if (std.mem.eql(u8, field.name, parameter.name)) break field;
-            } else continue;
-            widgets.fieldLabel(parameter.name, true);
-            const target = if (given.names_record) known.named(given.value) else null;
-            _ = widgets.frame(parameter.name, .{
-                .label = if (target) |found| found.title else given.value,
-                .detail = if (target != null) given.value else null,
-                .mono_label = target == null,
-                .mark = if (target) |found| .{ .icon = .{ .icon = sectionIcon(found.section), .color = groupColor(found.*) } } else .none,
-                .disabled = edit_off,
-            });
-        }
-    }
-    const repeats = fieldValue(record, "repeats") orelse "\"once\"";
-    const repeat_index: usize = if (std.mem.eql(u8, repeats, "\"always\"")) 1 else if (std.mem.startsWith(u8, repeats, "{") or std.mem.eql(u8, repeats, "…")) 2 else 0;
-    widgets.fieldLabel("Repeats", false);
-    _ = widgets.segmented("repeats", &.{ "Once", "Always", "Counted" }, repeat_index, edit_off);
-    widgets.fieldLabel("Deferred", false);
-    const deferred = if (fieldValue(record, "deferred")) |value| std.mem.eql(u8, value, "true") else false;
-    _ = widgets.checkbox("deferred", "Run on scheduler", deferred, edit_off);
-}
-
-fn recordFields(known: game.Outline, record: game.Record, edit_off: ?widgets.Disabled) void {
-    widgets.sectionHeading(capitalNoun(record.section));
-    gui.space(9);
-    widgets.fieldLabel("Name", false);
-    _ = widgets.frame("name", .{ .label = if (record.display.len > 0) record.display else record.title, .chevron = false, .disabled = edit_off });
-    widgets.fieldLabel("Declared as", false);
-    _ = widgets.frame("declared", .{ .label = record.name, .mono_label = true, .chevron = false, .disabled = edit_off });
-    for (record.fields) |field| {
-        widgets.fieldLabel(field.name, true);
-        const target = if (field.names_record) known.named(field.value) else null;
-        _ = widgets.frame(field.name, .{
-            .label = if (target) |found| found.title else field.value,
-            .detail = if (target != null) field.value else null,
-            .mono_label = target == null,
-            .mark = if (target) |found| .{ .icon = .{ .icon = sectionIcon(found.section), .color = groupColor(found.*) } } else .none,
-            .chevron = target != null,
-            .disabled = edit_off,
-        });
-    }
-}
-
-fn fieldValue(record: game.Record, name: []const u8) ?[]const u8 {
-    for (record.fields) |field| if (std.mem.eql(u8, field.name, name)) return field.value;
-    return null;
-}
-
-fn groupColor(record: game.Record) theme.Color {
+pub fn groupColor(record: game.Record) theme.Color {
     return if (record.group) |group| theme.groups[group % theme.groups.len] else theme.text_menu;
 }
 

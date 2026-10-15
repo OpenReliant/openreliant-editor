@@ -22,6 +22,8 @@ a{color:#f6a259}a:hover{color:#ffc58f}
 .panel{background:#10131b;display:flex;flex-direction:column;min-width:0;border:1px solid #1a1f2b;border-radius:3px;overflow:hidden}
 .nav{display:flex;align-items:center;gap:9px;width:100%;height:30px;padding:0 12px;border:0;border-radius:4px;background:none;color:#c9cfdb;font:inherit;font-size:13px;text-align:left;cursor:pointer}
 .nav:hover{background:#171b26}
+.back{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:0;border-radius:4px;background:none;color:#c9cfdb;cursor:pointer}
+.back:hover{background:#171b26;color:#ffffff}
 .nav-on,.nav-on:hover{background:#262d3d;color:#ffffff}
 .sect{font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#8a93a6}
 .kr{display:grid;grid-template-columns:minmax(150px,1.4fr) minmax(130px,1fr) minmax(130px,1fr) 40px;align-items:center;min-height:32px;padding:0 14px;border-bottom:1px solid #161b26;font-size:12.5px;color:#d4d8e1}
@@ -70,7 +72,10 @@ a{color:#f6a259}a:hover{color:#ffc58f}
 <div style="flex: 1 1 auto; display: flex; flex-wrap: wrap; gap: 3px; padding: 3px; min-height: 0">
 
 <section class="panel" aria-label="Settings" style="flex: 1 1 220px">
-<div style="padding: 14px 12px 8px; font-family: Newtown, 'IBM Plex Sans', sans-serif; font-size: 16px; letter-spacing: 0.02em">Settings</div>
+<div style="display: flex; align-items: center; gap: 4px; padding: 9px 8px 3px">
+<button class="back" type="button" aria-label="Back" title="Back · Esc"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 19-7-7 7-7"></path><path d="M19 12H5"></path></svg></button>
+<span style="font-family: Newtown, 'IBM Plex Sans', sans-serif; font-size: 16px; letter-spacing: 0.02em">Settings</span>
+</div>
 <nav aria-label="Settings pages" style="display: flex; flex-direction: column; gap: 2px; padding: 4px 8px">
 <button class="nav" type="button">General</button>
 <button class="nav" type="button">Appearance</button>

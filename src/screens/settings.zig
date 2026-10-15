@@ -38,7 +38,7 @@ pub fn draw(app: *App) void {
     defer c.ImGui_End();
     if (capturing == null) app.shortcuts();
     shell.menuBar(app, .settings);
-    if (capturing == null and c.ImGui_IsKeyPressed(c.ImGuiKey_Escape)) app.screen = if (app.document != null) .workspace else .start;
+    if (capturing == null and c.ImGui_IsKeyPressed(c.ImGuiKey_Escape)) leave(app);
 
     const pos = c.ImGui_GetWindowPos();
     const size = c.ImGui_GetWindowSize();
@@ -79,10 +79,23 @@ fn panel(id: [:0]const u8, at: gui.Vec2, size: gui.Vec2) void {
     _ = c.ImGui_BeginChild(id, size, 0, 0);
 }
 
+/// Goes back to where the settings were opened from: the mission open, or the start screen.
+fn leave(app: *App) void {
+    capturing = null;
+    app.screen = if (app.document != null) .workspace else .start;
+}
+
 fn navigation(app: *App) void {
-    gui.setCursor(gui.add(gui.cursor(), .{ .x = px(12), .y = px(14) }));
-    widgets.caption("Settings", theme.text_strong, 16, .semibold);
-    gui.space(10);
+    // The heading: the arrow back, and the title beside it.
+    const top = gui.cursor();
+    const button_at = gui.add(top, .{ .x = px(8), .y = px(9) });
+    gui.setCursor(button_at);
+    if (widgets.toolButton("back", .{ .icon = .arrow_left, .icon_only = true, .style = .ghost, .tooltip = "Back · Esc" })) leave(app);
+    const middle = button_at.y + px(widgets.tool_button_height) / 2;
+    gui.sans(.semibold, 16);
+    gui.drawText(gui.drawList(), .{ .x = button_at.x + px(widgets.tool_button_height) + px(4), .y = gui.textTopIn(middle, 16) }, theme.text_strong, "Settings");
+    gui.popFont();
+    gui.setCursor(.{ .x = top.x, .y = button_at.y + px(widgets.tool_button_height) + px(3 + 4) });
     const pages = [_]struct { SettingsPage, []const u8 }{
         .{ .general, "General" },
         .{ .appearance, "Appearance" },
@@ -283,14 +296,9 @@ fn portField(app: *App) void {
     defer gui.popFont();
     gui.setCursor(.{ .x = at.x + px(7), .y = at.y });
     c.ImGui_SetNextItemWidth(size.x - px(14));
-    gui.pushColor(c.ImGuiCol_FrameBg, theme.fade(theme.field, 0));
-    gui.pushColor(c.ImGuiCol_FrameBgHovered, theme.fade(theme.field, 0));
-    gui.pushColor(c.ImGuiCol_FrameBgActive, theme.fade(theme.field, 0));
-    gui.pushVar(c.ImGuiStyleVar_FrameBorderSize, 0);
-    gui.pushVar2(c.ImGuiStyleVar_FramePadding, .{ .x = px(2), .y = gui.textTop(at.y + size.y / 2) - at.y });
+    widgets.pushBareInput(gui.textTop(at.y + size.y / 2) - at.y);
     _ = c.ImGui_InputText("##port", &State.buffer, State.buffer.len + 1, c.ImGuiInputTextFlags_CharsDecimal);
-    gui.popVar(2);
-    gui.popColor(3);
+    widgets.popBareInput();
     State.editing = c.ImGui_IsItemActive();
     if (c.ImGui_IsItemDeactivatedAfterEdit()) {
         if (std.fmt.parseInt(u16, std.mem.sliceTo(&State.buffer, 0), 10)) |port| {

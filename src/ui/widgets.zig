@@ -25,6 +25,8 @@ pub const ButtonStyle = enum {
     normal,
     /// Orange, for the action to take: Continue, a fix to apply.
     primary,
+    /// No box until the pointer is over it, as the settings' arrow back.
+    ghost,
 };
 
 pub const Corners = enum { all, left, right };
@@ -118,6 +120,12 @@ pub fn toolButton(id: []const u8, options: ToolButton) bool {
             border = theme.accent;
             foreground = theme.on_accent;
             if (hovered and options.disabled == null) background = theme.accent_hover;
+        },
+        .ghost => {
+            const lit = hovered and options.disabled == null;
+            background = if (lit) theme.row_hover else theme.fade(theme.row_hover, 0);
+            border = background;
+            foreground = if (lit) theme.white else theme.text_menu;
         },
     }
     if (options.disabled != null) {
@@ -652,9 +660,14 @@ pub fn row(id: []const u8, shown: Row) RowResult {
 
 /// The design's `.field`: a label 96 pixels wide, then whatever follows on the same line.
 pub fn fieldLabel(text: []const u8, mono_label: bool) void {
+    fieldLabelWidth(text, mono_label, 96);
+}
+
+/// `fieldLabel` with a label `width` design pixels wide, such as the Scene's inspector's 84.
+pub fn fieldLabelWidth(text: []const u8, mono_label: bool, width: f32) void {
     const at = gui.cursor();
     const height = px(26);
-    c.ImGui_Dummy(.{ .x = px(96), .y = height });
+    c.ImGui_Dummy(.{ .x = px(width), .y = height });
     if (mono_label) gui.mono(.regular, fonts.size.small) else gui.sans(.regular, fonts.size.small);
     gui.drawText(gui.drawList(), .{ .x = at.x, .y = gui.textTop(at.y + height / 2) }, theme.text_muted, text);
     gui.popFont();
@@ -664,6 +677,8 @@ pub fn fieldLabel(text: []const u8, mono_label: bool) void {
 pub const Frame = struct {
     label: []const u8,
     mono_label: bool = false,
+    /// Dim, for a value left out, such as `none`.
+    dim_label: bool = false,
     detail: ?[]const u8 = null,
     mark: RowMark = .none,
     chevron: bool = true,
@@ -682,21 +697,10 @@ pub fn frame(id: []const u8, shown: Frame) bool {
     gui.rect(list, at, max, theme.button, 3);
     gui.outline(list, at, max, if (hovered and shown.disabled == null) theme.border_strong else theme.border, 3);
     const middle = at.y + height / 2;
-    var x = at.x + px(8);
-    switch (shown.mark) {
-        .none => {},
-        .swatch => |color| {
-            gui.rect(list, .{ .x = x, .y = middle - px(4.5) }, .{ .x = x + px(9), .y = middle + px(4.5) }, color, 2);
-            x += px(9) + px(7);
-        },
-        .icon => |mark| {
-            drawIcon(list, .{ .x = x, .y = middle }, mark.icon, mark.size, mark.color);
-            x += px(mark.size) + px(7);
-        },
-    }
+    var x = drawMark(list, at.x + px(8), middle, shown.mark);
     const limit = max.x - px(8) - (if (shown.chevron) px(12) + px(6) else 0);
     if (shown.mono_label) gui.mono(.regular, fonts.size.ui) else gui.sans(.regular, fonts.size.ui);
-    clippedText(list, .{ .x = x, .y = gui.textTop(middle) }, limit, theme.text, shown.label);
+    clippedText(list, .{ .x = x, .y = gui.textTop(middle) }, limit, if (shown.dim_label) theme.text_dim else theme.text, shown.label);
     x += gui.textSize(shown.label).x + px(7);
     gui.popFont();
     if (shown.detail) |detail| if (x < limit) {
@@ -707,6 +711,197 @@ pub fn frame(id: []const u8, shown: Frame) bool {
     if (shown.chevron) drawIcon(list, .{ .x = max.x - px(8) - px(12), .y = middle }, .chevron_down, fonts.size.icon_tiny, theme.text_dim);
     if (shown.disabled) |off| gui.tooltip(off.reason);
     return clicked;
+}
+
+/// Draws a row's mark from `x`, centred on `middle`. Where the text after it starts.
+fn drawMark(list: *c.ImDrawList, x: f32, middle: f32, mark: RowMark) f32 {
+    switch (mark) {
+        .none => return x,
+        .swatch => |color| {
+            gui.rect(list, .{ .x = x, .y = middle - px(4.5) }, .{ .x = x + px(9), .y = middle + px(4.5) }, color, 2);
+            return x + px(9) + px(7);
+        },
+        .icon => |shown| {
+            drawIcon(list, .{ .x = x, .y = middle }, shown.icon, shown.size, shown.color);
+            return x + px(shown.size) + px(7);
+        },
+    }
+}
+
+pub const Choice = struct {
+    label: []const u8,
+    /// After the label, dimmer, such as a record's name in the source.
+    detail: ?[]const u8 = null,
+    mono: bool = false,
+    /// Dim, for the choice that leaves a value out, such as `none`.
+    dim: bool = false,
+    mark: RowMark = .none,
+};
+
+/// The most choices a list shows without a field to find one in.
+const choices_without_find = 12;
+
+/// The design's frame that opens a list under it: `shown` in the frame and `choices` in the list,
+/// with a field to find one by its label where the list is long. The choice clicked, if one is.
+pub fn pick(id: []const u8, shown: Frame, choices: []const Choice) ?usize {
+    gui.pushId(id);
+    defer gui.popId();
+    const at = gui.cursor();
+    const width = gui.available().x;
+    if (frame("frame", shown)) _ = c.ImGui_OpenPopup("choices", 0);
+    c.ImGui_SetNextWindowPos(.{ .x = at.x, .y = at.y + px(26) + px(2) }, c.ImGuiCond_Always);
+    c.ImGui_SetNextWindowSizeConstraints(.{ .x = width, .y = 0 }, .{ .x = @max(width, px(240)), .y = px(320) }, null, null);
+    if (!c.ImGui_BeginPopup("choices", c.ImGuiWindowFlags_NoMove)) return null;
+    defer c.ImGui_EndPopup();
+    const Find = struct {
+        var text: [64:0]u8 = @splat(0);
+    };
+    const finding = choices.len > choices_without_find;
+    if (finding) {
+        if (c.ImGui_IsWindowAppearing()) {
+            Find.text[0] = 0;
+            c.ImGui_SetKeyboardFocusHere();
+        }
+        searchField("##find", &Find.text, "Find", gui.available().x, 26, true);
+        gui.space(4);
+    }
+    const term = std.mem.sliceTo(&Find.text, 0);
+    var chosen: ?usize = null;
+    for (choices, 0..) |choice, index| {
+        if (finding and term.len > 0 and std.ascii.findIgnoreCase(choice.label, term) == null) continue;
+        gui.pushIdInt(index);
+        defer gui.popId();
+        if (choiceRow(choice)) chosen = index;
+    }
+    if (chosen != null) c.ImGui_CloseCurrentPopup();
+    return chosen;
+}
+
+/// A row of a list to choose from, as `pick`'s. True when clicked.
+pub fn choiceRow(choice: Choice) bool {
+    const width = gui.available().x;
+    const height = px(26);
+    const at = gui.cursor();
+    const clicked = c.ImGui_InvisibleButton("choice", .{ .x = @max(width, 1), .y = height }, 0);
+    const list = gui.drawList();
+    if (gui.hovered()) gui.rect(list, at, .{ .x = at.x + width, .y = at.y + height }, theme.row_hover, 3);
+    const middle = at.y + height / 2;
+    var x = drawMark(list, at.x + px(8), middle, choice.mark);
+    if (choice.mono) gui.mono(.regular, fonts.size.ui) else gui.sans(.regular, fonts.size.ui);
+    gui.drawText(list, .{ .x = x, .y = gui.textTop(middle) }, if (choice.dim) theme.text_dim else theme.text, choice.label);
+    x += gui.textSize(choice.label).x + px(7);
+    gui.popFont();
+    if (choice.detail) |detail| {
+        gui.mono(.regular, fonts.size.ui);
+        gui.drawText(list, .{ .x = x, .y = gui.textTop(middle) }, theme.text_dim, detail);
+        gui.popFont();
+    }
+    return clicked;
+}
+
+pub const TextField = struct {
+    mono: bool = false,
+    /// Takes numbers: digits, a sign, a point and an exponent. At rest the number sits at the
+    /// right of the box, as the design's vectors do.
+    number: bool = false,
+    /// A letter in a coloured box at the start, as a vector's X, Y and Z.
+    tag: ?Tag = null,
+    /// Shown dim while the value is empty, such as `none`.
+    hint: ?[]const u8 = null,
+    /// Its width; by default the space left on the line.
+    width: ?f32 = null,
+    disabled: ?Disabled = null,
+};
+
+pub const Tag = struct {
+    letter: []const u8,
+    color: Color,
+    text: Color = theme.on_axis,
+};
+
+/// The field being typed in, and its text: one at a time.
+const Typing = struct {
+    var id: c.ImGuiID = 0;
+    var buffer: [256:0]u8 = @splat(0);
+};
+
+/// The design's field to type in, with `value` in it. The text typed, as the typing ends with
+/// Enter or by leaving the field after a change; null otherwise. Escape puts the value back.
+pub fn textField(id: []const u8, value: []const u8, options: TextField) ?[]const u8 {
+    const width = options.width orelse gui.available().x;
+    const height = px(26);
+    const at = gui.cursor();
+    const list = gui.drawList();
+    const max = gui.vec2(at.x + width, at.y + height);
+    const middle = at.y + height / 2;
+    gui.rect(list, at, max, theme.button, 3);
+    gui.outline(list, at, max, theme.border, 3);
+    var left = at.x + px(8);
+    if (options.tag) |tag| {
+        const tag_width = px(18);
+        c.ImDrawList_AddRectFilledEx(list, at, .{ .x = at.x + tag_width, .y = max.y }, tag.color, px(3), c.ImDrawFlags_RoundCornersLeft);
+        gui.sans(.semibold, 11);
+        gui.drawText(list, .{ .x = at.x + (tag_width - gui.textSize(tag.letter).x) / 2, .y = gui.textTop(middle) }, tag.text, tag.letter);
+        gui.popFont();
+        left = at.x + tag_width + px(6);
+    }
+    if (options.number) gui.mono(.regular, 12) else if (options.mono) gui.mono(.regular, fonts.size.ui) else gui.sans(.regular, fonts.size.ui);
+    defer gui.popFont();
+
+    const label = gui.print("##{s}", .{id});
+    const key = c.ImGui_GetID(label);
+    const typing = Typing.id == key;
+    var shown: [256:0]u8 = undefined;
+    const buffer: *[256:0]u8 = if (typing) &Typing.buffer else buffer: {
+        const length = @min(value.len, shown.len);
+        @memcpy(shown[0..length], value[0..length]);
+        shown[length] = 0;
+        break :buffer &shown;
+    };
+    // At rest a number is drawn here, at the right, which the input can't do: its own text is
+    // hidden until it's typed in. A long one takes the padding before it's cut.
+    const right_aligned = options.number and !typing;
+    if (right_aligned) {
+        const text_width = gui.textSize(value).x;
+        const first = if (options.tag != null) left - px(4) else left;
+        clippedText(list, .{ .x = @max(first, max.x - px(6) - text_width), .y = gui.textTop(middle) }, max.x - px(2), theme.text, value);
+    }
+    if (!typing and value.len == 0) if (options.hint) |hint| gui.drawText(list, .{ .x = left, .y = gui.textTop(middle) }, theme.text_dim, hint);
+    gui.setCursor(.{ .x = left - px(2), .y = at.y });
+    c.ImGui_SetNextItemWidth(max.x - left - px(4));
+    pushBareInput(gui.textTop(middle) - at.y);
+    if (right_aligned) gui.pushColor(c.ImGuiCol_Text, theme.fade(theme.text, 0));
+    if (options.disabled != null) c.ImGui_BeginDisabled(true);
+    _ = c.ImGui_InputText(label, buffer, buffer.len + 1, if (options.number) c.ImGuiInputTextFlags_CharsScientific else 0);
+    if (options.disabled != null) c.ImGui_EndDisabled();
+    if (right_aligned) gui.popColor(1);
+    popBareInput();
+    if (options.disabled) |off| gui.tooltip(off.reason);
+    if (c.ImGui_IsItemActivated()) {
+        Typing.id = key;
+        Typing.buffer = buffer.*;
+    }
+    const typed: ?[]const u8 = if (c.ImGui_IsItemDeactivatedAfterEdit()) std.mem.sliceTo(&Typing.buffer, 0) else null;
+    if (c.ImGui_IsItemDeactivated()) Typing.id = 0;
+    gui.setCursor(at);
+    c.ImGui_Dummy(.{ .x = width, .y = height });
+    return typed;
+}
+
+/// Leaves an ImGui text input bare inside a box the caller draws: no frame and no line around it,
+/// with its text `padding_y` from its top. `popBareInput` ends it.
+pub fn pushBareInput(padding_y: f32) void {
+    gui.pushColor(c.ImGuiCol_FrameBg, theme.fade(theme.field, 0));
+    gui.pushColor(c.ImGuiCol_FrameBgHovered, theme.fade(theme.field, 0));
+    gui.pushColor(c.ImGuiCol_FrameBgActive, theme.fade(theme.field, 0));
+    gui.pushColor(c.ImGuiCol_NavCursor, theme.fade(theme.field, 0));
+    gui.pushVar(c.ImGuiStyleVar_FrameBorderSize, 0);
+    gui.pushVar2(c.ImGuiStyleVar_FramePadding, .{ .x = px(2), .y = padding_y });
+}
+
+pub fn popBareInput() void {
+    gui.popVar(2);
+    gui.popColor(4);
 }
 
 /// The design's segmented switch, such as a trigger's Repeats: Once, Always, Counted.
@@ -840,16 +1035,11 @@ pub fn searchField(id: [:0]const u8, buffer: [:0]u8, hint: [:0]const u8, width: 
     const padding_y = gui.textTop(at.y + px(height) / 2) - at.y;
     gui.setCursor(.{ .x = x, .y = at.y });
     c.ImGui_SetNextItemWidth(max.x - x - px(6));
-    gui.pushColor(c.ImGuiCol_FrameBg, theme.fade(theme.field, 0));
-    gui.pushColor(c.ImGuiCol_FrameBgHovered, theme.fade(theme.field, 0));
-    gui.pushColor(c.ImGuiCol_FrameBgActive, theme.fade(theme.field, 0));
+    pushBareInput(padding_y);
     gui.pushColor(c.ImGuiCol_TextDisabled, theme.text_dim);
-    gui.pushColor(c.ImGuiCol_NavCursor, theme.fade(theme.field, 0));
-    gui.pushVar(c.ImGuiStyleVar_FrameBorderSize, 0);
-    gui.pushVar2(c.ImGuiStyleVar_FramePadding, .{ .x = px(2), .y = padding_y });
     _ = c.ImGui_InputTextWithHint(id, hint, buffer.ptr, buffer.len + 1, 0);
-    gui.popVar(2);
-    gui.popColor(5);
+    gui.popColor(1);
+    popBareInput();
     gui.setCursor(at);
     c.ImGui_Dummy(.{ .x = width, .y = px(height) });
 }

@@ -37,6 +37,21 @@ pub const Profile = struct {
     build: *const fn (arena: Allocator, text: []const u8) Allocator.Error!Built,
     /// The records the source declares, for the outline, with the errors Luau's parser finds.
     outline: *const fn (arena: Allocator, text: []const u8) Allocator.Error!Outline,
+    /// The change to the source `text` that makes `edit` to `record`, as the outline of `text`
+    /// read it; null where the declaration has no place for it, such as a field taken out that
+    /// isn't there.
+    edit: *const fn (arena: Allocator, text: []const u8, record: Record, edit: Edit) Allocator.Error!?Change,
+    /// The fields a record's table can give, from the game's tables, for the inspector's form.
+    fields: *const fn (record: Record) []const FieldForm,
+    /// The kind of value a type of mission source takes, such as `FlightGroup?` or `ShipType`, as
+    /// the language's parameters and fields name them.
+    fieldKind: *const fn (type_name: []const u8) FieldKind,
+    /// The kinds of record the outline's + adds, in the order its menu lists them.
+    new_kinds: []const NewKind,
+    /// The change to `text`, whose outline is `known`, that declares a new record of `kind` after
+    /// the last record of its section: under `name` where one is given, or else a name no record
+    /// has. Null where `name` is taken.
+    addRecord: *const fn (arena: Allocator, text: []const u8, known: Outline, kind: NewKind, name: ?[]const u8) Allocator.Error!?Added,
     /// A built mission's script, as a listing of its instructions.
     listing: *const fn (arena: Allocator, mission: []const u8) Allocator.Error![]const u8,
     /// The number a mission file's name gives the mission: 90 for `mission90.dte`.
@@ -136,6 +151,83 @@ pub const Play = struct {
     watch: ?[]const u8 = null,
     /// The port the game's editor link listens at, for the editor to link to it; null for none.
     link: ?u16 = null,
+};
+
+/// A change the inspector or the map makes to a record of mission source.
+pub const Edit = union(enum) {
+    /// A field of its table set to a value as the source writes it, or taken out with null.
+    field: struct { name: []const u8, value: ?[]const u8 },
+    /// Its display name.
+    display: []const u8,
+    /// A trigger's subject, as the source writes it: a record's name, or `nil`.
+    subject: []const u8,
+    /// A trigger's condition, by its name.
+    condition: []const u8,
+    /// A global's starting value, as the source writes it.
+    value: []const u8,
+};
+
+/// A field a record's table can give, for the inspector's form.
+pub const FieldForm = struct {
+    name: []const u8,
+    /// What it is, in the language's words.
+    about: []const u8,
+    kind: FieldKind,
+    /// Whether the table can leave it out, which `none` does.
+    optional: bool = true,
+    /// The label the form shows; by default its name, as `Formation point` for `formation_point`.
+    label: ?[]const u8 = null,
+    /// A heading the form shows before it, such as `Place`.
+    heading: ?[]const u8 = null,
+    /// For a field shown on one row with the next ones of the same row: the row's label, such as
+    /// `Angles`, and the field's letter in it, such as `Y` for the yaw.
+    row: ?[]const u8 = null,
+    letter: []const u8 = "",
+    /// A note under its row, such as the angles' unit.
+    note: ?[]const u8 = null,
+};
+
+/// The kind of value a field takes, which picks its control in the inspector.
+pub const FieldKind = union(enum) {
+    /// A record of the mission, of one of these sections, by its name.
+    record: []const Section,
+    /// A name of the game's values of this type, such as `ShipType`: the language's words of
+    /// kind `value` whose type it is.
+    value: []const u8,
+    /// One of a few strings.
+    strings: []const []const u8,
+    /// A place or a direction: `{ x, y, z }`.
+    vector,
+    number,
+    boolean,
+    /// Anything else, which the inspector shows and takes as source.
+    source,
+};
+
+/// A kind of record the outline's + adds.
+pub const NewKind = struct {
+    /// The word that declares it, such as `ship`.
+    word: []const u8,
+    /// What the menu calls it, such as `Ship`.
+    label: []const u8,
+    section: Section,
+    /// Whether it's declared under a name the script uses, which a trigger isn't, so that
+    /// Declare can't offer it.
+    named: bool = true,
+};
+
+/// A record declared: the change to the source, and the line its declaration starts on once the
+/// change is made.
+pub const Added = struct {
+    change: Change,
+    line: u32,
+};
+
+/// A change to mission source: the bytes from `start` to `end` replaced by `text`.
+pub const Change = struct {
+    start: usize,
+    end: usize,
+    text: []const u8,
 };
 
 /// A place in a file, counting lines and columns from 0.
@@ -363,6 +455,14 @@ pub const Outline = struct {
         return best;
     }
 
+    /// The record of `section` at `index` among its section's.
+    pub fn nth(outline: Outline, section: Section, index: usize) ?*const Record {
+        for (outline.records) |*record| {
+            if (record.section == section and record.index == index) return record;
+        }
+        return null;
+    }
+
     /// The record of `section` whose declaration starts on `line`.
     pub fn find(outline: Outline, section: Section, line: u32) ?*const Record {
         for (outline.records) |*record| {
@@ -383,6 +483,8 @@ pub const Outline = struct {
 /// A field of a record's table: `wing = "player"`.
 pub const Field = struct {
     name: []const u8,
+    /// The value's source text, as it is.
+    source: []const u8 = "",
     /// The value as the source writes it, for a name, a string, a number or a boolean; "…" for
     /// anything longer.
     value: []const u8,
@@ -392,6 +494,8 @@ pub const Field = struct {
 
 pub const Record = struct {
     section: Section,
+    /// The word that declares it, such as `ship` or `nav_point`, or `on` for a trigger.
+    word: []const u8 = "",
     /// The name the source declares it under, such as `nav`; empty for a trigger, which has none.
     name: []const u8,
     /// What the outline shows: the record's display name, a flight group's without its tag, or a
