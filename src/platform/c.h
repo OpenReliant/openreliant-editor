@@ -1,6 +1,6 @@
 /* The C interfaces the editor uses, which the build translates into one Zig module: SDL3, Dear
  * ImGui through Dear Bindings with its SDL3 and SDL_GPU backends, the few internal calls the
- * editor makes, and the text editor's shim. */
+ * editor makes, and the shims of the text editor and of ImPlot. */
 #include <SDL3/SDL.h>
 
 #include "dcimgui.h"
@@ -8,4 +8,5 @@
 #include "dcimgui_impl_sdlgpu3.h"
 
 #include "extras.h"
+#include "plot_shim.h"
 #include "shim.h"

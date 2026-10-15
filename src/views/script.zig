@@ -72,30 +72,16 @@ pub fn draw(app: *App) void {
     }
 }
 
-/// The panel's own tab bar, as the docked panels' (`widgets.PanelTab`): the source file, and its
+/// The panel's own tab bar, as the docked panels' (`widgets.panelTabs`): the source file, and its
 /// script listing.
 fn tabs(app: *App, document: *Document) void {
-    const at = gui.cursor();
-    const width = gui.available().x;
-    const height = px(widgets.tab_bar_height);
-    const list = gui.drawList();
-    gui.rect(list, at, .{ .x = at.x + width, .y = at.y + height }, theme.bar, 0);
-    gui.rect(list, .{ .x = at.x, .y = at.y + height - px(1) }, .{ .x = at.x + width, .y = at.y + height }, theme.tab_divider, 0);
-    var x = at.x;
-    for (std.enums.values(app_mod.SourceTab)) |which| {
-        const on = app.source_tab == which;
-        const shown: widgets.PanelTab = switch (which) {
-            .source => .{ .label = document.file, .icon = .file_code, .icon_color = theme.accent, .dot = document.dirty(), .on = on },
-            .listing => .{ .label = "Script listing", .icon = .list, .detail = if (document.built) |built| built.file else "not built", .on = on },
-        };
-        const tab_width = shown.width();
-        gui.setCursor(.{ .x = x, .y = at.y });
-        if (c.ImGui_InvisibleButton(@tagName(which), .{ .x = tab_width, .y = height - px(1) }, 0)) app.source_tab = which;
-        shown.draw(list, .{ .x = x, .y = at.y }, .{ .x = x + tab_width, .y = at.y + height - px(1) }, gui.hovered());
-        if (shown.dot) gui.tooltip("Changed since saved");
-        x += tab_width;
-    }
-    gui.setCursor(.{ .x = at.x, .y = at.y + height });
+    const which = std.enums.values(app_mod.SourceTab);
+    var shown: [which.len]widgets.PanelTab = undefined;
+    for (which, &shown) |tab, *made| made.* = switch (tab) {
+        .source => .{ .label = document.file, .icon = .file_code, .icon_color = theme.accent, .dot = document.dirty(), .on = app.source_tab == tab },
+        .listing => .{ .label = "Script listing", .icon = .list, .detail = if (document.built) |built| built.file else "not built", .on = app.source_tab == tab },
+    };
+    if (widgets.panelTabs(&shown)) |index| app.source_tab = which[index];
 }
 
 /// The line under the tabs: the file, the record the cursor is in, and its statement, with the

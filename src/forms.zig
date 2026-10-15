@@ -92,7 +92,7 @@ pub fn trigger(app: *App, document: *Document, known: game.Outline, shown: game.
         }
     }
 
-    const repeats = fieldOf(shown, "repeats");
+    const repeats = shown.given("repeats");
     const repeat_index: usize = if (repeats) |given| (if (std.mem.eql(u8, given.value, "\"always\"")) 1 else if (std.mem.eql(u8, given.value, "\"once\"")) 0 else 2) else 0;
     form.label("Repeats", false);
     if (widgets.segmented("repeats", &.{ "Once", "Always", "Counted" }, repeat_index, off)) |chosen| if (chosen != repeat_index) {
@@ -105,7 +105,7 @@ pub fn trigger(app: *App, document: *Document, known: game.Outline, shown: game.
     };
     for (document.profile.fields(shown)) |spec| if (std.mem.eql(u8, spec.name, "component")) form.field(spec, labelOf(spec.name), false);
     form.label("Deferred", false);
-    const deferred = fieldOf(shown, "deferred");
+    const deferred = shown.given("deferred");
     const checked = if (deferred) |given| std.mem.eql(u8, given.value, "true") else false;
     if (widgets.checkbox("deferred", "Run on scheduler", checked, off)) form.set("deferred", if (checked) null else "true");
 }
@@ -139,7 +139,7 @@ const Form = struct {
         gui.tooltip(spec.about);
         gui.pushId(spec.name);
         defer gui.popId();
-        const given = fieldOf(form.shown, spec.name);
+        const given = form.shown.given(spec.name);
         switch (spec.kind) {
             .record => |sections| {
                 const target = if (given) |found| (if (found.names_record) form.known.named(found.value) else null) else null;
@@ -178,7 +178,9 @@ const Form = struct {
     /// A vector's three boxes, X, Y and Z in their colours. A vector left out shows the origin.
     fn vector(form: Form, spec: game.FieldForm, given: ?game.Field) void {
         var values: [3]f64 = @splat(0);
-        if (given) |found| parseVector(found.value, &values);
+        if (given) |found| if (found.vector()) |vector_given| {
+            values = vector_given;
+        };
         const tags = [3]widgets.Tag{
             .{ .letter = "X", .color = theme.axis_x },
             .{ .letter = "Y", .color = theme.axis_y },
@@ -211,7 +213,7 @@ const Form = struct {
             gui.setCursor(.{ .x = at.x + @as(f32, @floatFromInt(place)) * (each + px(row_gap)), .y = at.y });
             gui.pushId(spec.name);
             defer gui.popId();
-            const given = fieldOf(form.shown, spec.name);
+            const given = form.shown.given(spec.name);
             const tag: widgets.Tag = .{ .letter = spec.letter, .color = theme.axis_off, .text = theme.text };
             if (widgets.textField("number", if (given) |found| found.value else "0", .{ .number = true, .tag = tag, .width = each, .disabled = form.off })) |typed| {
                 if (form.numberText(typed)) |value| form.set(spec.name, value);
@@ -292,12 +294,6 @@ fn markOf(shown: game.Record) widgets.RowMark {
     return .{ .icon = .{ .icon = panels.sectionIcon(shown.section), .color = panels.groupColor(shown) } };
 }
 
-/// The field `name` of `shown`'s table, if it gives one.
-fn fieldOf(shown: game.Record, name: []const u8) ?game.Field {
-    for (shown.fields) |given| if (std.mem.eql(u8, given.name, name)) return given;
-    return null;
-}
-
 /// A field's label from its name: `component` as `Component`, and `_` as a space.
 fn labelOf(name: []const u8) []const u8 {
     const made = gui.frameAllocator().dupe(u8, name) catch return name;
@@ -306,24 +302,6 @@ fn labelOf(name: []const u8) []const u8 {
     return made;
 }
 
-/// The numbers of a vector as the outline shows it, `{ -2000, 0, 42000 }`, into `values`; the ones
-/// it doesn't give stay as they are.
-fn parseVector(text: []const u8, values: *[3]f64) void {
-    var parts = std.mem.tokenizeAny(u8, text, "{}, ");
-    for (values) |*value| {
-        const part = parts.next() orelse return;
-        value.* = std.fmt.parseFloat(f64, part) catch return;
-    }
-}
-
 test labelOf {
     try std.testing.expectEqualStrings("Formation point", labelOf("formation_point"));
-}
-
-test parseVector {
-    var values: [3]f64 = @splat(0);
-    parseVector("{ -2000, 0, 42000.5 }", &values);
-    try std.testing.expectEqual([3]f64{ -2000, 0, 42000.5 }, values);
-    parseVector("…", &values);
-    try std.testing.expectEqual([3]f64{ -2000, 0, 42000.5 }, values);
 }

@@ -159,12 +159,14 @@ fn addWindowsResources(b: *std.Build, exe: *std.Build.Step.Compile, target: std.
 }
 
 /// Dear ImGui with its docking branch, Dear Bindings' C API over it, its SDL3 and SDL_GPU backends,
-/// and the text editor with its C shim, as one static library. It is built optimized whatever the
-/// editor's own mode, so that typing in a long mission stays smooth in a debug build too.
+/// and the text editor and ImPlot with their C shims, as one static library. It is built optimized
+/// whatever the editor's own mode, so that typing in a long mission stays smooth in a debug build
+/// too.
 fn interfaceLibrary(b: *std.Build, target: std.Build.ResolvedTarget, sdl_library: *std.Build.Step.Compile) *std.Build.Step.Compile {
     const imgui = b.dependency("imgui", .{});
     const bindings = b.dependency("dear_bindings", .{});
     const text_editor = b.dependency("text_editor", .{});
+    const implot = b.dependency("implot", .{});
     const library = b.addLibrary(.{
         .name = "interface",
         .linkage = .static,
@@ -190,17 +192,20 @@ fn interfaceLibrary(b: *std.Build, target: std.Build.ResolvedTarget, sdl_library
     library.root_module.addCSourceFile(.{ .file = text_editor.path("TextEditor.cpp"), .flags = flags });
     library.root_module.addCSourceFile(.{ .file = b.path("src/ui/text_editor/shim.cpp"), .flags = flags });
     library.root_module.addCSourceFile(.{ .file = b.path("src/ui/imgui_extras/extras.cpp"), .flags = flags });
+    library.root_module.addCSourceFiles(.{ .root = implot.path("."), .files = &.{ "implot.cpp", "implot_items.cpp" }, .flags = flags });
+    library.root_module.addCSourceFile(.{ .file = b.path("src/ui/plot/plot_shim.cpp"), .flags = flags });
     // The libraries' licences go with the program.
     for ([_]struct { std.Build.LazyPath, []const u8 }{
         .{ imgui.path("LICENSE.txt"), "LICENSE-imgui.txt" },
         .{ bindings.path("LICENSE.txt"), "LICENSE-dear-bindings.txt" },
         .{ text_editor.path("LICENSE"), "LICENSE-text-editor.txt" },
+        .{ implot.path("LICENSE"), "LICENSE-implot.txt" },
     }) |notice| b.getInstallStep().dependOn(&b.addInstallFile(notice[0], notice[1]).step);
     return library;
 }
 
 /// The folders the interface's headers are in.
-fn interfaceIncludes(b: *std.Build) [7]std.Build.LazyPath {
+fn interfaceIncludes(b: *std.Build) [9]std.Build.LazyPath {
     const imgui = b.dependency("imgui", .{});
     const bindings = b.dependency("dear_bindings", .{});
     return .{
@@ -211,6 +216,8 @@ fn interfaceIncludes(b: *std.Build) [7]std.Build.LazyPath {
         b.dependency("text_editor", .{}).path("."),
         b.path("src/ui/text_editor"),
         b.path("src/ui/imgui_extras"),
+        b.dependency("implot", .{}).path("."),
+        b.path("src/ui/plot"),
     };
 }
 

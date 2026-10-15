@@ -317,7 +317,14 @@ pub const App = struct {
         if (commands.info(command).planned) |plan| return .{ .reason = gui.print("Planned · {f}", .{plan}) };
         const needs_document = "Open a mission first";
         return switch (command) {
-            .add_record, .save, .build, .show_source, .show_listing, .toggle_breakpoint, .clear_breakpoints, .go_to_line, .comment_line, .find, .find_next, .replace, .undo, .redo, .cut, .copy, .paste, .select_all => if (app.document == null) .{ .reason = needs_document } else null,
+            .add_record, .save, .build, .show_source, .show_listing, .clear_breakpoints, .go_to_line, .find, .find_next, .replace, .undo, .redo => if (app.document == null) .{ .reason = needs_document } else null,
+            // These act on the source's cursor and selection, which only the Script view shows.
+            .toggle_breakpoint, .comment_line, .cut, .copy, .paste, .select_all => if (app.document == null)
+                .{ .reason = needs_document }
+            else if (app.view != .script)
+                .{ .reason = "Script view only" }
+            else
+                null,
             .play, .play_from_part => if (app.document == null) .{ .reason = needs_document } else if (app.settings.game_folder == null) .{ .reason = "Set the game's folder in Game settings" } else null,
             .new_mission => if (app.settings.game_folder == null and app.project == null) .{ .reason = "Set the game's folder in Game settings" } else null,
             .edit_game_mission => if (app.settings.game_folder == null) .{ .reason = "Set the game's folder in Game settings" } else null,
@@ -352,7 +359,6 @@ pub const App = struct {
     fn viewUnavailable(app: *const App, command: Command) ?widgets.Disabled {
         return switch (app.mode) {
             .mission => switch (command) {
-                .view_2 => .{ .reason = gui.print("Planned · {f}", .{commands.plans.scene}) },
                 .view_3 => .{ .reason = gui.print("Planned · {f}", .{commands.plans.blocks}) },
                 .view_4 => .{ .reason = "Mission mode has three views" },
                 else => null,
@@ -423,24 +429,28 @@ pub const App = struct {
             .paste => if (app.document) |document| document.editor.paste(),
             .select_all => if (app.document) |document| document.editor.selectAll(),
             .find, .replace => if (app.document) |document| {
-                app.source_tab = .source;
+                app.showSource(.source);
                 document.editor.openFind();
             },
-            .find_next => if (app.document) |document| document.editor.findNext(),
+            .find_next => if (app.document) |document| {
+                app.showSource(.source);
+                document.editor.findNext();
+            },
             .comment_line => if (app.document) |document| document.editor.toggleComments(),
             .go_to_line => app.palette.show(.line),
             .palette => app.palette.show(.commands),
             .go_to => app.palette.show(.records),
             .view_1 => app.view = .script,
-            .view_2, .view_3, .view_4 => {},
+            .view_2 => app.view = .scene,
+            .view_3, .view_4 => {},
             .layout_full, .reset_layout => {
                 app.open_panels = .initFill(true);
                 app.layout_due = true;
             },
             .full_screen => app.window.toggleFullScreen(),
             .build => app.build(),
-            .show_source => app.source_tab = .source,
-            .show_listing => app.source_tab = .listing,
+            .show_source => app.showSource(.source),
+            .show_listing => app.showSource(.listing),
             .toggle_breakpoint => if (app.document) |document| app.toggleBreakpoint(document.editor.cursor().line),
             .clear_breakpoints => if (app.document) |document| {
                 document.clearBreakpoints();
@@ -1012,23 +1022,47 @@ pub const App = struct {
             .added => |added| {
                 const line = added.line orelse return app.toasts.push(.info, gui.print("Can't add {s}", .{asked.add.name orelse asked.add.kind.label}), reason);
                 app.selection = .{ .section = added.section, .line = line };
-                app.goTo(line, 0);
+                // The map shows the new record selected, and the Script view its line.
+                if (app.view == .script) app.goTo(line, 0) else app.placeCursor(line, 0);
             },
         }
+    }
+
+    /// The record the inspector shows and the map marks: the one selected, or else the one the
+    /// source's cursor is in.
+    pub fn inspected(app: *const App) ?*const game.Record {
+        const document = app.document orelse return null;
+        const known = document.outline();
+        if (app.selection) |chosen| return known.find(chosen.section, chosen.line);
+        return known.at(@intCast(document.editor.cursor().line));
     }
 
     pub fn select(app: *App, record: game.Record) void {
         app.selection = .{ .section = record.section, .line = record.first_line };
     }
 
-    /// Moves the source's cursor to `line` and `column`, counting from 0, and shows it.
+    /// Moves the source's cursor to `line` and `column`, counting from 0, and shows it in the
+    /// Script view, switching to it from another view.
     pub fn goTo(app: *App, line: u32, column: u32) void {
         const document = app.document orelse return;
-        app.source_tab = .source;
-        app.screen = .workspace;
+        app.showSource(.source);
+        app.placeCursor(line, column);
+        document.editor.focus();
+    }
+
+    /// Moves the source's cursor to `line` and `column`, counting from 0, and scrolls the source
+    /// to it, without switching views.
+    fn placeCursor(app: *App, line: u32, column: u32) void {
+        const document = app.document orelse return;
         document.editor.setCursor(.{ .line = line, .index = column });
         document.editor.scrollToLine(line);
-        document.editor.focus();
+    }
+
+    /// Shows the source panel's `tab` in the Script view, switching to it from another view.
+    fn showSource(app: *App, tab: SourceTab) void {
+        app.screen = .workspace;
+        app.view = .script;
+        app.source_tab = tab;
     }
 
     fn askQuit(app: *App) void {

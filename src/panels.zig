@@ -15,6 +15,7 @@ const commands = @import("commands.zig");
 const game = @import("game.zig");
 const Document = @import("mission/document.zig").Document;
 const forms = @import("forms.zig");
+const scene_view = @import("views/scene.zig");
 const script_view = @import("views/script.zig");
 const ui = @import("ui.zig");
 const fonts = ui.fonts;
@@ -36,7 +37,10 @@ pub fn draw(app: *App) void {
         switch (panel) {
             .mission => outline(app),
             .find => find(app),
-            .source => script_view.draw(app),
+            .source => switch (app.view) {
+                .scene => scene_view.draw(app),
+                .script, .blocks => script_view.draw(app),
+            },
             .threads => threads(app),
             .breakpoints => breakpoints(app),
             .output => output(app),
@@ -737,12 +741,7 @@ fn liveScene() void {
 fn inspector(app: *App) void {
     const document = app.document orelse return waiting(.sliders_horizontal, "No mission open", null);
     const known = document.outline();
-    const chosen = app.selection orelse blk: {
-        // Without a selection, the record the cursor is in.
-        const record = known.at(@intCast(document.editor.cursor().line)) orelse return waiting(.sliders_horizontal, "Select a record in the outline or the source", null);
-        break :blk app_mod.Selection{ .section = record.section, .line = record.first_line };
-    };
-    const record = known.find(chosen.section, chosen.line) orelse return waiting(.sliders_horizontal, "Select a record in the outline or the source", null);
+    const record = app.inspected() orelse return waiting(.sliders_horizontal, "Select a record in the outline, the source or the map", null);
     gui.pushVar2(c.ImGuiStyleVar_WindowPadding, .{ .x = px(12), .y = px(14) });
     // The forms take the panel's whole width, as the design's do: it scrolls without a bar.
     _ = c.ImGui_BeginChild("inspector", .{ .x = 0, .y = 0 }, c.ImGuiChildFlags_AlwaysUseWindowPadding, c.ImGuiWindowFlags_NoScrollbar);

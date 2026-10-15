@@ -12,6 +12,12 @@ const dte = openreliant.dte;
 const source = dte.source;
 const syntax = source.syntax;
 const commands = openreliant.engine.game.executor.commands;
+const orders = openreliant.engine.game.ai.orders;
+const curves = openreliant.engine.game.executor.curves;
+const math = openreliant.engine.surrender.math;
+const game_mission = openreliant.engine.game.mission;
+const gameobj = openreliant.engine.game.gameobj;
+const planets = openreliant.engine.game.create.planets;
 const conditions = openreliant.engine.vm.conditions;
 const vm = openreliant.engine.vm;
 const mission_editor = openreliant.engine.game.mission.editor;
@@ -31,6 +37,7 @@ pub const profile: game.Profile = .{
     .edit = edit,
     .fields = fieldForms,
     .fieldKind = fieldKind,
+    .scene = scene,
     .new_kinds = &new_kinds,
     .addRecord = addRecord,
     .listing = listing,
@@ -650,6 +657,417 @@ const wings = names: {
     break :names final;
 };
 
+/// What the map shows of a mission: each ship and marker where its `position` places it, a ship
+/// pointing as the game turns it by its yaw, pitch and roll (`mission.recordOrientation`), its
+/// planets and the sun's and nebulae's markers as scenery, the range of each ShipReached trigger
+/// and of each flyback marker the script sets, each curve as the director's camera runs it
+/// (`executor.curves.point`), and the routes the script sends ships along (`RouteWalk`).
+fn scene(arena: Allocator, text: []const u8, known: game.Outline) Allocator.Error!game.Scene {
+    const tree = try source_parser.parse(arena, text);
+    var things: std.ArrayList(game.Thing) = .empty;
+    var ranges: std.ArrayList(game.Range) = .empty;
+    var paths: std.ArrayList([]const [3]f64) = .empty;
+    var walk: RouteWalk = .{ .arena = arena, .tree = tree, .known = known };
+    var player: ?usize = null;
+    for (known.records) |record| switch (record.section) {
+        .ships => {
+            // The first ship is the player's.
+            if (record.index == 0) player = things.items.len;
+            const scenery = if (record.given("type")) |given| isScenery(std.mem.trim(u8, given.value, "\"")) else false;
+            try walk.addThing(record, things.items.len);
+            try things.append(arena, .{
+                .section = record.section,
+                .index = record.index,
+                .kind = if (scenery) .scenery else .ship,
+                .place = vectorOf(record, "position"),
+                .heading = if (scenery) null else headingOf(record),
+            });
+        },
+        .markers => {
+            try walk.addThing(record, things.items.len);
+            try things.append(arena, .{
+                .section = record.section,
+                .index = record.index,
+                .kind = markerKind(record),
+                .place = vectorOf(record, "position"),
+            });
+        },
+        .flight_groups => if (record.group) |group| try walk.groups.put(arena, record.name, group),
+        .squads => try walk.squads.put(arena, record.name, {}),
+        .triggers => if (std.meta.stringToEnum(dte.Condition, record.condition) == .ship_reached) {
+            const subject = known.named(record.subject) orelse continue;
+            try ranges.append(arena, .{ .section = subject.section, .index = subject.index, .radius = reached_reach, .label = record.condition, .style = .trigger });
+        },
+        .curves => try paths.append(arena, try curvePath(arena, record)),
+        else => {},
+    };
+    // The flyback markers the script sets: `SetFlybackMarker(nav, 5000)`, anywhere in its code.
+    for (0..tree.nodes.len) |index| {
+        const call = callOf(tree, @intCast(index)) orelse continue;
+        if (!std.mem.eql(u8, call.callee, set_flyback_marker.name) or call.arguments.len < set_flyback_marker.params.len) continue;
+        const name = globalName(tree, call.arguments[0]) orelse continue;
+        const radius = switch (tree.get(call.arguments[1])) {
+            .number => |value| value,
+            else => continue,
+        };
+        const subject = known.named(name) orelse continue;
+        try ranges.append(arena, .{ .section = subject.section, .index = subject.index, .radius = radius, .label = "flyback", .style = .hint });
+    }
+    return .{ .things = things.items, .player = player, .ranges = ranges.items, .curves = paths.items, .routes = try walk.read(), .place_field = "position" };
+}
+
+/// How the map shows a marker: a point that marks a place on a curve, and a curve point, with the
+/// curves; a nav point, a waypoint and the other points, such as where ships jump in, always.
+fn markerKind(record: game.Record) game.ThingKind {
+    return switch (std.meta.stringToEnum(source.names.Word, record.word) orelse return .marker) {
+        .curve_point => .camera,
+        .point => if (record.given("marker") != null) .camera else .marker,
+        else => .marker,
+    };
+}
+
+/// The commands the map reads: `SetAI`, whose order sends the entity it names to its target
+/// (command `0x0B`), `SetPatrolRoute`, which sends it round a flight group's waypoints (`0x0D`),
+/// and `SetFlybackMarker`, which sets the display's flyback marker on it within a range (`0x46`).
+const set_ai = commands.table[0x0B];
+const set_patrol_route = commands.table[0x0D];
+const set_flyback_marker = commands.table[0x46];
+/// `SetAI`'s parameters: the entity it sends, its order, and its target, which may be none.
+const set_ai_entity = 0;
+const set_ai_order = for (set_ai.params, 0..) |param, index| {
+    if (source.vocabulary.of(param) == .order) break index;
+} else @compileError("SetAI takes no order");
+const set_ai_target = set_ai.params.len - 1;
+
+comptime {
+    std.debug.assert(std.mem.eql(u8, set_ai.name, "SetAI") and std.mem.eql(u8, set_patrol_route.name, "SetPatrolRoute"));
+    std.debug.assert(std.mem.eql(u8, set_flyback_marker.name, "SetFlybackMarker"));
+    std.debug.assert(set_ai.params[set_ai_target].kinds.ship and set_ai.params[set_ai_target].extra.nullable);
+    std.debug.assert(set_patrol_route.params[1].kinds.flight_group);
+}
+
+/// How an order sends a ship to its target, where it does (OpenReliant's
+/// [orders](https://github.com/OpenReliant/openreliant/blob/main/docs/engine/orders.md#the-orders)):
+/// Fly and Escort fly it there, Jump Out and Warp Out jump it there, and Jump In and Warp In bring
+/// it in there.
+const Move = enum { fly, jump, arrive };
+
+fn moveOf(order: orders.Order) ?Move {
+    return switch (order) {
+        .fly, .escort => .fly,
+        .jump_out, .jump_out_spread, .warp_out, .fixed_gate_jump_out => .jump,
+        .jump_in, .jump_in_spread, .warp_in, .fixed_gate_jump_in => .arrive,
+        else => null,
+    };
+}
+
+/// The order the argument at `index` gives: by its name, or by its number.
+fn orderOf(tree: syntax.Tree, index: syntax.Index) ?orders.Order {
+    const number: u32 = switch (tree.get(index)) {
+        .string => |name| source.vocabulary.value(.order, name) orelse return null,
+        .number => |value| if (value >= 0 and value <= std.math.maxInt(i16) and @floor(value) == value) @intFromFloat(value) else return null,
+        else => return null,
+    };
+    return @fromBackingInt(std.math.cast(i16, number) orelse return null);
+}
+
+fn globalName(tree: syntax.Tree, index: syntax.Index) ?[]const u8 {
+    return switch (tree.get(index)) {
+        .global_name => |name| name,
+        else => null,
+    };
+}
+
+/// Reads where the script sends its ships and groups (`game.Route`): each order that sends one to
+/// a marker, in the order the source gives them, through branches and triggers.
+const RouteWalk = struct {
+    arena: Allocator,
+    tree: syntax.Tree,
+    known: game.Outline,
+    /// The ships and markers of the scene, by their records' names.
+    things: std.StringHashMapUnmanaged(Placed) = .empty,
+    /// The flight groups, by name, each with its place among them (`Record.group`), and the
+    /// squads.
+    groups: std.StringHashMapUnmanaged(usize) = .empty,
+    squads: std.StringHashMapUnmanaged(void) = .empty,
+    /// Each flight group's first ship, where a group's route starts.
+    first_ships: std.AutoHashMapUnmanaged(usize, []const u8) = .empty,
+    /// The ships and groups the script brings in by a jump or a warp, by name, and the groups by
+    /// their place among the groups: such a ship waits far off until it comes in, so its route
+    /// starts where it comes in, not where it starts.
+    arriving: std.StringHashMapUnmanaged(void) = .empty,
+    arriving_groups: std.AutoHashMapUnmanaged(usize, void) = .empty,
+    /// Where the orders read so far send each ship or group.
+    whereabouts: Whereabouts = .empty,
+    /// The legs so far, by the name of the ship or group they're for.
+    legs: std.StringArrayHashMapUnmanaged(std.ArrayList(game.Leg)) = .empty,
+
+    /// A ship or a marker of the scene: its place among the scene's things, its section, and its
+    /// flight group.
+    const Placed = struct { thing: usize, section: game.Section, group: ?usize };
+
+    /// A place a route reaches: the thing, and whether the route starts there.
+    const Spot = struct { thing: usize, starts: bool };
+
+    /// Where the orders send each ship or group, by name: at a spot, or lost where the script
+    /// leaves it unknown, such as after branches that send it to different places.
+    const Whereabouts = std.StringHashMapUnmanaged(union(enum) { at: Spot, lost });
+
+    fn addThing(walk: *RouteWalk, record: game.Record, thing: usize) Allocator.Error!void {
+        try walk.things.put(walk.arena, record.name, .{ .thing = thing, .section = record.section, .group = record.group });
+        if (record.section != .ships) return;
+        const group = record.group orelse return;
+        const first = try walk.first_ships.getOrPut(walk.arena, group);
+        if (!first.found_existing) first.value_ptr.* = record.name;
+    }
+
+    /// The routes, from the whole script.
+    fn read(walk: *RouteWalk) Allocator.Error![]const game.Route {
+        for (0..walk.tree.nodes.len) |index| {
+            const found = callOf(walk.tree, @intCast(index)) orelse continue;
+            if (!std.mem.eql(u8, found.callee, set_ai.name) or found.arguments.len < set_ai.params.len) continue;
+            const given = orderOf(walk.tree, found.arguments[set_ai_order]) orelse continue;
+            if (moveOf(given) != .arrive) continue;
+            const subject = globalName(walk.tree, found.arguments[set_ai_entity]) orelse continue;
+            try walk.arriving.put(walk.arena, subject, {});
+            if (walk.groups.get(subject)) |group| try walk.arriving_groups.put(walk.arena, group, {});
+        }
+        try walk.visit(walk.tree.root);
+        var routes: std.ArrayList(game.Route) = .empty;
+        var each = walk.legs.iterator();
+        while (each.next()) |entry| {
+            const ship = walk.things.get(entry.key_ptr.*);
+            try routes.append(walk.arena, .{
+                .ship = if (ship) |placed| placed.thing else null,
+                .group = if (ship) |placed| placed.group else walk.groups.get(entry.key_ptr.*),
+                .legs = entry.value_ptr.items,
+            });
+        }
+        return routes.items;
+    }
+
+    /// Reads the orders of the code at `index`, statement by statement.
+    fn visit(walk: *RouteWalk, index: syntax.Index) Allocator.Error!void {
+        switch (walk.tree.get(index)) {
+            .block => |statements| for (statements) |statement| try walk.visit(statement),
+            .@"if" => |both| try walk.branch(both.then, both.@"else"),
+            .call_statement => |statement| try walk.visit(statement),
+            .call => |found| try walk.call(found.function, found.arguments),
+            .function => |function| try walk.visit(function.body),
+            .local, .assign => |binding| for (binding.values) |value| try walk.visit(value),
+            .@"return" => |values| for (values) |value| try walk.visit(value),
+            .table => |items| for (items) |item| try walk.visit(item),
+            .item => |item| try walk.visit(switch (item) {
+                .list => |value| value,
+                .record => |record| record.value,
+                .general => |general| general.value,
+            }),
+            else => {},
+        }
+    }
+
+    fn call(walk: *RouteWalk, function: syntax.Index, arguments: []const syntax.Index) Allocator.Error!void {
+        if (globalName(walk.tree, function)) |callee| {
+            if (std.mem.eql(u8, callee, set_ai.name)) return walk.order(arguments);
+            if (std.mem.eql(u8, callee, set_patrol_route.name)) return walk.patrol(arguments);
+            if (std.meta.stringToEnum(source.names.Word, callee) == .on) try walk.reached(arguments);
+        }
+        for (arguments) |argument| try walk.visit(argument);
+    }
+
+    /// `SetAI`: an order that sends the ship or group to a marker adds a leg from where it is.
+    fn order(walk: *RouteWalk, arguments: []const syntax.Index) Allocator.Error!void {
+        if (arguments.len < set_ai.params.len) return;
+        const subject = walk.subjectOf(arguments[set_ai_entity]) orelse return;
+        const move = moveOf(orderOf(walk.tree, arguments[set_ai_order]) orelse return) orelse return;
+        // Sent out of the mission, or after a ship: where it is next isn't known.
+        const target = walk.markerOf(arguments[set_ai_target]) orelse return walk.whereabouts.put(walk.arena, subject, .lost);
+        const from = walk.whereIs(subject);
+        if (from) |spot| if (spot.thing == target) return;
+        switch (move) {
+            .arrive => return walk.whereabouts.put(walk.arena, subject, .{ .at = .{ .thing = target, .starts = true } }),
+            .fly, .jump => if (from) |spot| {
+                try walk.addLeg(subject, .{ .from = spot.thing, .to = target, .way = if (move == .jump) .jump else .fly, .starts = spot.starts });
+            },
+        }
+        try walk.whereabouts.put(walk.arena, subject, .{ .at = .{ .thing = target, .starts = false } });
+    }
+
+    /// `SetPatrolRoute`: the ship or group flies to the route's first waypoint, then round its
+    /// waypoints in the order the mission lists them, back to the first (OpenReliant's
+    /// `ai/formations.zig`, `nextWaypoint`). Where it is when the patrol starts isn't known, the
+    /// route starts at the first waypoint.
+    fn patrol(walk: *RouteWalk, arguments: []const syntax.Index) Allocator.Error!void {
+        if (arguments.len < set_patrol_route.params.len) return;
+        const subject = walk.subjectOf(arguments[0]) orelse return;
+        const route = walk.groups.get(globalName(walk.tree, arguments[1]) orelse return) orelse return;
+        var at = walk.whereIs(subject);
+        var first: ?usize = null;
+        for (walk.known.records) |record| {
+            if (record.group != route or std.meta.stringToEnum(source.names.Word, record.word) != .waypoint) continue;
+            const thing = (walk.things.get(record.name) orelse continue).thing;
+            if (first == null) first = thing;
+            if (at) |spot| if (spot.thing != thing) {
+                try walk.addLeg(subject, .{ .from = spot.thing, .to = thing, .way = .fly, .starts = spot.starts });
+            };
+            const starts = at == null;
+            at = .{ .thing = thing, .starts = starts };
+        }
+        if (first) |back| if (at) |spot| if (spot.thing != back) {
+            try walk.addLeg(subject, .{ .from = spot.thing, .to = back, .way = .fly });
+        };
+        // Where the patrol has it when another order comes isn't known.
+        try walk.whereabouts.put(walk.arena, subject, .lost);
+    }
+
+    /// A ShipReached trigger: as its code runs, the ship its value names is at the marker it
+    /// watches.
+    fn reached(walk: *RouteWalk, arguments: []const syntax.Index) Allocator.Error!void {
+        if (arguments.len < 3) return;
+        const condition = stringOf(walk.tree, arguments[1]) orelse return;
+        if (std.meta.stringToEnum(dte.Condition, condition) != .ship_reached) return;
+        const marker = walk.markerOf(arguments[0]) orelse return;
+        const items = switch (walk.tree.get(arguments[2])) {
+            .table => |items| items,
+            else => return,
+        };
+        for (items) |item| switch (walk.tree.get(item)) {
+            .item => |kind| switch (kind) {
+                .record => |record| if (walk.subjectOf(record.value)) |ship| {
+                    try walk.whereabouts.put(walk.arena, ship, .{ .at = .{ .thing = marker, .starts = false } });
+                },
+                else => {},
+            },
+            else => {},
+        };
+    }
+
+    /// Reads both ways of a branch from where the walk is. Where they leave a ship or a group in
+    /// different places, it could be in either: lost.
+    fn branch(walk: *RouteWalk, then: syntax.Index, otherwise: ?syntax.Index) Allocator.Error!void {
+        const before = try walk.whereabouts.clone(walk.arena);
+        try walk.visit(then);
+        const after_then = walk.whereabouts;
+        walk.whereabouts = before;
+        if (otherwise) |other| try walk.visit(other);
+        var each = after_then.iterator();
+        while (each.next()) |entry| {
+            const other = walk.whereabouts.get(entry.key_ptr.*) orelse {
+                try walk.whereabouts.put(walk.arena, entry.key_ptr.*, .lost);
+                continue;
+            };
+            if (!std.meta.eql(other, entry.value_ptr.*)) try walk.whereabouts.put(walk.arena, entry.key_ptr.*, .lost);
+        }
+        var others = walk.whereabouts.iterator();
+        while (others.next()) |entry| if (!after_then.contains(entry.key_ptr.*)) {
+            entry.value_ptr.* = .lost;
+        };
+    }
+
+    /// Where `subject` is as the walk reaches an order for it: where the orders before sent it, or
+    /// else where it starts, unless the script brings it in by a jump or a warp. Null where that
+    /// isn't known.
+    fn whereIs(walk: *const RouteWalk, subject: []const u8) ?Spot {
+        if (walk.whereabouts.get(subject)) |found| return switch (found) {
+            .at => |spot| spot,
+            .lost => null,
+        };
+        const start = walk.startOf(subject) orelse return null;
+        return .{ .thing = start, .starts = true };
+    }
+
+    /// Where `subject` starts: a ship where it is, a flight group where its first ship is; none
+    /// for a ship the script brings in by a jump or a warp, by itself or with its group, or for a
+    /// squad.
+    fn startOf(walk: *const RouteWalk, subject: []const u8) ?usize {
+        const ship = if (walk.groups.get(subject)) |group| walk.first_ships.get(group) orelse return null else subject;
+        const placed = walk.things.get(ship) orelse return null;
+        if (placed.section != .ships or walk.arriving.contains(ship)) return null;
+        if (placed.group) |group| if (walk.arriving_groups.contains(group)) return null;
+        return placed.thing;
+    }
+
+    /// The name of the ship, flight group or squad the argument at `index` names.
+    fn subjectOf(walk: *const RouteWalk, index: syntax.Index) ?[]const u8 {
+        const name = globalName(walk.tree, index) orelse return null;
+        if (walk.things.get(name)) |placed| return if (placed.section == .ships) name else null;
+        if (walk.groups.contains(name) or walk.squads.contains(name)) return name;
+        return null;
+    }
+
+    /// The thing of the marker the argument at `index` names.
+    fn markerOf(walk: *const RouteWalk, index: syntax.Index) ?usize {
+        const placed = walk.things.get(globalName(walk.tree, index) orelse return null) orelse return null;
+        return if (placed.section == .markers) placed.thing else null;
+    }
+
+    /// Adds a leg to `subject`'s route, once.
+    fn addLeg(walk: *RouteWalk, subject: []const u8, leg: game.Leg) Allocator.Error!void {
+        const found = try walk.legs.getOrPut(walk.arena, subject);
+        if (!found.found_existing) found.value_ptr.* = .empty;
+        for (found.value_ptr.items) |*known| if (known.from == leg.from and known.to == leg.to and known.way == leg.way) {
+            known.starts = known.starts or leg.starts;
+            return;
+        };
+        try found.value_ptr.append(walk.arena, leg);
+    }
+};
+
+/// Whether a ship of the type `type_name` is scenery: a planet, as the original's table of planets
+/// has it (`create.planets.original`), or the sun's or a nebula's marker.
+fn isScenery(type_name: []const u8) bool {
+    const number = source.vocabulary.value(.ship_type, type_name) orelse return false;
+    const ship_type: gameobj.Type = @fromBackingInt(std.math.cast(@typeInfo(gameobj.Type).@"enum".tag_type, number) orelse return false);
+    for (planets.original) |planet| if (planet.type == ship_type) return true;
+    return ship_type == gameobj.Type.of(.sun_marker) or ship_type == gameobj.Type.of(.nebula_marker);
+}
+
+/// How far ShipReached's triggers look around a nav point or a waypoint, as OpenReliant's mission
+/// events watch (`reached_reach`, `0x0052A5D0`).
+const reached_reach = 4000;
+
+/// The points a curve's path passes on the map.
+const curve_points = 48;
+
+/// The vector a record's field `name` gives; the origin where it gives none.
+fn vectorOf(record: game.Record, name: []const u8) [3]f64 {
+    const given = record.given(name) orelse return @splat(0);
+    return given.vector() orelse @splat(0);
+}
+
+/// The way a ship's nose points, as the game turns it by its angles. An angle left out, or unset
+/// as -1, is 0.
+fn headingOf(record: game.Record) [3]f64 {
+    var ship = std.mem.zeroes(dte.Ship);
+    ship.yaw = angleOf(record, "yaw");
+    ship.pitch = angleOf(record, "pitch");
+    ship.roll = angleOf(record, "roll");
+    const nose = math.forward(game_mission.recordOrientation(ship));
+    return .{ nose[0], nose[1], nose[2] };
+}
+
+fn angleOf(record: game.Record, name: []const u8) i16 {
+    const given = record.given(name) orelse return 0;
+    const degrees = std.fmt.parseFloat(f64, given.value) catch return 0;
+    if (degrees == -1) return 0;
+    return std.math.lossyCast(i16, degrees);
+}
+
+/// The points a curve record's path passes, from its `from` to its `to`, along its tangents.
+fn curvePath(arena: Allocator, record: game.Record) Allocator.Error![]const [3]f64 {
+    var curve = dte.Curve.blank;
+    for ([_]struct { *[3]f32, []const u8 }{ .{ &curve.from, "from" }, .{ &curve.to, "to" }, .{ &curve.leaving, "leaving" }, .{ &curve.arriving, "arriving" } }) |part| {
+        const value = vectorOf(record, part[1]);
+        part[0].* = .{ @floatCast(value[0]), @floatCast(value[1]), @floatCast(value[2]) };
+    }
+    const points = try arena.alloc([3]f64, curve_points);
+    for (points, 0..) |*point, at| {
+        const on = curves.point(curve, @as(f32, @floatFromInt(at)) / (curve_points - 1));
+        point.* = .{ on[0], on[1], on[2] };
+    }
+    return points;
+}
+
 /// The records the outline's + adds. Squads, formations and curves list other records, and are
 /// written in the source.
 const new_kinds = [_]game.NewKind{
@@ -1024,6 +1442,121 @@ test addRecord {
         try std.testing.expect(try build(arena, try source_edit.testing.applied(arena, first_mission, added.change)) == .mission);
     }
     try std.testing.expect(source.vocabulary.value(.condition, new_condition) != null);
+}
+
+test scene {
+    var arena: std.heap.ArenaAllocator = .init(std.testing.allocator);
+    defer arena.deinit();
+    const made = try outline(arena.allocator(), first_mission);
+    const shown = try scene(arena.allocator(), first_mission, made);
+    // The player, the nav point and the two Sabres, each where it starts.
+    try std.testing.expectEqual(4, shown.things.len);
+    try std.testing.expectEqual(made.named("player").?.index, shown.things[shown.player.?].index);
+    const sabre = made.named("sabre_1").?;
+    for (shown.things) |thing| if (thing.section == sabre.section and thing.index == sabre.index) {
+        try std.testing.expectEqual([3]f64{ -2000, 0, 42000 }, thing.place);
+        // Turned half round, it points back along Z.
+        try std.testing.expectApproxEqAbs(-1, thing.heading.?[2], 1e-6);
+    };
+    // The nav point's ShipReached trigger watches within 4000 of it, and the start part sets the
+    // flyback marker on it within 5000.
+    try std.testing.expectEqual(2, shown.ranges.len);
+    try std.testing.expectEqual(made.named("nav").?.index, shown.ranges[0].index);
+    try std.testing.expectEqual(4000, shown.ranges[0].radius);
+    try std.testing.expectEqual(5000, shown.ranges[1].radius);
+    try std.testing.expectEqual(game.RangeStyle.hint, shown.ranges[1].style);
+    // A planet's type is scenery; a Sabre's isn't.
+    try std.testing.expect(isScenery("neptune_hi") and !isScenery("sabre"));
+}
+
+test RouteWalk {
+    const text =
+        \\alpha = flight_group("(FG)Alpha", { wing = "player" })
+        \\raiders = flight_group("(FG)Raiders")
+        \\round = flight_group("(FG)Round")
+        \\player = ship("Player", { type = "predator", group = alpha })
+        \\wingman = ship("Wingman", { type = "predator", group = alpha, position = { 500, 0, 0 } })
+        \\raider = ship("Raider", { type = "sabre", group = raiders, position = { 9000000, 0, 0 } })
+        \\nav = nav_point("Nav 1", { position = { 0, 0, 40000 } })
+        \\entry = point("Raider in", { position = { 5000, 0, 30000 } })
+        \\target = waypoint("Raider fly to", { position = { 2000, 0, 35000 } })
+        \\out = point("Raider out", { position = { 9000, 0, 35000 } })
+        \\left = waypoint("Left", { position = { -3000, 0, 1000 } })
+        \\right = waypoint("Right", { position = { 3000, 0, 1000 } })
+        \\later = waypoint("Later", { position = { 0, 0, 9000 } })
+        \\one = waypoint("One", { group = round, position = { 0, 0, 1 } })
+        \\two = waypoint("Two", { group = round, position = { 0, 0, 2 } })
+        \\three = waypoint("Three", { group = round, position = { 0, 0, 3 } })
+        \\shot = point("Shot", { marker = { curve = path, at = 0.5 } })
+        \\start = part("(F)Start", function()
+        \\    SetAI(raider, "jump_in", 1, entry)
+        \\    SetAI(raider, "fly", 1, target)
+        \\    SetAI(alpha, "jump_out", 1, nav)
+        \\    if game.mission_success == 1 then
+        \\        SetAI(wingman, "fly", 1, left)
+        \\    else
+        \\        SetAI(wingman, "fly", 1, right)
+        \\    end
+        \\    SetAI(wingman, "fly", 1, later)
+        \\    SetPatrolRoute(raiders, round)
+        \\    return 1
+        \\end, { start = true })
+        \\on(target, "ship_reached", { reached_ship = raider }, function(reached_ship)
+        \\    SetAI(raider, "jump_out", 1, out)
+        \\    return 1
+        \\end)
+        \\
+    ;
+    var arena: std.heap.ArenaAllocator = .init(std.testing.allocator);
+    defer arena.deinit();
+    const made = try outline(arena.allocator(), text);
+    const shown = try scene(arena.allocator(), text, made);
+    const at = struct {
+        fn thing(things: []const game.Thing, known: game.Outline, name: []const u8) usize {
+            const record = known.named(name).?;
+            for (things, 0..) |each, index| if (each.section == record.section and each.index == record.index) return index;
+            unreachable;
+        }
+    };
+    const legsOf = struct {
+        fn route(routes: []const game.Route, things: []const game.Thing, known: game.Outline, name: []const u8) []const game.Leg {
+            const record = known.named(name).?;
+            for (routes) |each| {
+                if (each.ship) |ship| if (things[ship].section == record.section and things[ship].index == record.index) return each.legs;
+                if (each.ship == null and record.section == .flight_groups and each.group == record.group) return each.legs;
+            }
+            return &.{};
+        }
+    };
+    const things = shown.things;
+    // The raider waits far off until it jumps in, so its route starts where it comes in: it flies
+    // to its waypoint, and on reaching it jumps out.
+    try std.testing.expectEqualSlices(game.Leg, &.{
+        .{ .from = at.thing(things, made, "entry"), .to = at.thing(things, made, "target"), .way = .fly, .starts = true },
+        .{ .from = at.thing(things, made, "target"), .to = at.thing(things, made, "out"), .way = .jump },
+    }, legsOf.route(shown.routes, things, made, "raider"));
+    // The player's group jumps to the nav point from where its first ship starts.
+    try std.testing.expectEqualSlices(game.Leg, &.{
+        .{ .from = at.thing(things, made, "player"), .to = at.thing(things, made, "nav"), .way = .jump, .starts = true },
+    }, legsOf.route(shown.routes, things, made, "alpha"));
+    // Either branch flies the wingman from its start; after them it could be at either, so no leg
+    // leads to the next waypoint.
+    try std.testing.expectEqualSlices(game.Leg, &.{
+        .{ .from = at.thing(things, made, "wingman"), .to = at.thing(things, made, "left"), .way = .fly, .starts = true },
+        .{ .from = at.thing(things, made, "wingman"), .to = at.thing(things, made, "right"), .way = .fly, .starts = true },
+    }, legsOf.route(shown.routes, things, made, "wingman"));
+    // The raiders' patrol route goes round its waypoints in the order they're listed, back to the
+    // first. The group comes in nowhere and starts at its first ship, the raider, which jumps in,
+    // so the route starts at the first waypoint.
+    try std.testing.expectEqualSlices(game.Leg, &.{
+        .{ .from = at.thing(things, made, "one"), .to = at.thing(things, made, "two"), .way = .fly, .starts = true },
+        .{ .from = at.thing(things, made, "two"), .to = at.thing(things, made, "three"), .way = .fly },
+        .{ .from = at.thing(things, made, "three"), .to = at.thing(things, made, "one"), .way = .fly },
+    }, legsOf.route(shown.routes, things, made, "raiders"));
+    // A point where a ship comes in is a marker; one that marks a place on a curve shows with the
+    // curves.
+    try std.testing.expectEqual(game.ThingKind.marker, things[at.thing(things, made, "entry")].kind);
+    try std.testing.expectEqual(game.ThingKind.camera, things[at.thing(things, made, "shot")].kind);
 }
 
 test fieldForms {

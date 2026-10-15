@@ -430,6 +430,31 @@ pub const PanelTab = struct {
     }
 };
 
+/// A panel's own tab bar, as the source panel's: `tabs` side by side from its left on the bar's
+/// colour, with its line under them. The tab clicked, if one is.
+pub fn panelTabs(tabs: []const PanelTab) ?usize {
+    const at = gui.cursor();
+    const width = gui.available().x;
+    const height = px(tab_bar_height);
+    const list = gui.drawList();
+    gui.rect(list, at, .{ .x = at.x + width, .y = at.y + height }, theme.bar, 0);
+    gui.rect(list, .{ .x = at.x, .y = at.y + height - px(1) }, .{ .x = at.x + width, .y = at.y + height }, theme.tab_divider, 0);
+    var clicked: ?usize = null;
+    var x = at.x;
+    for (tabs, 0..) |tab, index| {
+        const tab_width = tab.width();
+        gui.setCursor(.{ .x = x, .y = at.y });
+        gui.pushIdInt(index);
+        if (c.ImGui_InvisibleButton("tab", .{ .x = tab_width, .y = height - px(1) }, 0)) clicked = index;
+        gui.popId();
+        tab.draw(list, .{ .x = x, .y = at.y }, .{ .x = x + tab_width, .y = at.y + height - px(1) }, gui.hovered());
+        if (tab.dot) gui.tooltip("Changed since saved");
+        x += tab_width;
+    }
+    gui.setCursor(.{ .x = at.x, .y = at.y + height });
+    return clicked;
+}
+
 pub const ViewTab = struct {
     label: []const u8,
     icon: Icon,
@@ -699,11 +724,13 @@ pub const Frame = struct {
     mark: RowMark = .none,
     chevron: bool = true,
     disabled: ?Disabled = null,
+    /// Its width; by default the space left on the line.
+    width: ?f32 = null,
 };
 
 /// The design's `.frame`: a field that opens a list, as the inspector's.
 pub fn frame(id: []const u8, shown: Frame) bool {
-    const width = gui.available().x;
+    const width = shown.width orelse gui.available().x;
     const height = px(26);
     const at = gui.cursor();
     const clicked = c.ImGui_InvisibleButton(gui.z(id), .{ .x = @max(width, 1), .y = height }, 0) and shown.disabled == null;
@@ -763,7 +790,7 @@ pub fn pick(id: []const u8, shown: Frame, choices: []const Choice) ?usize {
     gui.pushId(id);
     defer gui.popId();
     const at = gui.cursor();
-    const width = gui.available().x;
+    const width = shown.width orelse gui.available().x;
     if (frame("frame", shown)) _ = c.ImGui_OpenPopup("choices", 0);
     c.ImGui_SetNextWindowPos(.{ .x = at.x, .y = at.y + px(26) + px(2) }, c.ImGuiCond_Always);
     c.ImGui_SetNextWindowSizeConstraints(.{ .x = width, .y = 0 }, .{ .x = @max(width, px(240)), .y = px(320) }, null, null);
@@ -783,18 +810,18 @@ pub fn pick(id: []const u8, shown: Frame, choices: []const Choice) ?usize {
     }
     const term = std.mem.sliceTo(&Find.text, 0);
     var chosen: ?usize = null;
-    for (choices, 0..) |choice, index| {
-        if (finding and term.len > 0 and std.ascii.findIgnoreCase(choice.label, term) == null) continue;
+    for (choices, 0..) |item, index| {
+        if (finding and term.len > 0 and std.ascii.findIgnoreCase(item.label, term) == null) continue;
         gui.pushIdInt(index);
         defer gui.popId();
-        if (choiceRow(choice)) chosen = index;
+        if (choiceRow(item)) chosen = index;
     }
     if (chosen != null) c.ImGui_CloseCurrentPopup();
     return chosen;
 }
 
 /// A row of a list to choose from, as `pick`'s. True when clicked.
-pub fn choiceRow(choice: Choice) bool {
+pub fn choiceRow(item: Choice) bool {
     const width = gui.available().x;
     const height = px(26);
     const at = gui.cursor();
@@ -802,12 +829,12 @@ pub fn choiceRow(choice: Choice) bool {
     const list = gui.drawList();
     if (gui.hovered()) gui.rect(list, at, .{ .x = at.x + width, .y = at.y + height }, theme.row_hover, 3);
     const middle = at.y + height / 2;
-    var x = drawMark(list, at.x + px(8), middle, choice.mark);
-    if (choice.mono) gui.mono(.regular, fonts.size.ui) else gui.sans(.regular, fonts.size.ui);
-    gui.drawText(list, .{ .x = x, .y = gui.textTop(middle) }, if (choice.dim) theme.text_dim else theme.text, choice.label);
-    x += gui.textSize(choice.label).x + px(7);
+    var x = drawMark(list, at.x + px(8), middle, item.mark);
+    if (item.mono) gui.mono(.regular, fonts.size.ui) else gui.sans(.regular, fonts.size.ui);
+    gui.drawText(list, .{ .x = x, .y = gui.textTop(middle) }, if (item.dim) theme.text_dim else theme.text, item.label);
+    x += gui.textSize(item.label).x + px(7);
     gui.popFont();
-    if (choice.detail) |detail| {
+    if (item.detail) |detail| {
         gui.mono(.regular, fonts.size.ui);
         gui.drawText(list, .{ .x = x, .y = gui.textTop(middle) }, theme.text_dim, detail);
         gui.popFont();
@@ -918,6 +945,73 @@ pub fn pushBareInput(padding_y: f32) void {
 pub fn popBareInput() void {
     gui.popVar(2);
     gui.popColor(4);
+}
+
+/// How `choice` draws: the box's height, the space each side of a label, the labels' size, and the
+/// corners' radius. The defaults are the settings' `.seg`.
+pub const ChoiceLook = struct {
+    height: f32 = 30,
+    padding: f32 = 12,
+    font: f32 = fonts.size.ui,
+    rounding: f32 = 5,
+};
+
+/// The design's choice of a few, as the settings' `.seg` and the map's views: each option as wide
+/// as its label, the one chosen lit. The option clicked, if one is.
+pub fn choice(id: []const u8, options: []const []const u8, current: usize, look: ChoiceLook) ?usize {
+    gui.pushId(id);
+    defer gui.popId();
+    gui.sans(.regular, look.font);
+    defer gui.popFont();
+    // The options sit 3 pixels inside the box's line, 2 pixels apart.
+    const inset = px(3);
+    var width = inset * 2 + px(2) * @as(f32, @floatFromInt(options.len - 1));
+    for (options) |option| width += gui.textSize(option).x + px(look.padding) * 2;
+    const height = px(look.height);
+    const at = gui.cursor();
+    const list = gui.drawList();
+    gui.rect(list, at, .{ .x = at.x + width, .y = at.y + height }, theme.field, look.rounding);
+    gui.outline(list, at, .{ .x = at.x + width, .y = at.y + height }, theme.border, look.rounding);
+    var chosen: ?usize = null;
+    var x = at.x + inset;
+    for (options, 0..) |option, index| {
+        const item_width = gui.textSize(option).x + px(look.padding) * 2;
+        gui.setCursor(.{ .x = x, .y = at.y + inset });
+        gui.pushIdInt(index);
+        if (c.ImGui_InvisibleButton("option", .{ .x = item_width, .y = height - inset * 2 }, 0)) chosen = index;
+        gui.popId();
+        const on = index == current;
+        if (on) gui.rect(list, .{ .x = x, .y = at.y + inset }, .{ .x = x + item_width, .y = at.y + height - inset }, theme.border, 3);
+        gui.drawText(list, .{ .x = x + px(look.padding), .y = gui.textTop(at.y + height / 2) }, if (on) theme.white else theme.text_muted, option);
+        x += item_width + px(2);
+    }
+    gui.setCursor(at);
+    c.ImGui_Dummy(.{ .x = width, .y = height });
+    return chosen;
+}
+
+/// The design's `.chip` that turns something on and off, such as the map's Ranges: an icon and a
+/// label, lit while on. True when clicked.
+pub fn toggleChip(id: []const u8, label: []const u8, icon: Icon, on: bool, disabled: ?Disabled) bool {
+    gui.sans(.regular, fonts.size.small);
+    defer gui.popFont();
+    const icon_size = fonts.size.icon_small;
+    const width = px(9) + px(icon_size) + px(6) + gui.textSize(label).x + px(9);
+    const height = px(24);
+    const at = gui.cursor();
+    const clicked = c.ImGui_InvisibleButton(gui.z(id), .{ .x = width, .y = height }, 0) and disabled == null;
+    if (disabled == null) gui.handCursor();
+    const list = gui.drawList();
+    const max = gui.vec2(at.x + width, at.y + height);
+    const lit = on and disabled == null;
+    gui.rect(list, at, max, if (lit) theme.pill else theme.field, 4);
+    gui.outline(list, at, max, if (lit) theme.border_strong else theme.border, 4);
+    const color = if (disabled != null) theme.text_off else if (lit) theme.text_strong else theme.text_muted;
+    const middle = at.y + height / 2;
+    drawIcon(list, .{ .x = at.x + px(9), .y = middle }, icon, icon_size, color);
+    gui.drawText(list, .{ .x = at.x + px(9) + px(icon_size) + px(6), .y = gui.textTop(middle) }, color, label);
+    if (disabled) |off| gui.tooltip(off.reason);
+    return clicked;
 }
 
 /// The design's segmented switch, such as a trigger's Repeats: Once, Always, Counted.

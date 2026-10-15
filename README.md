@@ -5,14 +5,15 @@ A mission editor, script debugger and mod editor for
 StarLancer's engine. It links to the running game, so that a change to a mission or a mod shows in
 the game as it's made.
 
-**Status:** Mission mode's Script view works. It opens a mod's missions, a mission file or one of
-the game's own missions as source, colours it with the game's commands, checks it as it's typed,
-offers the game's commands and conditions as you type, explains them on hover and in the Reference
-panel, builds the mission, and plays it in OpenReliant, from its start or from a part. The inspector
-edits the records as forms, and the outline adds new ones ([Editing records](docs/editing.md)).
-Linked to the game, it holds the mission's script at breakpoints, steps through it, and shows its
-threads and values ([Debugging a mission](docs/debugging.md)). The rest of the [design](design/README.md) is in
-place and greyed out, each part with the issue that plans it.
+**Status:** Mission mode's Script and Scene views work. The Script view opens a mod's missions, a
+mission file or one of the game's own missions as source, colours it with the game's commands,
+checks it as it's typed, offers the game's commands and conditions as you type, explains them on
+hover and in the Reference panel, builds the mission, and plays it in OpenReliant, from its start or
+from a part. The inspector edits the records as forms, the outline adds new ones, and the Scene
+view's map shows the ships and markers and moves them ([Editing records](docs/editing.md)). Linked
+to the game, it holds the mission's script at breakpoints, steps through it, and shows its threads
+and values ([Debugging a mission](docs/debugging.md)). The rest of the [design](design/README.md) is
+in place and greyed out, each part with the issue that plans it.
 The plan is OpenReliant's [#1126](https://github.com/OpenReliant/openreliant/issues/1126).
 
 ![The Script view of a mission, held at a breakpoint](design/images/mission-script.png)

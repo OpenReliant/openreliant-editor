@@ -127,11 +127,15 @@ pub fn iconFont() *c.ImFont {
 
 var icon_font: *c.ImFont = undefined;
 
-/// A font's height above and below its baseline, in ems, from its `hhea` and `head` tables.
+/// A font's height above and below its baseline, and its capitals' height, in ems, from its `hhea`,
+/// `head` and `OS/2` tables.
 pub const Metrics = struct {
     /// The height above the baseline and below it, as a stylesheet lays out a line of text.
     ascent: f32,
     descent: f32,
+    /// The capitals' height above the baseline, which the figures share in the editor's fonts; 0
+    /// where the font doesn't give it.
+    cap_height: f32,
     /// How much larger ImGui's size of the font is than its em. ImGui sizes a font by its ascent
     /// less its descent as the file gives them, a stylesheet by its em, so a font pushed at the
     /// design's size times this draws as large as in the design.
@@ -143,6 +147,7 @@ pub const Metrics = struct {
         var units: u16 = 0;
         var ascent: i16 = 0;
         var descent: i16 = 0;
+        var cap_height: i16 = 0;
         for (0..tables) |index| {
             const record = 12 + index * 16;
             const offset = std.mem.readInt(u32, data[record + 8 ..][0..4], .big);
@@ -151,6 +156,10 @@ pub const Metrics = struct {
                 ascent = std.mem.readInt(i16, data[offset + 4 ..][0..2], .big);
                 descent = std.mem.readInt(i16, data[offset + 6 ..][0..2], .big);
             }
+            // `sCapHeight` came in the table's second version.
+            if (std.mem.eql(u8, data[record..][0..4], "OS/2") and std.mem.readInt(u16, data[offset..][0..2], .big) >= 2) {
+                cap_height = std.mem.readInt(i16, data[offset + 88 ..][0..2], .big);
+            }
         }
         const em_units: f32 = @floatFromInt(units);
         return .{
@@ -158,6 +167,7 @@ pub const Metrics = struct {
             // Newtown gives its descent as a positive number; browsers take it as below the
             // baseline all the same.
             .descent = @as(f32, @floatFromInt(@abs(descent))) / em_units,
+            .cap_height = @as(f32, @floatFromInt(cap_height)) / em_units,
             .em = @as(f32, @floatFromInt(@as(i32, ascent) - descent)) / em_units,
         };
     }
@@ -186,6 +196,9 @@ test Metrics {
     try std.testing.expectEqual(13, Family.sans.metrics().baselineInLine(13, 13 * line_height));
     try std.testing.expectApproxEqAbs(0.19, Family.brand.metrics().descent, 1e-6);
     try std.testing.expectEqual(16, Family.brand.metrics().baselineInLine(16, 16 * line_height));
+    // Plex's capitals and figures are 0.698 of its em high, JetBrains Mono's 0.73.
+    try std.testing.expectApproxEqAbs(0.698, Family.sans.metrics().cap_height, 1e-6);
+    try std.testing.expectApproxEqAbs(0.73, Family.mono.metrics().cap_height, 1e-6);
 }
 
 test face {

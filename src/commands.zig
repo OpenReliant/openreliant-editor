@@ -193,7 +193,6 @@ fn defaults(comptime windows_linux: []const []const u8, comptime macos: []const 
 
 /// Issues of what doesn't work yet, by what each plans.
 pub const plans = struct {
-    pub const scene: Plan = .{ .issue = 2 };
     pub const blocks: Plan = .{ .issue = 3 };
     /// Mod mode's views, Reload scripts, and Play with this mod only.
     pub const mod_mode: Plan = .{ .issue = 4 };
