@@ -1,6 +1,6 @@
 .{
     .name = .openreliant_editor,
-    .version = "0.1.0", // x-release-please-version
+    .version = "0.1.1", // x-release-please-version
     .fingerprint = 0xca6294c595ab78da,
     .minimum_zig_version = "0.17.0",
     .dependencies = .{
