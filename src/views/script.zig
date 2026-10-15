@@ -444,7 +444,7 @@ fn drawLineNumber(app: *App, number: *const c.OrTextLineNumber) void {
     } else if (breakpoint) {
         if (app.session.mapped()) gui.dot(list, center, 5, theme.breakpoint) else gui.ring(list, center, 4.25, 1.5, theme.breakpoint);
     } else if (problem) {
-        widgets.drawIcon(list, .{ .x = center.x - px(6), .y = middle }, .circle_alert, fonts.size.icon_tiny, theme.error_icon);
+        widgets.drawIconCentered(list, .{ .x = center.x, .y = middle }, .circle_alert, fonts.size.icon_tiny, theme.error_icon);
     } else if (hovered) {
         gui.dot(list, center, 5, theme.fade(theme.breakpoint, 0.35));
     }

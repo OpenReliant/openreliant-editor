@@ -600,7 +600,7 @@ fn keyRow(app: *App, command: Command, width: f32, columns: [3]f32) void {
     const edit_at = gui.cursor();
     if (c.ImGui_InvisibleButton("edit", .{ .x = px(26), .y = px(26) }, 0)) capturing = command;
     gui.handCursor();
-    widgets.drawIcon(list, .{ .x = edit_at.x + px(6), .y = edit_at.y + px(13) }, .pencil, fonts.size.icon_small, if (gui.hovered()) theme.text else theme.text_dim);
+    widgets.drawIconCentered(list, .{ .x = edit_at.x + px(13), .y = edit_at.y + px(13) }, .pencil, fonts.size.icon_small, if (gui.hovered()) theme.text else theme.text_dim);
     gui.tooltip(gui.print("Set the keys on {s}", .{app.keys_system.label()}));
 }
 

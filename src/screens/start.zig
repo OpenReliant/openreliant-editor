@@ -238,7 +238,7 @@ fn card(id: []const u8, shown: Card) bool {
     }
     const tile_min = gui.vec2(at.x + px(1) + padding_x, at.y + (height - tile) / 2);
     gui.rect(list, tile_min, .{ .x = tile_min.x + tile, .y = tile_min.y + tile }, if (shown.disabled != null and !shown.featured) theme.button_off else shown.tile, 8);
-    widgets.drawIcon(list, .{ .x = tile_min.x + (tile - px(20)) / 2, .y = tile_min.y + tile / 2 }, shown.icon, 20, if (shown.disabled != null and !shown.featured) theme.text_off else shown.tile_icon);
+    widgets.drawIconCentered(list, .{ .x = tile_min.x + tile / 2, .y = tile_min.y + tile / 2 }, shown.icon, 20, if (shown.disabled != null and !shown.featured) theme.text_off else shown.tile_icon);
     // The title and the detail, together in the middle of the card.
     const text_top = at.y + (height - layout.textHeight()) / 2;
     gui.sans(.semibold, layout.title_size);
@@ -265,7 +265,7 @@ fn newMod(app: *App, width: f32) void {
     const tile = px(38);
     const tile_min = gui.vec2(at.x + px(14), at.y + px(14));
     gui.rect(list, tile_min, .{ .x = tile_min.x + tile, .y = tile_min.y + tile }, theme.rgb(0x0f2221), 8);
-    widgets.drawIcon(list, .{ .x = tile_min.x + px(9), .y = tile_min.y + tile / 2 }, .box, 20, theme.syntax.command);
+    widgets.drawIconCentered(list, .{ .x = tile_min.x + tile / 2, .y = tile_min.y + tile / 2 }, .box, 20, theme.syntax.command);
     gui.sans(.semibold, 13.5);
     gui.drawText(list, .{ .x = tile_min.x + tile + px(12), .y = tile_min.y + px(1) }, theme.text, "New mod");
     gui.popFont();

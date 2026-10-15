@@ -143,11 +143,16 @@ pub fn toolButton(id: []const u8, options: ToolButton) bool {
     c.ImDrawList_AddRectFilledEx(list, at, max, background, px(4), flags);
     c.ImDrawList_AddRectEx(list, at, max, border, px(4), px(1), flags);
 
-    var x = at.x + (if (options.icon_only) (width - px(icon_size)) / 2 else px(10));
+    var x = at.x + px(10);
     const middle = at.y + height / 2;
     if (options.icon) |icon| {
-        drawIcon(list, .{ .x = x, .y = middle }, icon, icon_size, if (options.disabled != null) foreground else options.icon_color orelse foreground);
-        x += px(icon_size) + px(6);
+        const color = if (options.disabled != null) foreground else options.icon_color orelse foreground;
+        if (options.icon_only) {
+            drawIconCentered(list, .{ .x = at.x + width / 2, .y = middle }, icon, icon_size, color);
+        } else {
+            drawIcon(list, .{ .x = x, .y = middle }, icon, icon_size, color);
+            x += px(icon_size) + px(6);
+        }
     }
     if (options.label.len > 0) {
         gui.drawText(list, .{ .x = x, .y = gui.textTop(middle) }, foreground, options.label);
@@ -174,6 +179,17 @@ pub fn drawIcon(list: *c.ImDrawList, middle: Vec2, icon: Icon, size: f32, color:
     defer gui.popFont();
     const glyph = icon.text();
     gui.drawText(list, .{ .x = middle.x, .y = middle.y - c.ImGui_GetFontSize() / 2 }, color, glyph);
+}
+
+/// Draws `icon` at `size` design pixels centred on `center`, for an icon on its own in a box, such
+/// as an icon button's. The icons' font gives each icon a wider advance than its own, with the
+/// icon in its middle, so that a column of icons lines up (`fonts.mergeIcons`): the advance is
+/// what's centred here, where `drawIcon` starts the icon at its point.
+pub fn drawIconCentered(list: *c.ImDrawList, center: Vec2, icon: Icon, size: f32, color: Color) void {
+    gui.iconFont(size);
+    const advance = gui.textSize(icon.text()).x;
+    gui.popFont();
+    drawIcon(list, .{ .x = @round(center.x - advance / 2), .y = center.y }, icon, size, color);
 }
 
 /// An icon as an item, `size` design pixels square, in the line's flow.
@@ -952,7 +968,7 @@ pub fn checkbox(id: []const u8, label: []const u8, checked: bool, disabled: ?Dis
     const max = gui.vec2(at.x + box, middle + box / 2);
     if (checked) {
         gui.rect(list, min, max, theme.accent, 3);
-        drawIcon(list, .{ .x = min.x + px(0.5), .y = middle }, .check, 12, theme.on_accent);
+        drawIconCentered(list, .{ .x = (min.x + max.x) / 2, .y = middle }, .check, 12, theme.on_accent);
     } else {
         gui.rect(list, min, max, theme.button, 3);
         gui.outline(list, min, max, theme.border_strong, 3);
