@@ -154,6 +154,12 @@ const least_across = 200;
 const most_across = 1e9;
 /// The places a drag with Shift held snaps to, in the game's units.
 const snap = 100;
+/// How wide Follow's list is, at most and at least, the gap between the toolbar's chips, and the
+/// least gap between them and Follow, in design pixels.
+const most_follow_width = 120;
+const least_follow_width = 64;
+const chip_gap = 6;
+const follow_gap = 12;
 
 pub fn draw(app: *App) void {
     const document = app.document orelse return;
@@ -192,7 +198,8 @@ fn lower(text: []const u8) []const u8 {
     return std.ascii.lowerString(gui.frameAllocator().alloc(u8, text.len) catch return text, text);
 }
 
-/// The map's toolbar: the projection, what it shows, the record it follows, and Fit.
+/// The map's toolbar: the projection, what it shows, the record it follows, and Fit, as room
+/// allows (`ToolbarFit`). The chips that don't fit even without Follow are left out.
 fn toolbar(document: *Document, scene: game.Scene) void {
     const at = gui.cursor();
     const width = gui.available().x;
@@ -215,39 +222,90 @@ fn toolbar(document: *Document, scene: game.Scene) void {
     gui.rect(list, .{ .x = x, .y = middle - px(9) }, .{ .x = x + px(1), .y = middle + px(9) }, theme.border, 0);
     x += px(9);
     const live_planned: widgets.Disabled = .{ .reason = gui.print("Planned · {f}", .{commands.plans.live_scene}) };
-    const chips = [_]struct { []const u8, []const u8, Icon, ?*bool }{
-        .{ "live", "Live", .radio, null },
-        .{ "ranges", "Ranges", .circle_dashed, &Map.ranges },
-        .{ "routes", "Routes", .route, &Map.routes },
-        .{ "orders", "Orders", .arrow_up_right, null },
-        .{ "curves", "Curves", .spline, &Map.curves },
+    const chips = [_]struct { []const u8, widgets.ToggleChip, ?*bool }{
+        .{ "live", .{ .label = "Live", .icon = .radio, .disabled = live_planned }, null },
+        .{ "ranges", .{ .label = "Ranges", .icon = .circle_dashed, .on = Map.ranges }, &Map.ranges },
+        .{ "routes", .{ .label = "Routes", .icon = .route, .on = Map.routes }, &Map.routes },
+        .{ "orders", .{ .label = "Orders", .icon = .arrow_up_right, .disabled = live_planned }, null },
+        .{ "curves", .{ .label = "Curves", .icon = .spline, .on = Map.curves }, &Map.curves },
     };
-    for (chips) |chip| {
-        gui.setCursor(.{ .x = x, .y = middle - px(12) });
-        if (widgets.toggleChip(chip[0], chip[1], chip[2], if (chip[3]) |on| on.* else false, if (chip[3] == null) live_planned else null)) {
-            if (chip[3]) |on| on.* = !on.*;
-        }
-        x = gui.lastItemRight() + px(6);
-    }
 
-    // At the end: Follow, and Fit.
+    // At the end: Fit, and before it Follow's list and its label.
     const fit_width = px(30);
-    const follow_width = px(120);
-    var right = at.x + width - px(10) - fit_width;
-    gui.setCursor(.{ .x = right, .y = middle - px(13) });
-    if (widgets.toolButton("fit", .{ .icon = .scan, .icon_only = true, .height = 26, .tooltip = "Zoom to fit the mission" })) Map.fit = true;
-    right -= px(6) + follow_width;
-    gui.setCursor(.{ .x = right, .y = middle - px(13) });
-    followPick(document, scene, follow_width);
-    gui.sans(.regular, fonts.size.small);
+    const fit_left = at.x + width - px(10) - fit_width;
+    const follow_end = fit_left - px(6);
     const follow_label = "Follow";
-    gui.drawText(list, .{ .x = right - px(6) - gui.textSize(follow_label).x, .y = gui.textTop(middle) }, theme.text_dim, follow_label);
+    gui.sans(.regular, fonts.size.small);
+    const label_width = gui.textSize(follow_label).x + px(6);
     gui.popFont();
+    // The chips' widths with their labels and with their icons alone, and the planned chips' share.
+    var labelled = px(chip_gap * (chips.len - 1));
+    var icons = labelled;
+    var planned: f32 = 0;
+    for (chips) |chip| {
+        labelled += chip[1].width();
+        icons += px(widgets.ToggleChip.icon_only_width);
+        if (chip[1].disabled != null) planned += px(widgets.ToggleChip.icon_only_width + chip_gap);
+    }
+    const fit: ToolbarFit = .of(follow_end - x - px(follow_gap), labelled, icons, planned, label_width);
+    const follow_left = if (fit.follow_width) |follow| follow_end - follow else fit_left;
+    const chips_end = follow_left - (if (fit.follow_label) label_width else 0) - px(follow_gap);
+
+    for (chips) |chip| {
+        var shown = chip[1];
+        shown.icon_only = !fit.chip_labels;
+        if (shown.disabled != null and !fit.planned_chips) continue;
+        if (x + shown.width() > chips_end) break;
+        gui.setCursor(.{ .x = x, .y = middle - px(12) });
+        if (widgets.toggleChip(chip[0], shown)) {
+            if (chip[2]) |on| on.* = !on.*;
+        }
+        x = gui.lastItemRight() + px(chip_gap);
+    }
+    gui.setCursor(.{ .x = fit_left, .y = middle - px(13) });
+    if (widgets.toolButton("fit", .{ .icon = .scan, .icon_only = true, .height = 26, .tooltip = "Zoom to fit the mission" })) Map.fit = true;
+    if (fit.follow_width) |follow| {
+        gui.setCursor(.{ .x = follow_left, .y = middle - px(13) });
+        followPick(document, scene, follow, if (fit.follow_label) null else follow_label);
+    }
+    if (fit.follow_label) {
+        gui.sans(.regular, fonts.size.small);
+        gui.drawText(list, .{ .x = follow_left - label_width, .y = gui.textTop(middle) }, theme.text_dim, follow_label);
+        gui.popFont();
+    }
     gui.setCursor(.{ .x = at.x, .y = at.y + height });
 }
 
-/// Follow's list: none, or a ship, which the map then keeps in its middle.
-fn followPick(document: *Document, scene: game.Scene, width: f32) void {
+/// What the map's toolbar shows in `room` pixels between the projection's switch and Fit. Where it
+/// has no room for everything, it leaves out, in turn: the chips' labels, Follow's label, the chips
+/// of what's planned, room in Follow's list down to its least width, and then Follow.
+const ToolbarFit = struct {
+    chip_labels: bool = true,
+    planned_chips: bool = true,
+    follow_label: bool = true,
+    /// Follow's list's width, or null where Follow is left out.
+    follow_width: ?f32,
+
+    /// The fit for chips `labelled` wide with their labels and `icons` wide with their icons
+    /// alone, of which the planned chips take `planned`, and Follow's label `label` wide.
+    fn of(room: f32, labelled: f32, icons: f32, planned: f32, label: f32) ToolbarFit {
+        const most = px(most_follow_width);
+        if (labelled + label + most <= room) return .{ .follow_width = most };
+        if (icons + label + most <= room) return .{ .chip_labels = false, .follow_width = most };
+        if (icons + most <= room) return .{ .chip_labels = false, .follow_label = false, .follow_width = most };
+        const unplanned = icons - planned;
+        return .{
+            .chip_labels = false,
+            .planned_chips = false,
+            .follow_label = false,
+            .follow_width = if (unplanned + px(least_follow_width) <= room) @min(room - unplanned, most) else null,
+        };
+    }
+};
+
+/// Follow's list: none, or a ship, which the map then keeps in its middle. `tooltip` names it
+/// where its label is left out.
+fn followPick(document: *Document, scene: game.Scene, width: f32, tooltip: ?[]const u8) void {
     const known = document.outline();
     const allocator = gui.frameAllocator();
     var choices: std.ArrayList(widgets.Choice) = .empty;
@@ -265,9 +323,9 @@ fn followPick(document: *Document, scene: game.Scene, width: f32) void {
         };
     }
     const frame: widgets.Frame = if (current) |record|
-        .{ .label = record.title, .mark = .{ .icon = .{ .icon = .navigation_2, .color = panels.groupColor(record.*) } }, .width = width }
+        .{ .label = record.title, .mark = .{ .icon = .{ .icon = .navigation_2, .color = panels.groupColor(record.*) } }, .width = width, .tooltip = tooltip }
     else
-        .{ .label = "none", .dim_label = true, .width = width };
+        .{ .label = "none", .dim_label = true, .width = width, .tooltip = tooltip };
     if (widgets.pick("follow", frame, choices.items)) |index| Map.follow = refs.items[index];
 }
 
@@ -873,6 +931,24 @@ fn placeNoteOf(scene: game.Scene, projection: Projection, mark: Mark) drawing.Pl
     const place = placeOf(scene.things[mark.first]);
     const axes = projection.axes();
     return .at(mark.middle, axisNames(projection), .{ place[axes[0]], place[axes[1]] });
+}
+
+test ToolbarFit {
+    // Chips 400 wide with their labels and 184 with their icons alone, 76 of it the planned chips',
+    // and Follow's label 46 wide.
+    const fit = struct {
+        fn of(room: f32) ToolbarFit {
+            return .of(room, 400, 184, 76, 46);
+        }
+    }.of;
+    try std.testing.expectEqual(ToolbarFit{ .follow_width = 120 }, fit(600));
+    try std.testing.expectEqual(ToolbarFit{ .chip_labels = false, .follow_width = 120 }, fit(500));
+    try std.testing.expectEqual(ToolbarFit{ .chip_labels = false, .follow_label = false, .follow_width = 120 }, fit(320));
+    // Then the planned chips go, and Follow's list narrows down to its least width.
+    try std.testing.expectEqual(ToolbarFit{ .chip_labels = false, .planned_chips = false, .follow_label = false, .follow_width = 120 }, fit(250));
+    try std.testing.expectEqual(ToolbarFit{ .chip_labels = false, .planned_chips = false, .follow_label = false, .follow_width = 92 }, fit(200));
+    // Below that, Follow goes.
+    try std.testing.expectEqual(ToolbarFit{ .chip_labels = false, .planned_chips = false, .follow_label = false, .follow_width = null }, fit(150));
 }
 
 test isOnAnyRoute {

@@ -63,6 +63,8 @@ holds, named after its most important thing.
 - **Routes** shows where the script sends each ship and flight group (see below).
 - **Follow** keeps a ship in the middle of the map.
 - Where the map doesn't show the player's start, a note at its edge points to it.
+- In a narrow window, the toolbar's chips show only their icons: point at one for its name. Where
+  that's not enough, Follow's label goes, then Live and Orders, and then Follow.
 
 **Live** and **Orders** show where the ships are and what they do in the running game, and come
 with the live scene ([#21](https://github.com/OpenReliant/openreliant-editor/issues/21)).
