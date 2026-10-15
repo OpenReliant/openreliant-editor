@@ -44,6 +44,10 @@
             .url = "git+https://codeberg.org/ziglang/rc?ref=zig-0.17.x#a8a3b3cebbe6e414fa12d6ad028c56a3a349c75e",
             .hash = "rc-0.0.0-rMftL71EAAAxhe4swpM5rrfcmC9k_j7ApwJJPRssBiDL",
         },
+        .implot = .{
+            .url = "git+https://github.com/epezent/implot.git?ref=v1.0#524f9fcd48d76c13fdf94c5ffbba8787a1ff7e39",
+            .hash = "N-V-__8AAKSTCwA_ALBxWjOi20O0c9_WB3Y1COzRQxwZLpLy",
+        },
     },
     .paths = .{
         "build.zig",

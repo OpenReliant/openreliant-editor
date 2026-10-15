@@ -46,6 +46,8 @@ pub const Profile = struct {
     /// The kind of value a type of mission source takes, such as `FlightGroup?` or `ShipType`, as
     /// the language's parameters and fields name them.
     fieldKind: *const fn (type_name: []const u8) FieldKind,
+    /// What the map shows of the mission whose source is `text`, as `known` outlines it.
+    scene: *const fn (arena: Allocator, text: []const u8, known: Outline) Allocator.Error!Scene,
     /// The kinds of record the outline's + adds, in the order its menu lists them.
     new_kinds: []const NewKind,
     /// The change to `text`, whose outline is `known`, that declares a new record of `kind` after
@@ -202,6 +204,85 @@ pub const FieldKind = union(enum) {
     boolean,
     /// Anything else, which the inspector shows and takes as source.
     source,
+};
+
+/// What the map shows of a mission (`Profile.scene`), in the game's coordinates, Y down: where its
+/// records start, the ranges its triggers watch, its curves, and where its script sends its ships.
+pub const Scene = struct {
+    things: []const Thing,
+    /// The player's ship, by its place in `things`, where the mission has one.
+    player: ?usize = null,
+    ranges: []const Range,
+    /// Each curve, as the points it passes.
+    curves: []const []const [3]f64,
+    routes: []const Route = &.{},
+    /// The field the map writes a dragged thing's place to, such as `position`.
+    place_field: []const u8,
+};
+
+/// A record the map places.
+pub const Thing = struct {
+    /// The record, by its section and its place among the section's (`Outline.nth`).
+    section: Section,
+    index: usize,
+    kind: ThingKind,
+    /// Where it starts.
+    place: [3]f64,
+    /// The way it points, as a unit vector; null for what points nowhere, such as a marker.
+    heading: ?[3]f64 = null,
+};
+
+/// What a thing on the map is, which picks how it's drawn.
+pub const ThingKind = enum {
+    /// A ship, a capital ship or a station: an arrow that points the way it heads.
+    ship,
+    /// A nav point, a waypoint or a point, such as where a ship jumps in: a diamond.
+    marker,
+    /// A point of the director's camera's curves: shown with the curves.
+    camera,
+    /// Scenery far off, such as a planet or the sun: a ring, which the map's fit leaves out.
+    scenery,
+};
+
+/// Where the script sends a ship or a group: a leg from each place it sends it to the next, as its
+/// orders read in the order the source gives them. It's a reading of the script, not a run of it:
+/// triggers run when their conditions hold, which may be in another order.
+pub const Route = struct {
+    /// The ship it's for, by its place in `Scene.things`; none for a group's.
+    ship: ?usize,
+    /// The flight group whose colour it takes: the ship's, or the group's own (`Record.group`).
+    group: ?usize,
+    legs: []const Leg,
+};
+
+/// A leg of a route, between two things by their place in `Scene.things`.
+pub const Leg = struct {
+    from: usize,
+    to: usize,
+    way: Way,
+    /// Whether the route starts at `from`: where its ship starts, or where it comes in.
+    starts: bool = false,
+};
+
+/// How a ship goes along a leg.
+pub const Way = enum { fly, jump };
+
+/// A distance the mission watches within, around one of its records.
+pub const Range = struct {
+    /// The record it's around, by its section and its place among the section's.
+    section: Section,
+    index: usize,
+    radius: f64,
+    /// What watches it, such as a trigger's condition.
+    label: []const u8,
+    style: RangeStyle,
+};
+
+pub const RangeStyle = enum {
+    /// A trigger fires within it.
+    trigger,
+    /// A hint of the game's, such as the display's flyback marker.
+    hint,
 };
 
 /// A kind of record the outline's + adds.
@@ -490,6 +571,15 @@ pub const Field = struct {
     value: []const u8,
     /// Whether the value names another record, such as `group = alpha`.
     names_record: bool = false,
+
+    /// The value as a place or a direction, where the source writes one as numbers:
+    /// `{ -2000, 0, 42000 }`.
+    pub fn vector(field: Field) ?[3]f64 {
+        var parts = std.mem.tokenizeAny(u8, field.value, "{}, ");
+        var made: [3]f64 = undefined;
+        for (&made) |*value| value.* = std.fmt.parseFloat(f64, parts.next() orelse return null) catch return null;
+        return made;
+    }
 };
 
 pub const Record = struct {
@@ -521,6 +611,12 @@ pub const Record = struct {
     first_line: u32,
     last_line: u32,
     column: u32 = 0,
+
+    /// The field `name` its table gives, if it gives one.
+    pub fn given(record: Record, name: []const u8) ?Field {
+        for (record.fields) |field| if (std.mem.eql(u8, field.name, name)) return field;
+        return null;
+    }
 };
 
 /// The number of characters to add, remove or change to turn `a` into `b`, for names up to 64
@@ -558,6 +654,11 @@ test Mission {
     try std.testing.expectEqual(null, built.breakpointFor(5, 7));
     try std.testing.expectEqual(null, built.statementOn(5));
     try std.testing.expectEqual(20, built.statementOn(8).?.offset);
+}
+
+test Field {
+    try std.testing.expectEqual([3]f64{ -2000, 0, 42000.5 }, (Field{ .name = "position", .value = "{ -2000, 0, 42000.5 }" }).vector().?);
+    try std.testing.expectEqual(null, (Field{ .name = "position", .value = "…" }).vector());
 }
 
 test editDistance {

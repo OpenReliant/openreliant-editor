@@ -68,10 +68,11 @@ Write idiomatic Zig 0.17, as OpenReliant's guide describes: name every number, g
 `enum` and switch over it exhaustively, use tagged unions for variants and optionals for "none",
 check invariants with `comptime`, and share code rather than copy it.
 
-C and C++ come in through two shims and one header: the text editor's
-([`src/ui/text_editor`](src/ui/text_editor)), Dear ImGui's internal calls
-([`src/ui/imgui_extras`](src/ui/imgui_extras)), and [`src/platform/c.h`](src/platform/c.h), which
-the build translates into the `c` module with SDL3 and Dear Bindings' C API for Dear ImGui.
+C and C++ come in through three shims and one header: the text editor's
+([`src/ui/text_editor`](src/ui/text_editor)), ImPlot's for the map ([`src/ui/plot`](src/ui/plot)),
+Dear ImGui's internal calls ([`src/ui/imgui_extras`](src/ui/imgui_extras)), and
+[`src/platform/c.h`](src/platform/c.h), which the build translates into the `c` module with SDL3
+and Dear Bindings' C API for Dear ImGui.
 
 Add `test` blocks next to the code in the same change, with inputs built by hand so that they run
 without the game's files. `--check-missions` opens each of a game's own missions as source and

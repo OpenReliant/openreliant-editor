@@ -80,6 +80,23 @@ pub fn textTopIn(middle: f32, line_pixels: ?f32) f32 {
     return @round(middle - line_height / 2 + face.family.metrics().baselineInLine(size, line_height)) - ascent();
 }
 
+/// Where a line of text in the current font goes for its capitals and figures to sit in the middle
+/// of a box whose middle is at `middle`, such as a count in a badge, which has no small letters to
+/// centre. The baseline goes on a whole pixel, since ImGui draws text from whole pixels.
+pub fn capitalsTop(middle: f32) f32 {
+    return @round(middle + capitals() / 2) - ascent();
+}
+
+/// How high the current font's capitals and figures are; for a font that isn't one of the faces,
+/// as high as Plex's would be at its size.
+pub fn capitals() f32 {
+    const face = fonts.current() orelse {
+        const plex = fonts.Family.sans.metrics();
+        return plex.cap_height / plex.em * c.ImGui_GetFontSize();
+    };
+    return face.family.metrics().cap_height * px(face.size);
+}
+
 /// How far below the top of a line of the current font its baseline is, as ImGui draws it.
 pub fn ascent() f32 {
     return c.or_imgui_font_ascent();
@@ -198,6 +215,11 @@ pub fn pushVar2(which: c.ImGuiStyleVar, value: Vec2) void {
 
 pub fn popVar(count: c_int) void {
     c.ImGui_PopStyleVarEx(count);
+}
+
+/// Where the last item ends at its right.
+pub fn lastItemRight() f32 {
+    return c.ImGui_GetItemRectMax().x;
 }
 
 pub fn cursor() Vec2 {

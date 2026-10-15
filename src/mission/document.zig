@@ -65,6 +65,8 @@ pub const Document = struct {
     good: Check,
     /// Whether the outline is from older source than the text's.
     outline_stale: bool = false,
+    /// A number that changes whenever `good` does.
+    outline_generation: usize = 0,
     built: ?Build = null,
     /// The listing of the last build's script, in its own arena.
     listing: ?[]const u8 = null,
@@ -78,6 +80,10 @@ pub const Document = struct {
     /// from. Its strings are in `queue_arena`.
     queued: ?Queued = null,
     queue_arena: std.heap.ArenaAllocator,
+    /// What the map shows of the text (`scene`), in its own arena, with the text's version and the
+    /// outline's generation it was read from.
+    scene_read: ?struct { version: usize, generation: usize, scene: game.Scene } = null,
+    scene_arena: std.heap.ArenaAllocator,
 
     /// Opens the source file at `path`.
     pub fn open(gpa: Allocator, io: Io, path: []const u8, profile: *const game.Profile, language: ?text_editor.Language) !*Document {
@@ -104,6 +110,7 @@ pub const Document = struct {
             .good = .{ .arena = .init(gpa) },
             .listing_arena = .init(gpa),
             .queue_arena = .init(gpa),
+            .scene_arena = .init(gpa),
         };
         document.recheck() catch {};
         return document;
@@ -115,6 +122,7 @@ pub const Document = struct {
         document.good.deinit();
         document.listing_arena.deinit();
         document.queue_arena.deinit();
+        document.scene_arena.deinit();
         document.gpa.free(document.path);
         document.gpa.destroy(document);
     }
@@ -131,6 +139,21 @@ pub const Document = struct {
     /// The outline to show: the last one that parsed.
     pub fn outline(document: *const Document) game.Outline {
         return document.good.outline;
+    }
+
+    /// What the map shows of the mission (`Profile.scene`), read again only once the text or its
+    /// outline changed, since reading it parses the whole script.
+    pub fn scene(document: *Document) Allocator.Error!game.Scene {
+        const version = document.editor.version();
+        if (document.scene_read) |read| {
+            if (read.version == version and read.generation == document.outline_generation) return read.scene;
+        }
+        document.scene_read = null;
+        _ = document.scene_arena.reset(.retain_capacity);
+        const arena = document.scene_arena.allocator();
+        const made = try document.profile.scene(arena, try arena.dupe(u8, document.editor.text()), document.outline());
+        document.scene_read = .{ .version = version, .generation = document.outline_generation, .scene = made };
+        return made;
     }
 
     /// The build of the text as last checked, with the map of its script's statements; null while
@@ -186,6 +209,7 @@ pub const Document = struct {
             good.outline = try copyOutline(good.arena.allocator(), check.outline);
             document.good.deinit();
             document.good = good;
+            document.outline_generation +%= 1;
             document.outline_stale = false;
         } else {
             document.outline_stale = true;

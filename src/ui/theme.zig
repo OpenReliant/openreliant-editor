@@ -22,6 +22,18 @@ pub fn fade(color: Color, opacity: f32) Color {
     return (color & 0x00ff_ffff) | a << 24;
 }
 
+/// `color` mixed with white, `amount` of the way from 0 to 1: the lighter text of a flight group's
+/// colour.
+pub fn lighten(color: Color, amount: f32) Color {
+    var result: Color = color & 0xff00_0000;
+    for ([_]u5{ 0, 8, 16 }) |shift| {
+        const value: f32 = @floatFromInt((color >> shift) & 0xff);
+        const mixed: u32 = @intFromFloat(value + (255 - value) * std.math.clamp(amount, 0, 1) + 0.5);
+        result |= mixed << shift;
+    }
+    return result;
+}
+
 pub fn vec4(color: Color) c.ImVec4 {
     return .{
         .x = @as(f32, @floatFromInt(color & 0xff)) / 255,
@@ -46,6 +58,13 @@ pub const bar = rgb(0x0c0f15);
 pub const toolbar = rgb(0x0e1118);
 /// Code, the source views and the inspector's code.
 pub const code = rgb(0x0b0d12);
+/// The map's ground and its grid: a line every few cells, and the cells' lines between them.
+pub const map = rgb(0x0a0c11);
+pub const map_grid = rgb(0x202839);
+pub const map_grid_minor = rgb(0x131824);
+/// A trigger's range's label on the map, and a curve, in the dim text's colour.
+pub const range_text = rgb(0xf4b27a);
+pub const curve = text_dim;
 /// The line under the source's tabs that says where the cursor is.
 pub const breadcrumbs = rgb(0x0d1017);
 /// Fields, search boxes, and switches' tracks.
@@ -265,4 +284,11 @@ pub fn apply(scale: f32) void {
 test rgb {
     try std.testing.expectEqual(@as(Color, 0xff2c8af0), rgb(0xf08a2c));
     try std.testing.expectEqual(@as(Color, 0x242c8af0), fade(rgb(0xf08a2c), 0.14));
+}
+
+test lighten {
+    // The player's blue, nearly half way to white: the design's light blue.
+    try std.testing.expectEqual(rgb(0xa8d1ff), lighten(rgb(0x5aa9ff), 0.47));
+    try std.testing.expectEqual(rgb(0x5aa9ff), lighten(rgb(0x5aa9ff), 0));
+    try std.testing.expectEqual(rgb(0xffffff), lighten(rgb(0x5aa9ff), 1));
 }

@@ -21,6 +21,7 @@ pub const ui = @import("ui.zig");
 pub const document = @import("mission/document.zig");
 pub const edit = @import("mission/edit.zig");
 pub const forms = @import("forms.zig");
+pub const scene_view = @import("views/scene.zig");
 pub const script_view = @import("views/script.zig");
 pub const start_screen = @import("screens/start.zig");
 pub const settings_screen = @import("screens/settings.zig");
@@ -48,7 +49,7 @@ const Options = struct {
     check_missions: bool = false,
     print_version: bool = false,
 
-    const Show = enum { start, settings, palette, keys, link, problems };
+    const Show = enum { start, settings, palette, keys, link, problems, scene };
 
     const usage =
         \\Usage: openreliant-editor [<mod folder or mission file>] [options]
@@ -59,7 +60,7 @@ const Options = struct {
         \\  --screenshot <file>    draw without a window and save a frame as a PNG file
         \\  --frames <count>       the frames drawn before the picture; 10 by default
         \\  --size <width>x<height>  the window's size; 1440x900 by default
-        \\  --show <screen>        start, settings, keys, link, palette or problems
+        \\  --show <screen>        start, settings, keys, link, palette, problems or scene
         \\  --check-missions       open each of the game's missions as source, build it again,
         \\                         and check it's the same mission
         \\
@@ -137,6 +138,8 @@ pub fn main(init: std.process.Init) !u8 {
     const ini_path: ?[:0]const u8 = if (editor_settings.folder) |folder| try std.fmt.allocPrintSentinel(arena, "{s}layout.ini", .{folder}, 0) else null;
     var window = try Window.open("OpenReliant Editor", options.width, options.height, if (ini_path) |path| path.ptr else null, options.screenshot != null);
     defer window.close();
+    ui.plot.create();
+    defer ui.plot.destroy();
     ui.fonts.load();
     ui.theme.apply(window.scale);
     ui.gui.scale = window.scale;
@@ -164,6 +167,7 @@ pub fn main(init: std.process.Init) !u8 {
         },
         .palette => editor.palette.show(.commands),
         .problems => editor.showPanel(.problems),
+        .scene => editor.run(.view_2),
     };
 
     var frame: u32 = 0;

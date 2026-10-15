@@ -24,10 +24,12 @@ own library, which `build.zig.zon` pins, so it reads every mission exactly as th
 | [`panels.zig`](../src/panels.zig) | The dockable panels: the outline, problems, the inspector and the others |
 | [`forms.zig`](../src/forms.zig) | The inspector's forms: a record's fields as controls that write the source |
 | [`views/script.zig`](../src/views/script.zig) | The Script view: the source, its gutter, help and completion, and the listing |
+| [`views/scene.zig`](../src/views/scene.zig) | The Scene view: the map of the mission's ships and markers, its ranges, curves and routes, and moving them |
+| [`views/scene/drawing.zig`](../src/views/scene/drawing.zig) | How the map draws its parts: the grid, rings, legs, marks, names and notes |
 | [`palette.zig`](../src/palette.zig) | The command palette, Play from part, and the game's missions |
 | [`screens/`](../src/screens) | The start screen and the settings |
 | [`toasts.zig`](../src/toasts.zig) | Short messages that fade out |
-| [`ui/`](../src/ui) | The interface kit: colours, fonts, icons, widgets, the text editor |
+| [`ui/`](../src/ui) | The interface kit: colours, fonts, icons, widgets, the text editor, and the map's plot (ImPlot, through a C shim) |
 | [`platform/`](../src/platform) | The window, SDL_GPU, ImGui's backends, and the C header the build translates |
 
 ## The game profile
@@ -41,6 +43,8 @@ profile, a `game.Profile`:
   parameters, the game's variables, and the names of its values;
 - the records a mission's source declares, for the outline and the inspector, the fields each
   record's table can give, and the changes that edit them or declare a new record;
+- what the map shows of a mission: where its records start and which way its ships point, the
+  ranges its triggers watch, and its curves;
 - building source into a mission file, with the map of its script's statements to the source's
   lines, decompiling a mission file into source, and comparing two missions and their scripts;
 - the game's messages on the editor link, and the script's flags for a set of offsets;
@@ -80,6 +84,34 @@ are each on one. While drawing, the interface only queues the change (`Document.
 makes it once the frame is drawn, since making it checks the text again, which replaces the outline
 the frame drew from.
 
+## The map
+
+The Scene view's map draws on ImPlot, which gives it equal axes, the pointer's pan and dragging; the
+editor reaches it through a C shim (`ui/plot/plot_shim.h`), as it reaches the text editor. The
+editor zooms the map itself, around the pointer, and switches ImPlot's zoom off, since ImPlot
+doesn't zoom while the pointer is over a marker.
+
+The profile says what the map shows (`Profile.scene`). StarLancer's places each ship and marker by
+its `position`, and says which are scenery: the planets of the original's table
+(`create.planets.original`) and the sun's and nebulae's markers. It points a ship as OpenReliant
+turns it by its angles (`mission.recordOrientation`), rings each ShipReached trigger's nav point or
+waypoint at the 4000 the game watches within, rings each ship the script's `SetFlybackMarker`
+names at its range, and draws each curve as the director's camera runs it
+(`executor.curves.point`). It reads the routes from the script's syntax tree, in the order the
+source gives it: the orders that `SetAI` gives, found by the command catalogue's parameters and
+sorted by OpenReliant's order table (`ai.orders.Order`) into flying, jumping and coming in, and the
+patrol routes `SetPatrolRoute` sets. A branch that leaves a ship in different places stops its
+route. The document keeps the scene until its text or its outline changes, since reading it parses
+the whole script.
+
+The map fits the mission without its scenery, which lies far off. Each frame it gathers the things
+that would overlap on the screen into one mark, the most important first: the selection, the player,
+the ships, the markers, the camera's points and the scenery. Names then go in the same order, each
+on the first side of its mark where it covers no mark and no name, and crosses no route where a side
+is free. The map draws its own grid, so that its scale is always a cell, and draws only the part of
+a range's ring or a route's leg that shows. A dragged ship or marker is queued as an edit of its
+place, as the forms' edits are, when it's let go.
+
 ## The debugger
 
 The debugger links to the game over OpenReliant's editor link ([Debugging a mission](debugging.md)).
@@ -99,8 +131,7 @@ profile (`Profile.link`), so that it never names StarLancer's tags or opcodes.
 
 Each shows in the interface, greyed out, with its issue:
 
-- the Scene view ([#2](https://github.com/OpenReliant/openreliant-editor/issues/2)) and the Blocks
-  view ([#3](https://github.com/OpenReliant/openreliant-editor/issues/3));
+- the Blocks view ([#3](https://github.com/OpenReliant/openreliant-editor/issues/3));
 - Mod mode, with Reload scripts and Play with this mod only
   ([#4](https://github.com/OpenReliant/openreliant-editor/issues/4));
 - the debugger's conditions, log points, Watch, values inline and Debugging screen

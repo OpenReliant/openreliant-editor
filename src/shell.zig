@@ -12,6 +12,7 @@ const commands = @import("commands.zig");
 const Command = commands.Command;
 const keys = @import("keys.zig");
 const panels = @import("panels.zig");
+const scene_view = @import("views/scene.zig");
 const ui = @import("ui.zig");
 const version = @import("version.zig");
 const fonts = ui.fonts;
@@ -538,7 +539,9 @@ fn statusBar(app: *App) void {
         x += gui.textSize(text).x + gap;
     }
     const cursor = document.editor.cursor();
-    for ([_][]const u8{ document.file, gui.print("Ln {d}, Col {d}", .{ cursor.line + 1, cursor.index + 1 }), keyHints(app) }) |part| {
+    // The Scene view shows the map and the place under the pointer instead of the cursor.
+    const where = if (app.view == .scene) scene_view.status() else gui.print("Ln {d}, Col {d}", .{ cursor.line + 1, cursor.index + 1 });
+    for ([_][]const u8{ document.file, where, keyHints(app) }) |part| {
         gui.drawText(list, .{ .x = x, .y = text_y }, theme.text_muted, part);
         x += gui.textSize(part).x + gap;
     }

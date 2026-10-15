@@ -186,7 +186,7 @@ fn linkPage(app: *App) void {
         defer row.end();
         const labels = [_][]const u8{ "Off", "1 Hz", "4 Hz" };
         row.centre(choice_height);
-        if (choice("state rate", &labels, @backingInt(link.state_rate))) |chosen| {
+        if (widgets.choice("state rate", &labels, @backingInt(link.state_rate), .{})) |chosen| {
             link.state_rate = @fromBackingInt(@intCast(chosen));
             app.settings.save(app.io);
         }
@@ -308,38 +308,6 @@ fn portField(app: *App) void {
             }
         } else |_| {}
     }
-}
-
-/// The design's choice of a few, the settings' `.seg`: each option as wide as its label, the one
-/// chosen lit. The option clicked, if one is.
-fn choice(id: []const u8, options: []const []const u8, current: usize) ?usize {
-    gui.pushId(id);
-    defer gui.popId();
-    gui.sans(.regular, fonts.size.ui);
-    defer gui.popFont();
-    var width = px(3) * 2 + px(2) * @as(f32, @floatFromInt(options.len - 1));
-    for (options) |option| width += gui.textSize(option).x + px(12) * 2;
-    const height = px(30);
-    const at = gui.cursor();
-    const list = gui.drawList();
-    gui.rect(list, at, .{ .x = at.x + width, .y = at.y + height }, theme.field, 5);
-    gui.outline(list, at, .{ .x = at.x + width, .y = at.y + height }, theme.border, 5);
-    var chosen: ?usize = null;
-    var x = at.x + px(3);
-    for (options, 0..) |option, index| {
-        const item_width = gui.textSize(option).x + px(12) * 2;
-        gui.setCursor(.{ .x = x, .y = at.y + px(3) });
-        gui.pushIdInt(index);
-        if (c.ImGui_InvisibleButton("option", .{ .x = item_width, .y = px(24) }, 0)) chosen = index;
-        gui.popId();
-        const on = index == current;
-        if (on) gui.rect(list, .{ .x = x, .y = at.y + px(3) }, .{ .x = x + item_width, .y = at.y + px(27) }, theme.border, 3);
-        gui.drawText(list, .{ .x = x + px(12), .y = gui.textTop(at.y + height / 2) }, if (on) theme.white else theme.text_muted, option);
-        x += item_width + px(2);
-    }
-    gui.setCursor(at);
-    c.ImGui_Dummy(.{ .x = width, .y = height });
-    return chosen;
 }
 
 /// The design's `.plan`: what's planned, in a small grey pill, its middle at the cursor.
