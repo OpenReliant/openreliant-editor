@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.2.0](https://github.com/OpenReliant/openreliant-editor/compare/v0.1.1...v0.2.0) (2026-10-15)
+
+
+### Features
+
+* edit a mission's records in the inspector, and add new ones ([#28](https://github.com/OpenReliant/openreliant-editor/issues/28)) ([104aac1](https://github.com/OpenReliant/openreliant-editor/commit/104aac10803aea6b5fa2e63f853783a63118f624)), closes [#8](https://github.com/OpenReliant/openreliant-editor/issues/8)
+* the Scene view maps a mission's ships, markers, ranges and routes ([#31](https://github.com/OpenReliant/openreliant-editor/issues/31)) ([4e5061e](https://github.com/OpenReliant/openreliant-editor/commit/4e5061ef27a1abad30a811edbe9c7d591d618c0f)), closes [#2](https://github.com/OpenReliant/openreliant-editor/issues/2)
+
+
+### Fixes
+
+* icons on their own sit in the middle of their boxes ([#30](https://github.com/OpenReliant/openreliant-editor/issues/30)) ([58c23a4](https://github.com/OpenReliant/openreliant-editor/commit/58c23a4f613bfd95edf8b35640a185e4c719f690))
+
 ## [0.1.1](https://github.com/OpenReliant/openreliant-editor/compare/v0.1.0...v0.1.1) (2026-10-15)
 
 
