@@ -768,6 +768,8 @@ pub const Frame = struct {
     disabled: ?Disabled = null,
     /// Its width; by default the space left on the line.
     width: ?f32 = null,
+    /// What it's for, where no label beside it says so.
+    tooltip: ?[]const u8 = null,
 };
 
 /// The design's `.frame`: a field that opens a list, as the inspector's.
@@ -794,7 +796,7 @@ pub fn frame(id: []const u8, shown: Frame) bool {
         gui.popFont();
     };
     if (shown.chevron) drawIcon(list, .{ .x = max.x - px(8) - px(12), .y = middle }, .chevron_down, fonts.size.icon_tiny, theme.text_dim);
-    if (shown.disabled) |off| gui.tooltip(off.reason);
+    if (shown.disabled) |off| gui.tooltip(off.reason) else if (shown.tooltip) |tip| gui.tooltip(tip);
     return clicked;
 }
 
@@ -1033,26 +1035,54 @@ pub fn choice(id: []const u8, options: []const []const u8, current: usize, look:
 }
 
 /// The design's `.chip` that turns something on and off, such as the map's Ranges: an icon and a
-/// label, lit while on. True when clicked.
-pub fn toggleChip(id: []const u8, label: []const u8, icon: Icon, on: bool, disabled: ?Disabled) bool {
-    gui.sans(.regular, fonts.size.small);
-    defer gui.popFont();
+/// label, lit while on.
+pub const ToggleChip = struct {
+    label: []const u8,
+    icon: Icon,
+    on: bool = false,
+    disabled: ?Disabled = null,
+    /// The icon alone, with the label in its tooltip, for a bar without room for the label.
+    icon_only: bool = false,
+
+    /// In design pixels: the padding at each end, the gap between the icon and the label, and the
+    /// width of a chip with its icon alone.
+    const padding = 9;
+    const gap = 6;
     const icon_size = fonts.size.icon_small;
-    const width = px(9) + px(icon_size) + px(6) + gui.textSize(label).x + px(9);
+    pub const icon_only_width = padding * 2 + icon_size;
+
+    pub fn width(shown: ToggleChip) f32 {
+        if (shown.icon_only) return px(icon_only_width);
+        gui.sans(.regular, fonts.size.small);
+        defer gui.popFont();
+        return px(padding * 2 + icon_size + gap) + gui.textSize(shown.label).x;
+    }
+};
+
+/// Draws `shown` at the cursor. True when clicked.
+pub fn toggleChip(id: []const u8, shown: ToggleChip) bool {
+    const width = shown.width();
     const height = px(24);
     const at = gui.cursor();
-    const clicked = c.ImGui_InvisibleButton(gui.z(id), .{ .x = width, .y = height }, 0) and disabled == null;
-    if (disabled == null) gui.handCursor();
+    const clicked = c.ImGui_InvisibleButton(gui.z(id), .{ .x = width, .y = height }, 0) and shown.disabled == null;
+    if (shown.disabled == null) gui.handCursor();
     const list = gui.drawList();
     const max = gui.vec2(at.x + width, at.y + height);
-    const lit = on and disabled == null;
+    const lit = shown.on and shown.disabled == null;
     gui.rect(list, at, max, if (lit) theme.pill else theme.field, 4);
     gui.outline(list, at, max, if (lit) theme.border_strong else theme.border, 4);
-    const color = if (disabled != null) theme.text_off else if (lit) theme.text_strong else theme.text_muted;
+    const color = if (shown.disabled != null) theme.text_off else if (lit) theme.text_strong else theme.text_muted;
     const middle = at.y + height / 2;
-    drawIcon(list, .{ .x = at.x + px(9), .y = middle }, icon, icon_size, color);
-    gui.drawText(list, .{ .x = at.x + px(9) + px(icon_size) + px(6), .y = gui.textTop(middle) }, color, label);
-    if (disabled) |off| gui.tooltip(off.reason);
+    if (shown.icon_only) {
+        drawIconCentered(list, .{ .x = at.x + width / 2, .y = middle }, shown.icon, ToggleChip.icon_size, color);
+        gui.tooltip(if (shown.disabled) |off| gui.print("{s} · {s}", .{ shown.label, off.reason }) else shown.label);
+        return clicked;
+    }
+    drawIcon(list, .{ .x = at.x + px(ToggleChip.padding), .y = middle }, shown.icon, ToggleChip.icon_size, color);
+    gui.sans(.regular, fonts.size.small);
+    defer gui.popFont();
+    gui.drawText(list, .{ .x = at.x + px(ToggleChip.padding + ToggleChip.icon_size + ToggleChip.gap), .y = gui.textTop(middle) }, color, shown.label);
+    if (shown.disabled) |off| gui.tooltip(off.reason);
     return clicked;
 }
 
