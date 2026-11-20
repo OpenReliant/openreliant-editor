@@ -137,3 +137,26 @@ jobs:
           gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --notes "$note
 
           $changelog"
+
+  announce:
+    needs: [release-please, attach]
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Post the editor release to Discord
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_RELEASES_WEBHOOK }}
+          TAG: ${{ needs.release-please.outputs.tag }}
+        run: |
+          if [ -z "$DISCORD_WEBHOOK" ]; then
+            printf '%s\n' 'Discord webhook is not configured.'
+            exit 0
+          fi
+          release_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/$TAG"
+          editor_page="https://openreliant.github.io/openreliant/#editor"
+          payload=$(jq -cn --arg title "OpenReliant Editor $TAG" --arg page "$editor_page" --arg url "$release_url" \
+            '{content: ("**" + $title + "**\n[Editor page](" + $page + ") · [Release notes](" + $url + ")"),
+              allowed_mentions: {parse: []}}')
+          curl --fail --silent --show-error --retry 3 --retry-max-time 40 --max-time 15 \
+            --output /dev/null --header 'Content-Type: application/json' \
+            --data "$payload" "$DISCORD_WEBHOOK?wait=true"
